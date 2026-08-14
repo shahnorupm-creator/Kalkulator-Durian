@@ -1,0 +1,28 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Users collection
+    match /users/{userId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Only admin via Admin SDK
+    }
+    
+    // Centralized kebun collection
+    match /kebun/{kebunId} {
+      // Admin/HQ can read all
+      allow read: if request.auth != null;
+      // Admin can create/update/delete
+      allow create: if request.auth != null;
+      allow update: if request.auth != null;
+      allow delete: if request.auth != null;
+      
+      // Lawatan subcollection under kebun
+      match /lawatan/{lawatanId} {
+        allow read: if request.auth != null;
+        allow create: if request.auth != null;
+        allow update: if request.auth != null;
+      }
+    }
+  }
+}
