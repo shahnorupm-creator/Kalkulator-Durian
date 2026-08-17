@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
@@ -9,6 +10,7 @@ import toast from 'react-hot-toast';
 
 export default function ProfilPage() {
   const { user, profile } = useAuth();
+  const { t } = useLanguage();
   const [editMode, setEditMode] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -41,11 +43,11 @@ export default function ProfilPage() {
         noPerkerja: noPerkerja.trim(),
         daerah: daerah.trim(),
       });
-      toast.success('Profil dikemas kini!');
+      toast.success(t('profil.saved'));
       setEditMode(false);
     } catch (e) {
       console.error(e);
-      toast.error('Gagal kemaskini profil.');
+      toast.error(t('profil.saveFailed'));
     }
     setSaving(false);
   };
@@ -70,7 +72,7 @@ export default function ProfilPage() {
       // Update password
       await updatePassword(user, newPass);
 
-      toast.success('Kata laluan berjaya ditukar!');
+      toast.success(t('profil.passwordChanged'));
       setShowPasswordForm(false);
       setCurrentPass('');
       setNewPass('');
@@ -88,7 +90,7 @@ export default function ProfilPage() {
 
   return (
     <div className="space-y-4">
-      <h2 className="text-lg font-bold text-forest">Profil Saya</h2>
+      <h2 className="text-lg font-bold text-forest">{t('profil.title')}</h2>
 
       {/* Profile Header Card */}
       <div className="bg-gradient-forest rounded-2xl p-6 text-white text-center relative overflow-hidden">

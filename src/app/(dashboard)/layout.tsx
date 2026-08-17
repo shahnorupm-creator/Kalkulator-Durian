@@ -3,22 +3,27 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Locale, LOCALE_SHORT } from '@/lib/i18n';
 import Navbar from '@/components/Navbar';
+import OfflineIndicator from '@/components/OfflineIndicator';
+import PendingSyncBadge from '@/components/PendingSyncBadge';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
 function DesktopSidebar() {
   const pathname = usePathname();
   const { profile, isSuperAdmin, isAnyAdmin, hasPageAccess, signOut } = useAuth();
+  const { locale, setLocale, t } = useLanguage();
 
   const allNavItems = [
-    { href: '/', label: 'Profil & Kebun', icon: '🌱', desc: 'Daftar & urus kebun', pageKey: 'profil_kebun' },
-    { href: '/kalkulator', label: 'Usia & Fasa', icon: '📊', desc: 'Kira anggaran hasil', pageKey: 'kalkulator' },
-    { href: '/dashboard-hq', label: 'Dashboard HQ', icon: '🗺️', desc: 'Analisis keseluruhan', pageKey: 'dashboard_hq' },
-    { href: '/laporan', label: 'Laporan', icon: '📋', desc: 'Jana laporan infografik', pageKey: 'laporan' },
-    { href: '/profil', label: 'Profil Saya', icon: '👤', desc: 'Kemaskini profil & password', pageKey: 'profil' },
-    ...(isAnyAdmin ? [{ href: '/admin', label: 'Admin Panel', icon: '⚙️', desc: 'Urus pengguna & role', pageKey: 'admin' }] : []),
-    ...(isSuperAdmin ? [{ href: '/admin/settings', label: 'Tetapan Akses', icon: '🔒', desc: 'Kawal akses halaman', pageKey: 'admin' }] : []),
+    { href: '/', label: t('nav.kebun'), icon: '🌱', desc: locale === 'bm' ? 'Daftar & urus kebun' : 'Register & manage farms', pageKey: 'profil_kebun' },
+    { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', desc: locale === 'bm' ? 'Kira anggaran hasil' : 'Estimate yield', pageKey: 'kalkulator' },
+    { href: '/dashboard-hq', label: t('nav.dashboard'), icon: '🗺️', desc: locale === 'bm' ? 'Analisis keseluruhan' : 'Overall analysis', pageKey: 'dashboard_hq' },
+    { href: '/laporan', label: locale === 'bm' ? 'Laporan' : 'Reports', icon: '📋', desc: locale === 'bm' ? 'Jana laporan infografik' : 'Generate infographic report', pageKey: 'laporan' },
+    { href: '/profil', label: t('nav.profil'), icon: '👤', desc: locale === 'bm' ? 'Kemaskini profil & password' : 'Update profile & password', pageKey: 'profil' },
+    ...(isAnyAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: '⚙️', desc: locale === 'bm' ? 'Urus pengguna & role' : 'Manage users & roles', pageKey: 'admin' }] : []),
+    ...(isSuperAdmin ? [{ href: '/admin/settings', label: locale === 'bm' ? 'Tetapan Akses' : 'Access Settings', icon: '🔒', desc: locale === 'bm' ? 'Kawal akses halaman' : 'Control page access', pageKey: 'admin' }] : []),
   ];
 
   const navItems = allNavItems.filter(item => hasPageAccess(item.pageKey));
@@ -32,9 +37,28 @@ function DesktopSidebar() {
             <span className="text-xl">🌱</span>
           </div>
           <div>
-            <h1 className="text-sm font-bold text-forest">Kalkulator Durian</h1>
+            <h1 className="text-sm font-bold text-forest">{locale === 'bm' ? 'Kalkulator Durian' : 'Durian Calculator'}</h1>
             <p className="text-[9px] text-gray-400">FAMA Malaysia</p>
           </div>
+        </div>
+      </div>
+
+      {/* Language Toggle */}
+      <div className="px-4 pt-3">
+        <div className="inline-flex bg-gray-100 rounded-full p-0.5 w-full">
+          {(['bm', 'en'] as Locale[]).map((lang) => (
+            <button
+              key={lang}
+              onClick={() => setLocale(lang)}
+              className={`flex-1 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${
+                locale === lang
+                  ? 'bg-forest text-white shadow-sm'
+                  : 'text-gray-500 hover:text-forest'
+              }`}
+            >
+              {LOCALE_SHORT[lang]}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -76,7 +100,7 @@ function DesktopSidebar() {
         </div>
         <button onClick={signOut}
           className="w-full text-xs text-gray-400 hover:text-red-500 py-2 rounded-lg hover:bg-red-50 transition-all">
-          Log Keluar
+          {t('nav.logout')}
         </button>
       </div>
     </aside>
@@ -89,6 +113,7 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const { user, loading } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   useEffect(() => {
@@ -104,8 +129,8 @@ export default function DashboardLayout({
           <div className="w-20 h-20 bg-gradient-forest rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse shadow-lg">
             <span className="text-3xl">🌱</span>
           </div>
-          <p className="text-forest font-semibold text-sm">Memuatkan sistem...</p>
-          <p className="text-gray-400 text-xs mt-1">Sila tunggu sebentar</p>
+          <p className="text-forest font-semibold text-sm">{t('app.loading')}</p>
+          <p className="text-gray-400 text-xs mt-1">{t('app.pleaseWait')}</p>
         </div>
       </div>
     );
@@ -117,6 +142,9 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-cream">
+      {/* Offline indicator - top banner */}
+      <OfflineIndicator />
+
       {/* Desktop sidebar - hidden on mobile */}
       <DesktopSidebar />
 
@@ -128,6 +156,10 @@ export default function DashboardLayout({
       {/* Main content area */}
       <main className="lg:ml-64 pb-24 lg:pb-8">
         <div className="max-w-4xl mx-auto px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+          {/* Pending sync badge - shown when writes are queued */}
+          <div className="mb-3 flex justify-end">
+            <PendingSyncBadge showOnlySyncing={true} />
+          </div>
           {children}
         </div>
       </main>

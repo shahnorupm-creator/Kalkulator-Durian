@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { NEGERI_FLAG_COLORS, NEGERI_FLAG } from '@/lib/constants';
@@ -34,6 +35,7 @@ interface NegeriData {
 
 export default function LaporanPage() {
   const { profile } = useAuth();
+  const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
   const [lawatan, setLawatan] = useState<LawatanRecord[]>([]);
@@ -228,14 +230,14 @@ export default function LaporanPage() {
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    toast.success('Laporan berjaya dimuat turun!');
+    toast.success(t('report.downloaded'));
   };
 
   return (
     <div className="space-y-4">
       <div>
-        <h2 className="text-lg font-bold text-forest">Laporan & Infografik</h2>
-        <p className="text-xs text-gray-500">Jana laporan pengeluaran dengan bendera negeri</p>
+        <h2 className="text-lg font-bold text-forest">{t('report.title')}</h2>
+        <p className="text-xs text-gray-500">{t('report.subtitle')}</p>
       </div>
 
       {/* Ringkasan Stats */}
@@ -311,7 +313,7 @@ export default function LaporanPage() {
       {/* Generate Button */}
       <button onClick={generateReport}
         className="w-full bg-gradient-gold text-black py-3.5 rounded-xl font-bold shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
-        <span>📥</span> Jana Laporan Infografik
+        <span>📥</span> {t('report.generate')}
       </button>
 
       {/* Hidden canvas */}
@@ -321,11 +323,11 @@ export default function LaporanPage() {
       {showPreview && (
         <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4" onClick={() => setShowPreview(false)}>
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-bold text-forest text-center mb-2">Laporan Berjaya Dijana!</h3>
+            <h3 className="font-bold text-forest text-center mb-2">{t('report.generated')}</h3>
             {previewUrl && <img src={previewUrl} alt="Laporan" className="w-full rounded-lg border border-gray-200 mb-4" />}
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setShowPreview(false)} className="bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm">Tutup</button>
-              <button onClick={downloadReport} className="bg-gradient-forest text-white py-3 rounded-xl font-semibold text-sm">💾 Muat Turun</button>
+              <button onClick={() => setShowPreview(false)} className="bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm">{t('report.close')}</button>
+              <button onClick={downloadReport} className="bg-gradient-forest text-white py-3 rounded-xl font-semibold text-sm">{t('report.download')}</button>
             </div>
           </div>
         </div>

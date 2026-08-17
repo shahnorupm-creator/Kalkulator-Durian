@@ -3,20 +3,21 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 export default function Navbar() {
   const pathname = usePathname();
   const { profile, isOnline, hasPageAccess, isAnyAdmin } = useAuth();
+  const { t } = useLanguage();
 
   const allNavItems = [
-    { href: '/', label: 'Kebun', icon: '🌱', pageKey: 'profil_kebun' },
-    { href: '/kalkulator', label: 'Kalkulator', icon: '📊', pageKey: 'kalkulator' },
-    { href: '/dashboard-hq', label: 'Dashboard', icon: '🗺️', pageKey: 'dashboard_hq' },
-    { href: '/profil', label: 'Profil', icon: '👤', pageKey: 'profil' },
-    ...(isAnyAdmin ? [{ href: '/admin', label: 'Admin', icon: '⚙️', pageKey: 'admin' }] : []),
+    { href: '/', label: t('nav.kebun'), icon: '🌱', pageKey: 'profil_kebun' },
+    { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', pageKey: 'kalkulator' },
+    { href: '/dashboard-hq', label: t('nav.dashboard'), icon: '🗺️', pageKey: 'dashboard_hq' },
+    { href: '/profil', label: t('nav.profil'), icon: '👤', pageKey: 'profil' },
+    ...(isAnyAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: '⚙️', pageKey: 'admin' }] : []),
   ];
 
-  // Filter nav items based on page access
   const navItems = allNavItems.filter(item => hasPageAccess(item.pageKey));
 
   return (
@@ -27,7 +28,7 @@ export default function Navbar() {
             <span className="text-lg">🌱</span>
           </div>
           <div>
-            <h1 className="text-sm font-bold leading-tight">Kalkulator Durian FAMA</h1>
+            <h1 className="text-sm font-bold leading-tight">{t('app.title')}</h1>
             <p className="text-[9px] opacity-60">
               {profile?.nama || 'Pegawai'} &bull; {profile?.negeri || profile?.daerah || '-'}
               {profile?.role && ` \u2022 ${ROLE_LABELS[profile.role] || profile.role}`}
@@ -36,7 +37,7 @@ export default function Navbar() {
         </div>
         <div className="flex items-center gap-1.5 bg-white/10 px-2 py-1 rounded-full">
           <div className={`w-2 h-2 rounded-full ${isOnline ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`} />
-          <span className="text-[9px]">{isOnline ? 'Online' : 'Offline'}</span>
+          <span className="text-[9px]">{isOnline ? t('nav.online') : t('nav.offline')}</span>
         </div>
       </header>
 

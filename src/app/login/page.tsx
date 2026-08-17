@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
+import { Locale, LOCALE_SHORT } from '@/lib/i18n';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -10,6 +12,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn } = useAuth();
+  const { locale, setLocale, t } = useLanguage();
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -22,15 +25,15 @@ export default function LoginPage() {
       router.push('/');
     } catch (err: unknown) {
       const errorMessage =
-        err instanceof Error ? err.message : 'Ralat tidak diketahui';
+        err instanceof Error ? err.message : 'Unknown error';
       if (errorMessage.includes('invalid-credential') || errorMessage.includes('wrong-password')) {
-        setError('Email atau kata laluan tidak sah.');
+        setError(t('login.errorInvalid'));
       } else if (errorMessage.includes('user-not-found')) {
-        setError('Akaun tidak wujud. Sila hubungi admin.');
+        setError(t('login.errorNotFound'));
       } else if (errorMessage.includes('too-many-requests')) {
-        setError('Terlalu banyak percubaan. Sila cuba selepas beberapa minit.');
+        setError(t('login.errorTooMany'));
       } else {
-        setError('Gagal log masuk. Sila cuba lagi.');
+        setError(t('login.errorGeneral'));
       }
     } finally {
       setLoading(false);
@@ -40,19 +43,39 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-forest to-forest-dark flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
+
+        {/* Language Toggle — Top Right */}
+        <div className="flex justify-end mb-4">
+          <div className="inline-flex bg-white/10 backdrop-blur-sm rounded-full p-1 border border-white/20">
+            {(['bm', 'en'] as Locale[]).map((lang) => (
+              <button
+                key={lang}
+                onClick={() => setLocale(lang)}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
+                  locale === lang
+                    ? 'bg-white text-forest shadow-md'
+                    : 'text-white/70 hover:text-white'
+                }`}
+              >
+                {LOCALE_SHORT[lang]}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg border border-white/20">
             <span className="text-4xl">🌱</span>
           </div>
           <h1 className="text-2xl font-bold text-white">Durian FAMA</h1>
-          <p className="text-white/50 text-sm mt-1">Sistem Anggaran Pengeluaran Durian</p>
+          <p className="text-white/50 text-sm mt-1">{t('app.subtitle')}</p>
         </div>
 
         {/* Login Card */}
         <div className="bg-white rounded-3xl shadow-2xl p-7">
-          <h2 className="text-lg font-bold text-forest mb-1">Log Masuk</h2>
-          <p className="text-xs text-gray-400 mb-6">Masukkan maklumat akaun anda</p>
+          <h2 className="text-lg font-bold text-forest mb-1">{t('login.title')}</h2>
+          <p className="text-xs text-gray-400 mb-6">{t('login.subtitle')}</p>
 
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-600 px-4 py-3 rounded-xl mb-4 text-sm flex items-center gap-2">
@@ -64,7 +87,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5 tracking-wide">
-                Email
+                {t('login.email')}
               </label>
               <input
                 type="email"
@@ -78,7 +101,7 @@ export default function LoginPage() {
 
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1.5 tracking-wide">
-                Kata Laluan
+                {t('login.password')}
               </label>
               <input
                 type="password"
@@ -98,26 +121,26 @@ export default function LoginPage() {
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Sedang log masuk...
+                  {t('login.loading')}
                 </span>
               ) : (
-                'Log Masuk'
+                t('login.submit')
               )}
             </button>
           </form>
 
           <div className="mt-6 pt-5 border-t border-gray-100">
             <p className="text-[11px] text-gray-400 text-center">
-              Akaun disediakan oleh pentadbir sistem.
+              {t('login.footer')}
               <br />
-              Hubungi admin jika anda tiada akses.
+              {t('login.footerContact')}
             </p>
           </div>
         </div>
 
         {/* Footer */}
         <p className="text-center text-white/30 text-[10px] mt-6">
-          FAMA © 2026 • Peneraju Agromakanan Negara
+          {t('app.copyright')}
         </p>
       </div>
     </div>

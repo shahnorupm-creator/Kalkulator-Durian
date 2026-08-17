@@ -2,8 +2,10 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { LanguageProvider } from '@/contexts/LanguageContext';
 import { Toaster } from 'react-hot-toast';
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
+import AutoSyncManager from '@/components/AutoSyncManager';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -36,21 +38,24 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
       <body className={inter.className}>
-        <AuthProvider>
-          <ServiceWorkerRegister />
-          {children}
-          <Toaster
-            position="bottom-center"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: '#1F4D36',
-                color: '#fff',
-                borderRadius: '10px',
-              },
-            }}
-          />
-        </AuthProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <ServiceWorkerRegister />
+            <AutoSyncManager />
+            {children}
+            <Toaster
+              position="bottom-center"
+              toastOptions={{
+                duration: 3000,
+                style: {
+                  background: '#1F4D36',
+                  color: '#fff',
+                  borderRadius: '10px',
+                },
+              }}
+            />
+          </AuthProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

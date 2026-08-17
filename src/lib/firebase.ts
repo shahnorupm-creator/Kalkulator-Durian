@@ -1,6 +1,13 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore, enableIndexedDbPersistence } from 'firebase/firestore';
+import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import {
+  initializeFirestore,
+  getFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  CACHE_SIZE_UNLIMITED,
+  Firestore,
+} from 'firebase/firestore';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -13,18 +20,33 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
-const db = getFirestore(app);
 
-// Enable offline persistence (client-side only)
+// --- Auth with LOCAL persistence (survive offline + page reloads) ---
+const auth = getAuth(app);
 if (typeof window !== 'undefined') {
-  enableIndexedDbPersistence(db).catch((err) => {
-    if (err.code === 'failed-precondition') {
-      console.warn('Firestore persistence failed: Multiple tabs open');
-    } else if (err.code === 'unimplemented') {
-      console.warn('Firestore persistence not available in this browser');
-    }
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('[Auth] Persistence setup error:', err.message);
   });
+}
+
+// --- Firestore with multi-tab offline persistence ---
+let db: Firestore;
+
+if (typeof window !== 'undefined') {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+      }),
+    });
+  } catch (err: unknown) {
+    // Firestore already initialized (hot module reload in dev)
+    db = getFirestore(app);
+  }
+} else {
+  // Server-side: no persistence needed
+  db = getFirestore(app);
 }
 
 export { app, auth, db };

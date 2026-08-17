@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { NEGERI_FLAG_COLORS, NEGERI_FLAG } from '@/lib/constants';
@@ -35,6 +36,7 @@ interface KebunRecord {
 
 export default function DashboardHQPage() {
   const { profile } = useAuth();
+  const { t } = useLanguage();
   const [lawatan, setLawatan] = useState<LawatanRecord[]>([]);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,11 +132,11 @@ export default function DashboardHQPage() {
         <div className="relative z-10">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-lg font-bold">Executive Dashboard</h2>
-              <p className="text-white/50 text-[10px]">Analisis Pengeluaran Durian FAMA</p>
+              <h2 className="text-lg font-bold">{t('dash.title')}</h2>
+              <p className="text-white/50 text-[10px]">{t('dash.subtitle')}</p>
             </div>
             <div className="text-right">
-              <p className="text-[9px] text-white/40">Dikemas kini</p>
+              <p className="text-[9px] text-white/40">{t('dash.updated')}</p>
               <p className="text-[10px] text-white/70 font-medium">{today}</p>
             </div>
           </div>
@@ -144,24 +146,24 @@ export default function DashboardHQPage() {
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">Jumlah Kebun</p>
+          <p className="text-[9px] text-gray-400 font-medium">{t('dash.kebun')}</p>
           <p className="text-2xl font-bold text-forest mt-1">{kpi.totalKebun}</p>
-          <p className="text-[9px] text-moss mt-0.5">{kpi.negeriAktif} negeri aktif</p>
+          <p className="text-[9px] text-moss mt-0.5">{kpi.negeriAktif} {t('dash.negeriAktif')}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">Keluasan</p>
+          <p className="text-[9px] text-gray-400 font-medium">{t('dash.keluasan')}</p>
           <p className="text-2xl font-bold text-forest mt-1">{kpi.totalEkar.toFixed(0)}</p>
-          <p className="text-[9px] text-moss mt-0.5">ekar keseluruhan</p>
+          <p className="text-[9px] text-moss mt-0.5">{t('dash.ekarKeseluruhan')}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">Anggaran Hasil</p>
+          <p className="text-[9px] text-gray-400 font-medium">{t('dash.anggaranHasil')}</p>
           <p className="text-2xl font-bold text-gold mt-1">{kpi.totalMT.toFixed(2)}</p>
-          <p className="text-[9px] text-moss mt-0.5">metrik tan</p>
+          <p className="text-[9px] text-moss mt-0.5">{t('dash.metrikTan')}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">Rekod Lawatan</p>
+          <p className="text-[9px] text-gray-400 font-medium">{t('dash.rekodLawatan')}</p>
           <p className="text-2xl font-bold text-forest mt-1">{kpi.totalLawatan}</p>
-          <p className="text-[9px] text-moss mt-0.5">entry direkodkan</p>
+          <p className="text-[9px] text-moss mt-0.5">{t('dash.entryDirekod')}</p>
         </div>
       </div>
 
@@ -202,7 +204,7 @@ export default function DashboardHQPage() {
       {lambakanAlerts.length === 0 && lawatan.length > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
           <span>🟢</span>
-          <p className="text-[10px] text-green-700 font-medium">Tiada risiko lambakan. Pengeluaran tersebar sekata.</p>
+          <p className="text-[10px] text-green-700 font-medium">{t('dash.lambakanSafe')}</p>
         </div>
       )}
 
@@ -212,7 +214,7 @@ export default function DashboardHQPage() {
         {/* Negeri Ranking */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-forest">Pengeluaran Mengikut Negeri</h3>
+            <h3 className="text-sm font-bold text-forest">{t('dash.negeriRanking')}</h3>
             <span className="text-[9px] text-gray-400">{negeriRanking.length} negeri</span>
           </div>
           {negeriRanking.length === 0 ? (
@@ -257,7 +259,7 @@ export default function DashboardHQPage() {
         {/* Varieti Distribution */}
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-forest">Pecahan Varieti</h3>
+            <h3 className="text-sm font-bold text-forest">{t('dash.varietiDist')}</h3>
             <span className="text-[9px] text-gray-400">{varietiDist.length} varieti</span>
           </div>
           {varietiDist.length === 0 ? (
@@ -286,8 +288,8 @@ export default function DashboardHQPage() {
       {/* Monthly Forecast Chart */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-forest">Jangkaan Pengeluaran Bulanan</h3>
-          <span className="text-[9px] text-gray-400">metrik tan</span>
+          <h3 className="text-sm font-bold text-forest">{t('dash.monthlyForecast')}</h3>
+          <span className="text-[9px] text-gray-400">{t('dash.metrikTan')}</span>
         </div>
         {monthlyForecast.length === 0 ? (
           <p className="text-xs text-gray-400 text-center py-6">Belum ada data</p>
@@ -321,7 +323,7 @@ export default function DashboardHQPage() {
       {/* Data Table */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-forest">Jadual Ringkasan Negeri</h3>
+          <h3 className="text-sm font-bold text-forest">{t('dash.jadualNegeri')}</h3>
         </div>
         {negeriRanking.length === 0 ? (
           <p className="text-xs text-gray-400 text-center py-4">Belum ada data</p>
@@ -378,7 +380,7 @@ export default function DashboardHQPage() {
 
       {/* Executive Summary Footer */}
       <div className="bg-gradient-forest rounded-xl p-5 text-white">
-        <h3 className="text-sm font-bold mb-3">Ringkasan Eksekutif</h3>
+        <h3 className="text-sm font-bold mb-3">{t('dash.ringkasanEksekutif')}</h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <div className="bg-white/10 rounded-lg p-3 text-center">
             <p className="text-2xl font-bold">{kpi.totalMT.toFixed(1)}</p>

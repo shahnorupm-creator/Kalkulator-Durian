@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { NEGERI_DAERAH, SENARAI_NEGERI, VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG } from '@/lib/constants';
@@ -50,6 +51,7 @@ const USIA_COLUMNS = [
 
 export default function ProfilKebunPage() {
   const { user, profile, isSuperAdmin, isAnyAdmin, signOut } = useAuth();
+  const { t } = useLanguage();
   const [kebunList, setKebunList] = useState<KebunRecord[]>([]);
   const [pegawaiList, setPegawaiList] = useState<PegawaiOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -262,15 +264,15 @@ export default function ProfilKebunPage() {
 
       if (editingKebun) {
         await updateDoc(doc(db, 'kebun', editingKebun.id), data);
-        toast.success('Kebun dikemas kini!');
+        toast.success(t('kebun.updated'));
       } else {
         await addDoc(collection(db, 'kebun'), { ...data, createdAt: serverTimestamp() });
-        toast.success('Kebun berjaya disimpan!');
+        toast.success(t('kebun.saved'));
       }
       resetForm();
     } catch (e) {
       console.error(e);
-      toast.error('Gagal menyimpan.');
+      toast.error(t('kebun.saveFailed'));
     }
     setSaving(false);
   };
@@ -309,9 +311,9 @@ export default function ProfilKebunPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!user || !confirm('Padam kebun ini?')) return;
+    if (!user || !confirm(t('kebun.delete'))) return;
     await deleteDoc(doc(db, 'kebun', id));
-    toast.success('Dipadam.');
+    toast.success(t('kebun.deleted'));
   };
 
   const filtered = kebunList.filter(k => {
@@ -327,28 +329,28 @@ export default function ProfilKebunPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold text-forest">Profil Daerah & Kebun</h2>
+          <h2 className="text-lg font-bold text-forest">{t('kebun.title')}</h2>
           <p className="text-xs text-gray-500">
-            {canAccessAllNegeri ? 'Semua negeri (Admin)' : `Kebun assigned kepada anda`}
+            {canAccessAllNegeri ? t('kebun.subtitleAdmin') : t('kebun.subtitleUser')}
           </p>
         </div>
         <button onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
           className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md hover:bg-moss transition-all active:scale-95">
-          {showForm ? '✕ Tutup' : '+ Daftar Kebun'}
+          {showForm ? t('kebun.closeBtn') : t('kebun.addBtn')}
         </button>
       </div>
 
       {!canAccessAllNegeri && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
           <span className="text-sm">📍</span>
-          <p className="text-xs text-blue-700">Anda nampak kebun yang telah di-assign kepada anda.</p>
+          <p className="text-xs text-blue-700">{t('kebun.assignedInfo')}</p>
         </div>
       )}
 
       {/* Error Banner */}
       {errors.length > 0 && (
         <div className="bg-red-50 border border-red-200 rounded-xl p-4">
-          <p className="text-sm font-semibold text-red-700">⚠️ Medan wajib belum diisi:</p>
+          <p className="text-sm font-semibold text-red-700">{t('kebun.requiredFields')}</p>
           <ul className="mt-1 text-xs text-red-600 list-disc list-inside">
             {errors.map(e => <li key={e}>{e}</li>)}
           </ul>
@@ -359,7 +361,7 @@ export default function ProfilKebunPage() {
       {showForm && (
         <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
           <h3 className="font-bold text-forest text-sm">
-            {editingKebun ? '✏️ Edit Kebun' : '📝 Daftar Pekebun'}
+            {editingKebun ? t('kebun.formTitleEdit') : t('kebun.formTitleNew')}
           </h3>
 
           {editingKebun && (
@@ -371,10 +373,10 @@ export default function ProfilKebunPage() {
           {/* Assign — Admin only */}
           {isAnyAdmin && (
             <div className="bg-purple-50 border border-purple-200 rounded-xl p-3">
-              <label className="text-[10px] font-semibold text-purple-700">👤 Assign Kepada Pegawai</label>
+              <label className="text-[10px] font-semibold text-purple-700">{t('kebun.assignTo')}</label>
               <select value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
                 className="w-full mt-1 px-3 py-2.5 border border-purple-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-purple-300 focus:outline-none">
-                <option value="">-- Pilih Pegawai --</option>
+                <option value="">{t('kebun.selectPegawai')}</option>
                 {pegawaiList.map(p => <option key={p.uid} value={p.uid}>{p.nama} {p.negeri ? `(${p.negeri})` : ''}</option>)}
               </select>
             </div>
@@ -383,11 +385,11 @@ export default function ProfilKebunPage() {
           {/* Negeri & Daerah */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">Negeri *</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.negeri')} *</label>
               {canAccessAllNegeri ? (
                 <select value={form.negeri} onChange={(e) => handleNegeriChange(e.target.value)}
                   className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-forest/30 focus:outline-none">
-                  <option value="">-- Pilih Negeri --</option>
+                  <option value="">{t('kebun.selectNegeri')}</option>
                   {SENARAI_NEGERI.map(n => <option key={n} value={n}>{n}</option>)}
                 </select>
               ) : (
@@ -395,11 +397,11 @@ export default function ProfilKebunPage() {
               )}
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">Daerah *</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.daerah')} *</label>
               <select value={form.daerah} onChange={(e) => setForm({ ...form, daerah: e.target.value })}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-forest/30 focus:outline-none"
                 disabled={!form.negeri}>
-                <option value="">-- Pilih Daerah --</option>
+                <option value="">{t('kebun.selectDaerah')}</option>
                 {daerahOptions.map(d => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
@@ -408,29 +410,29 @@ export default function ProfilKebunPage() {
           {/* Nama Mukim & Nama Pekebun */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">Nama Mukim *</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.mukim')} *</label>
               <input value={form.mukim} onChange={(e) => setForm({ ...form, mukim: capitalizeWords(e.target.value) })}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
                 placeholder="Contoh: Pertang" />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">Nama Pekebun *</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.nama')} *</label>
               <input value={form.nama} onChange={(e) => setForm({ ...form, nama: capitalizeWords(e.target.value) })}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
-                placeholder="Nama pekebun" />
+                placeholder={t('kebun.nama')} />
             </div>
           </div>
 
           {/* Keluasan & Alamat */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">Keluasan Tanaman (Ekar) *</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.keluasan')} *</label>
               <input type="number" value={form.saizKebun} onChange={(e) => setForm({ ...form, saizKebun: e.target.value })}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
                 placeholder="2.7" min="0" step="0.1" />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">Alamat Kebun *</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.alamat')} *</label>
               <input value={form.alamat} onChange={(e) => setForm({ ...form, alamat: capitalizeWords(e.target.value) })}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
                 placeholder="Lot 1927, Air Baning, 72400" />
@@ -440,7 +442,7 @@ export default function ProfilKebunPage() {
           {/* Lat/Long & No Telefon */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">Latitude & Longitude</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.latlong')}</label>
               <div className="flex gap-1.5 mt-1">
                 <input value={form.latlong} onChange={(e) => setForm({ ...form, latlong: e.target.value })}
                   className="flex-1 min-w-0 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
@@ -456,7 +458,7 @@ export default function ProfilKebunPage() {
               )}
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-gray-500">No Telefon</label>
+              <label className="text-[10px] font-semibold text-gray-500">{t('kebun.noTelefon')}</label>
               <input value={form.noTelefon} onChange={(e) => setForm({ ...form, noTelefon: e.target.value })}
                 className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
                 placeholder="013-7717886" />
@@ -465,7 +467,7 @@ export default function ProfilKebunPage() {
 
           {/* Pilih Varieti & Tentukan Bilangan Pokok */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-500 mb-2 block">Pilih Varieti &amp; Tentukan Bilangan Pokok</label>
+            <label className="text-[10px] font-semibold text-gray-500 mb-2 block">{t('kebun.varieti')}</label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {USIA_COLUMNS.map(col => (
                 <div key={col.usiaKey} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
@@ -492,14 +494,14 @@ export default function ProfilKebunPage() {
                       min="0"
                       placeholder="0"
                     />
-                    <p className="text-[8px] text-gray-400 text-center">bilangan pokok</p>
+                    <p className="text-[8px] text-gray-400 text-center">{t('kebun.bilanganPokok')}</p>
                   </div>
                 </div>
               ))}
             </div>
             {jumlahPokokFromUsia > 0 && (
               <p className="text-xs text-forest font-bold mt-3 text-center bg-forest/5 rounded-lg py-2">
-                Jumlah Pokok: {jumlahPokokFromUsia} pokok
+                {t('kebun.jumlahPokok')}: {jumlahPokokFromUsia} {t('kebun.pokok')}
               </p>
             )}
           </div>
@@ -507,7 +509,7 @@ export default function ProfilKebunPage() {
           {/* Preview */}
           {form.saizKebun && (
             <div className="bg-forest/5 rounded-xl p-3 text-xs text-gray-600 space-y-1">
-              <p className="text-sm font-bold text-forest mb-2">Keberhasilan Durian</p>
+              <p className="text-sm font-bold text-forest mb-2">{t('kebun.keberhasilan')}</p>
               <p>📐 Keluasan: <strong>{form.saizKebun} ekar</strong></p>
               {jumlahPokokFromUsia > 0 && <p>🌳 Jumlah Pokok: <strong>{jumlahPokokFromUsia} pokok</strong></p>}
               {USIA_COLUMNS.map(col => {
@@ -527,10 +529,10 @@ export default function ProfilKebunPage() {
           <div className="flex gap-3">
             <button onClick={handleSave} disabled={saving}
               className="flex-1 bg-gradient-forest text-white py-3 rounded-xl font-semibold shadow-lg active:scale-[0.98] disabled:opacity-50">
-              {saving ? 'Menyimpan...' : editingKebun ? '✓ Kemas Kini' : '💾 Simpan Kebun'}
+              {saving ? t('kebun.saving') : editingKebun ? t('kebun.update') : t('kebun.save')}
             </button>
             {editingKebun && (
-              <button onClick={resetForm} className="px-4 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">Batal</button>
+              <button onClick={resetForm} className="px-4 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">{t('kebun.cancel')}</button>
             )}
           </div>
         </div>
@@ -548,7 +550,7 @@ export default function ProfilKebunPage() {
             ))}
           </div>
         )}
-        <input placeholder="🔍 Cari nama atau daerah..." value={search} onChange={(e) => setSearch(e.target.value)}
+        <input placeholder={t('kebun.search')} value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-forest/30 focus:outline-none" />
       </div>
 
@@ -558,8 +560,8 @@ export default function ProfilKebunPage() {
       ) : filtered.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
           <span className="text-4xl block mb-3">🌱</span>
-          <p className="text-gray-500 text-sm">{search ? 'Tiada kebun dijumpai.' : 'Belum ada kebun didaftarkan.'}</p>
-          {!showForm && !search && <button onClick={() => setShowForm(true)} className="mt-3 text-forest text-sm font-semibold underline">+ Daftar kebun pertama</button>}
+          <p className="text-gray-500 text-sm">{search ? t('kebun.notFound') : t('kebun.empty')}</p>
+          {!showForm && !search && <button onClick={() => setShowForm(true)} className="mt-3 text-forest text-sm font-semibold underline">{t('kebun.firstKebun')}</button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -585,7 +587,7 @@ export default function ProfilKebunPage() {
                 <div className={`absolute top-2.5 right-2.5 text-[8px] px-1.5 py-0.5 rounded-full font-bold ${
                   isComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
                 }`}>
-                  {isComplete ? '✓ Lengkap' : '⚠ Kemaskini'}
+                  {isComplete ? t('kebun.complete') : t('kebun.incomplete')}
                 </div>
 
                 {/* Nama */}
@@ -640,13 +642,13 @@ export default function ProfilKebunPage() {
               </div>
             );
           })}
-          <p className="text-[10px] text-gray-400 text-center pt-2">Jumlah: {filtered.length} pekebun</p>
+          <p className="text-[10px] text-gray-400 text-center pt-2">{t('kebun.total')}: {filtered.length} {t('kebun.pekebun')}</p>
         </div>
       )}
 
       {/* Sign Out */}
       <button onClick={signOut} className="w-full mt-4 py-3 text-sm text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-all">
-        Log Keluar
+        {t('nav.logout')}
       </button>
     </div>
   );
