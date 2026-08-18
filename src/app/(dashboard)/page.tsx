@@ -33,6 +33,8 @@ interface KebunRecord {
   assignedTo: string;
   assignedNama: string;
   createdBy: string;
+  createdAt: { seconds: number; nanoseconds: number } | null;
+  updatedAt: { seconds: number; nanoseconds: number } | null;
 }
 
 interface PegawaiOption {
@@ -263,10 +265,10 @@ export default function ProfilKebunPage() {
       };
 
       if (editingKebun) {
-        await updateDoc(doc(db, 'kebun', editingKebun.id), data);
+        await updateDoc(doc(db, 'kebun', editingKebun.id), { ...data, updatedAt: serverTimestamp() });
         toast.success(t('kebun.updated'));
       } else {
-        await addDoc(collection(db, 'kebun'), { ...data, createdAt: serverTimestamp() });
+        await addDoc(collection(db, 'kebun'), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
         toast.success(t('kebun.saved'));
       }
       resetForm();
@@ -330,9 +332,11 @@ export default function ProfilKebunPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-forest">{t('kebun.title')}</h2>
-          <p className="text-xs text-gray-500">
-            {canAccessAllNegeri ? t('kebun.subtitleAdmin') : t('kebun.subtitleUser')}
-          </p>
+          {(canAccessAllNegeri ? t('kebun.subtitleAdmin') : t('kebun.subtitleUser')) && (
+            <p className="text-xs text-gray-500">
+              {canAccessAllNegeri ? t('kebun.subtitleAdmin') : t('kebun.subtitleUser')}
+            </p>
+          )}
         </div>
         <button onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
           className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md hover:bg-moss transition-all active:scale-95">
@@ -626,6 +630,19 @@ export default function ProfilKebunPage() {
                 {uniqueVarieti.length > 0 && (
                   <p className="text-[9px] text-moss mt-1.5 truncate">
                     {uniqueVarieti.join(', ')}
+                  </p>
+                )}
+
+                {/* Timestamp */}
+                {(k.updatedAt || k.createdAt) && (
+                  <p className="text-[8px] text-gray-400 mt-1.5">
+                    🕒 {(() => {
+                      const ts = k.updatedAt || k.createdAt;
+                      if (!ts || !ts.seconds) return '-';
+                      const d = new Date(ts.seconds * 1000);
+                      return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
+                    })()}
+                    {k.updatedAt && k.createdAt && k.updatedAt.seconds !== k.createdAt.seconds ? ' (dikemas kini)' : ''}
                   </p>
                 )}
 

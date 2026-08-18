@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -10,6 +10,29 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 import PendingSyncBadge from '@/components/PendingSyncBadge';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+
+function LiveClock() {
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!now) return null;
+
+  return (
+    <div className="mt-3 bg-forest/5 rounded-lg px-3 py-2 text-center">
+      <p className="text-[10px] text-gray-500">
+        {now.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+      </p>
+      <p className="text-sm font-bold text-forest">
+        {now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </p>
+    </div>
+  );
+}
 
 function DesktopSidebar() {
   const pathname = usePathname();
@@ -41,6 +64,7 @@ function DesktopSidebar() {
             <p className="text-[9px] text-gray-400">FAMA Malaysia</p>
           </div>
         </div>
+        <LiveClock />
       </div>
 
       {/* Language Toggle */}

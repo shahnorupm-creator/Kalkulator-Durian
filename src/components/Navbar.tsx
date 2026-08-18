@@ -1,9 +1,30 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+
+function MobileDateTime() {
+  const [now, setNow] = useState<Date | null>(null);
+
+  useEffect(() => {
+    setNow(new Date());
+    const timer = setInterval(() => setNow(new Date()), 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  if (!now) return null;
+
+  return (
+    <>
+      {now.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+      {' \u2022 '}
+      {now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}
+    </>
+  );
+}
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -32,6 +53,9 @@ export default function Navbar() {
             <p className="text-[9px] opacity-60">
               {profile?.nama || 'Pegawai'} &bull; {profile?.negeri || profile?.daerah || '-'}
               {profile?.role && ` \u2022 ${ROLE_LABELS[profile.role] || profile.role}`}
+            </p>
+            <p className="text-[9px] opacity-50 mt-0.5">
+              <MobileDateTime />
             </p>
           </div>
         </div>
