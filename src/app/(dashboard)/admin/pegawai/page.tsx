@@ -22,6 +22,7 @@ export default function AdminPegawaiPage() {
   const [pegawaiList, setPegawaiList] = useState<Pegawai[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [showPegawaiPass, setShowPegawaiPass] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [form, setForm] = useState({
     email: '',
@@ -136,15 +137,21 @@ export default function AdminPegawaiPage() {
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm"
             required
           />
-          <input
-            type="password"
-            placeholder="Kata Laluan * (min 6 aksara)"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm"
-            required
-            minLength={6}
-          />
+          <div className="relative">
+            <input
+              type={showPegawaiPass ? 'text' : 'password'}
+              placeholder="Kata Laluan * (min 6 aksara)"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm pr-9"
+              required
+              minLength={6}
+            />
+            <button type="button" onClick={() => setShowPegawaiPass(!showPegawaiPass)}
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+              {showPegawaiPass ? '🙈' : '👁'}
+            </button>
+          </div>
           <input
             type="text"
             placeholder="Nama Penuh *"

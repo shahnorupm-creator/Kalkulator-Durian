@@ -69,6 +69,7 @@ export default function ProfilKebunPage() {
   const [filterNegeri, setFilterNegeri] = useState('Semua');
   const [filterDaerah, setFilterDaerah] = useState('Semua');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [errors, setErrors] = useState<string[]>([]);
   const [gettingLocation, setGettingLocation] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
@@ -667,8 +668,21 @@ export default function ProfilKebunPage() {
           return null;
         })()}
 
-        <input placeholder={t('kebun.search')} value={search} onChange={(e) => setSearch(e.target.value)}
-          className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-forest/30 focus:outline-none" />
+        <div className="flex gap-2 items-center">
+          <input placeholder={t('kebun.search')} value={search} onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-forest/30 focus:outline-none" />
+          {/* Grid/List Toggle */}
+          <div className="flex bg-gray-100 rounded-lg p-0.5">
+            <button onClick={() => setViewMode('list')}
+              className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+              ☰
+            </button>
+            <button onClick={() => setViewMode('grid')}
+              className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+              ⊞
+            </button>
+          </div>
+        </div>
       </div>
 
       {/* Kebun List */}
@@ -681,6 +695,55 @@ export default function ProfilKebunPage() {
           {!showForm && !search && <button onClick={() => setShowForm(true)} className="mt-3 text-forest text-sm font-semibold underline">{t('kebun.firstKebun')}</button>}
         </div>
       ) : (
+        viewMode === 'list' ? (
+          /* LIST VIEW — compact table */
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-forest/5 text-[9px] font-bold text-forest border-b border-gray-100">
+              <span className="col-span-3">Pekebun</span>
+              <span className="col-span-2">Daerah</span>
+              <span className="col-span-1 text-center">Ekar</span>
+              <span className="col-span-1 text-center">Pokok</span>
+              <span className="col-span-3">Varieti</span>
+              <span className="col-span-2 text-center">Status</span>
+            </div>
+            {filtered.map(k => {
+              const pokok = k.jumlahPokok || 0;
+              const hasVarietiData = (k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)) || k.varieti5_9 || k.varieti10_15 || k.varieti16_19;
+              const isComplete = pokok > 0 && hasVarietiData && !!k.alamat && !!k.mukim && !!k.latlong && !!k.noTelefon && k.noTelefon !== '-';
+              const varietiNames = (() => {
+                if (k.varietiData && k.varietiData.length > 0) {
+                  const map: Record<string, number> = {};
+                  k.varietiData.forEach(v => { if (v.varieti && v.bilangan > 0) map[v.varieti] = (map[v.varieti] || 0) + v.bilangan; });
+                  return Object.entries(map).map(([vKey]) => VARIETIES.find(v => v.key === vKey)?.name.split(' (')[0] || vKey);
+                }
+                return [k.varieti5_9, k.varieti10_15, k.varieti16_19].filter(Boolean).map(vKey => VARIETIES.find(v => v.key === vKey)?.name.split(' (')[0] || vKey);
+              })();
+              return (
+                <div key={k.id} onClick={() => handleEdit(k)}
+                  className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-all">
+                  <div className="col-span-3 flex items-center gap-2 min-w-0">
+                    {k.negeri && NEGERI_FLAG_COLORS[k.negeri] && (
+                      <div className="w-4 h-3 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
+                        <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].top }} />
+                        <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
+                      </div>
+                    )}
+                    <span className="text-[10px] font-bold text-forest truncate">{k.nama}</span>
+                  </div>
+                  <span className="col-span-2 text-[9px] text-gray-500 truncate">{k.daerah || '-'}</span>
+                  <span className="col-span-1 text-[9px] text-center font-semibold text-forest">{k.saizKebun}</span>
+                  <span className="col-span-1 text-[9px] text-center font-semibold text-gold">{pokok}</span>
+                  <span className="col-span-3 text-[8px] text-gray-500 truncate">{varietiNames.join(', ')}</span>
+                  <span className="col-span-2 text-center">
+                    <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${isComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {isComplete ? '✓ Lengkap' : '⚠ Kemaskini'}
+                    </span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(k => {
             const pokok = k.jumlahPokok || 0;
@@ -814,6 +877,7 @@ export default function ProfilKebunPage() {
           })}
           <p className="text-[10px] text-gray-400 text-center pt-2">{t('kebun.total')}: {filtered.length} {t('kebun.pekebun')}</p>
         </div>
+        )
       )}
 
       {/* Ringkasan Negeri */}

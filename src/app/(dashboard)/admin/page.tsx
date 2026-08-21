@@ -28,6 +28,7 @@ export default function AdminPage() {
   const [showForm, setShowForm] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [editingUser, setEditingUser] = useState<string | null>(null);
+  const [showAdminPass, setShowAdminPass] = useState(false);
   const [filterRole, setFilterRole] = useState('Semua');
   const [form, setForm] = useState({
     email: '',
@@ -214,9 +215,15 @@ export default function AdminPage() {
             <input type="email" placeholder="Email *" value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm" required />
-            <input type="password" placeholder="Kata Laluan * (min 6)" value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-              className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm" required minLength={6} />
+            <div className="relative">
+              <input type={showAdminPass ? 'text' : 'password'} placeholder="Kata Laluan * (min 6)" value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm pr-9" required minLength={6} />
+              <button type="button" onClick={() => setShowAdminPass(!showAdminPass)}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+                {showAdminPass ? '🙈' : '👁'}
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <input placeholder="Nama Penuh *" value={form.nama}

@@ -25,6 +25,7 @@ export default function ProfilPage() {
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [changingPass, setChangingPass] = useState(false);
+  const [showPassFields, setShowPassFields] = useState({ current: false, new: false, confirm: false });
 
   const ACRONYMS = ['FAMA', 'IOI', 'HQ', 'GPS', 'MARDI', 'MPOB', 'RISDA', 'FELDA', 'FELCRA', 'JPM', 'KPM'];
   const capitalizeWords = (str: string) =>
@@ -193,15 +194,33 @@ export default function ProfilPage() {
               <div className="space-y-3">
                 <h4 className="text-sm font-bold text-forest">🔐 Tukar Kata Laluan</h4>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <input type="password" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
-                    placeholder="Kata Laluan Semasa" />
-                  <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
-                    placeholder="Kata Laluan Baru (Min 6)" minLength={6} />
-                  <input type="password" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)}
-                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
-                    placeholder="Sahkan Kata Laluan Baru" />
+                  <div className="relative">
+                    <input type={showPassFields.current ? 'text' : 'password'} value={currentPass} onChange={(e) => setCurrentPass(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none pr-9"
+                      placeholder="Kata Laluan Semasa" />
+                    <button type="button" onClick={() => setShowPassFields(p => ({ ...p, current: !p.current }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+                      {showPassFields.current ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input type={showPassFields.new ? 'text' : 'password'} value={newPass} onChange={(e) => setNewPass(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none pr-9"
+                      placeholder="Kata Laluan Baru (Min 6)" minLength={6} />
+                    <button type="button" onClick={() => setShowPassFields(p => ({ ...p, new: !p.new }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+                      {showPassFields.new ? '🙈' : '👁'}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <input type={showPassFields.confirm ? 'text' : 'password'} value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none pr-9"
+                      placeholder="Sahkan Kata Laluan Baru" />
+                    <button type="button" onClick={() => setShowPassFields(p => ({ ...p, confirm: !p.confirm }))}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+                      {showPassFields.confirm ? '🙈' : '👁'}
+                    </button>
+                  </div>
                 </div>
                 {newPass && confirmPass && newPass !== confirmPass && (
                   <p className="text-[9px] text-red-500">⚠️ Kata Laluan Tidak Sepadan</p>
