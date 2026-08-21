@@ -73,8 +73,13 @@ export default function AdminPage() {
     : ['pegawai_daerah', 'pegawai']; // admin_negeri can only create pegawai
 
   // Auto-format: Capitalize Each Word
+  const ACRONYMS = ['FAMA', 'IOI', 'HQ', 'GPS', 'MARDI', 'MPOB', 'RISDA', 'FELDA', 'FELCRA', 'JPM', 'KPM'];
   const capitalizeWords = (str: string) =>
-    str.replace(/\b[\p{L}']+/gu, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+    str.replace(/\b[\p{L}']+/gu, (word) => {
+      const upper = word.toUpperCase();
+      if (ACRONYMS.includes(upper)) return upper;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    });
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

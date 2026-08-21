@@ -26,8 +26,13 @@ export default function ProfilPage() {
   const [confirmPass, setConfirmPass] = useState('');
   const [changingPass, setChangingPass] = useState(false);
 
+  const ACRONYMS = ['FAMA', 'IOI', 'HQ', 'GPS', 'MARDI', 'MPOB', 'RISDA', 'FELDA', 'FELCRA', 'JPM', 'KPM'];
   const capitalizeWords = (str: string) =>
-    str.replace(/\b[\p{L}']+/gu, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+    str.replace(/\b[\p{L}']+/gu, (word) => {
+      const upper = word.toUpperCase();
+      if (ACRONYMS.includes(upper)) return upper;
+      return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+    });
 
   const getRoleLabel = (role: string) => ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role;
 
