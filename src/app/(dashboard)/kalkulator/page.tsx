@@ -330,61 +330,64 @@ export default function KalkulatorPage() {
       {/* ═══════════════════ STEP 3: Hasil ═══════════════════ */}
       {step === 3 && kebun && (
         <div className="space-y-4">
-          {/* Kebun + Fasa badge */}
-          <div className="bg-forest/5 rounded-xl px-4 py-2 text-[10px] text-gray-600">
-            <span className="font-bold text-forest">{kebun.nama}</span> &bull; {varietiAggregate.length} varieti &bull; Fasa: {fasaLabel(fasaUtama)} &bull; {new Date(tarikhLawatan).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
-          </div>
-
-          {/* Per-varieti results */}
-          <div className="space-y-2">
-            {varietiResults.map(v => (
-              <div key={v.varietiKey} className="flex items-center justify-between bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+          {/* Single unified results card */}
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            {/* Card Header — dark green */}
+            <div className="bg-forest px-5 py-4">
+              <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold text-forest">{v.varietiName}</p>
-                  <p className="text-[9px] text-gray-400">{v.bilPokok} pokok × {v.hasilPerPokok} kg × {(totalPct - (stages['tidak']?.pct || 0)).toFixed(0)}%</p>
+                  <h3 className="text-base font-bold text-white">{kebun.nama}</h3>
+                  <p className="text-[10px] text-white/70">{kebun.daerah}, {kebun.negeri} &bull; {kebun.saizKebun} ekar &bull; {jumlahPokokKebun} pokok</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-bold text-gold">{v.totalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</p>
-                  <p className="text-[9px] text-gray-400">{(v.totalKg / 1000).toFixed(2)} MT</p>
+                  <p className="text-[9px] text-white/60">Fasa</p>
+                  <p className="text-xs font-bold text-gold">{fasaLabel(fasaUtama)}</p>
                 </div>
               </div>
-            ))}
-          </div>
+              <p className="text-[9px] text-white/50 mt-1">📅 {new Date(tarikhLawatan).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+            </div>
 
-          {/* Grand Total */}
-          <div className="bg-gold/10 border border-gold/30 rounded-xl p-4 text-center">
-            <p className="text-[9px] text-gray-500">Jumlah Anggaran Keseluruhan</p>
-            <p className="text-3xl font-bold text-forest">{grandTotalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-base font-normal">kg</span></p>
-            <p className="text-sm text-moss">({(grandTotalKg / 1000).toFixed(3)} Metrik Tan)</p>
-          </div>
+            {/* Varieti breakdown */}
+            <div className="divide-y divide-gray-100">
+              {varietiResults.map(v => (
+                <div key={v.varietiKey} className="px-5 py-3 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-bold text-gray-800">{v.varietiName}</p>
+                    <p className="text-[9px] text-gray-400">{v.bilPokok} pokok × {v.hasilPerPokok} kg × {(totalPct - (stages['tidak']?.pct || 0)).toFixed(0)}%</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-base font-bold text-gold">{v.totalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</p>
+                    <p className="text-[9px] text-gray-400">{(v.totalKg / 1000).toFixed(2)} MT</p>
+                  </div>
+                </div>
+              ))}
+            </div>
 
-          {/* Actions */}
-          <div className="grid grid-cols-2 gap-3">
-            <button onClick={() => setStep(2)} className="py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">
-              ← Ubah Peringkat
-            </button>
-            <button onClick={handleSave} disabled={saving}
-              className="py-3 bg-gradient-gold text-black rounded-xl font-bold shadow-md active:scale-[0.98] disabled:opacity-50">
-              {saving ? 'Menyimpan...' : '💾 Simpan Rekod'}
-            </button>
-          </div>
-
-          {/* Detail */}
-          <div className="bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2">
-            <p className="font-bold text-forest text-sm border-b border-gray-100 pb-1">📋 Pecahan Detail</p>
-            {varietiResults.map(v => (
-              <div key={v.varietiKey} className="flex justify-between py-0.5">
-                <span className="text-gray-600">{v.varietiName} ({v.bilPokok} pokok)</span>
-                <span className="font-bold text-forest">{v.totalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
+            {/* Grand Total */}
+            <div className="bg-gold/10 px-5 py-4 flex items-center justify-between border-t border-gold/20">
+              <div>
+                <p className="text-[9px] text-gray-500">Jumlah Anggaran Keseluruhan</p>
+                <p className="text-2xl font-bold text-forest">{grandTotalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-sm font-normal">kg</span></p>
               </div>
-            ))}
-            <div className="flex justify-between pt-1 border-t border-gray-100 font-bold">
-              <span>JUMLAH</span>
-              <span className="text-forest">{grandTotalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg ({(grandTotalKg / 1000).toFixed(3)} MT)</span>
+              <div className="text-right">
+                <p className="text-lg font-bold text-forest">{(grandTotalKg / 1000).toFixed(3)}</p>
+                <p className="text-[9px] text-gray-500">Metrik Tan</p>
+              </div>
+            </div>
+
+            {/* Action buttons inside card */}
+            <div className="px-5 py-4 bg-gray-50 grid grid-cols-2 gap-3">
+              <button onClick={() => setStep(2)} className="py-2.5 border border-gray-300 rounded-xl text-xs font-medium text-gray-600 bg-white">
+                ← Ubah Peringkat
+              </button>
+              <button onClick={handleSave} disabled={saving}
+                className="py-2.5 bg-gradient-gold text-black rounded-xl text-xs font-bold shadow-md active:scale-[0.98] disabled:opacity-50">
+                {saving ? 'Menyimpan...' : '💾 Simpan Rekod'}
+              </button>
             </div>
           </div>
 
-          {/* Kira semula dari awal */}
+          {/* Kira semula */}
           <button onClick={() => { setSelectedKebun(''); setStep(1); }}
             className="w-full py-2.5 text-xs text-gray-400 hover:text-forest rounded-lg hover:bg-forest/5 transition-all">
             Kira Pekebun Lain →
