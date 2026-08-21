@@ -324,14 +324,27 @@ export default function LaporanPage() {
                   </div>
                   {/* Varieti Breakdown */}
                   {n.varietiKg.length > 0 && (
-                    <div className="space-y-1">
-                      <p className="text-[8px] text-gray-500 font-semibold">Pecahan Varieti:</p>
-                      {n.varietiKg.slice(0, 5).map(([name, kg]) => (
-                        <div key={name} className="flex justify-between items-center bg-gray-50 rounded px-2 py-1">
-                          <span className="text-[9px] text-gray-700 truncate">{name.split(' (')[0]}</span>
-                          <span className="text-[9px] font-bold text-forest">{kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
+                    <div className="rounded-lg overflow-hidden border border-gray-100">
+                      {/* Table header */}
+                      <div className="grid grid-cols-3 bg-forest/10 px-3 py-1.5">
+                        <span className="text-[8px] font-bold text-forest">Varieti</span>
+                        <span className="text-[8px] font-bold text-forest text-right">Anggaran Hasil (Kg)</span>
+                        <span className="text-[8px] font-bold text-forest text-right">Metrik Tan (MT)</span>
+                      </div>
+                      {/* Table rows */}
+                      {n.varietiKg.slice(0, 6).map(([name, kg], i) => (
+                        <div key={name} className={`grid grid-cols-3 px-3 py-1.5 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                          <span className="text-[9px] text-gray-800 font-medium truncate">{name.split(' (')[0]}</span>
+                          <span className="text-[9px] font-bold text-gray-700 text-right">{kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
+                          <span className="text-[9px] font-bold text-gold text-right">{(kg / 1000).toFixed(2)} MT</span>
                         </div>
                       ))}
+                      {/* Total row */}
+                      <div className="grid grid-cols-3 px-3 py-1.5 bg-forest/5 border-t border-forest/20">
+                        <span className="text-[8px] font-bold text-forest">Jumlah</span>
+                        <span className="text-[8px] font-bold text-forest text-right">{n.kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
+                        <span className="text-[8px] font-bold text-gold text-right">{n.mt.toFixed(2)} MT</span>
+                      </div>
                     </div>
                   )}
                   {/* Bulan Pengeluaran */}
