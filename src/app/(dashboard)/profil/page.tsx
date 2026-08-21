@@ -15,24 +15,21 @@ export default function ProfilPage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Profile form
   const [nama, setNama] = useState(profile?.nama || '');
   const [noPerkerja, setNoPerkerja] = useState(profile?.noPerkerja || '');
   const [daerah, setDaerah] = useState(profile?.daerah || '');
+  const [alamatPejabat, setAlamatPejabat] = useState((profile as unknown as Record<string, string>)?.alamatPejabat || '');
+  const [noTelefon, setNoTelefon] = useState((profile as unknown as Record<string, string>)?.noTelefon || '');
 
-  // Password form
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
   const [confirmPass, setConfirmPass] = useState('');
   const [changingPass, setChangingPass] = useState(false);
 
-  // Auto-format: Capitalize Each Word
   const capitalizeWords = (str: string) =>
     str.replace(/\b[\p{L}']+/gu, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 
-  const getRoleLabel = (role: string) => {
-    return ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role;
-  };
+  const getRoleLabel = (role: string) => ROLE_LABELS[role as keyof typeof ROLE_LABELS] || role;
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -42,6 +39,8 @@ export default function ProfilPage() {
         nama: nama.trim(),
         noPerkerja: noPerkerja.trim(),
         daerah: daerah.trim(),
+        alamatPejabat: alamatPejabat.trim(),
+        noTelefon: noTelefon.trim(),
       });
       toast.success(t('profil.saved'));
       setEditMode(false);
@@ -54,174 +53,176 @@ export default function ProfilPage() {
 
   const handleChangePassword = async () => {
     if (!user || !user.email) return;
-    if (newPass.length < 6) {
-      toast.error('Kata laluan baru mesti sekurang-kurangnya 6 aksara.');
-      return;
-    }
-    if (newPass !== confirmPass) {
-      toast.error('Kata laluan baru tidak sepadan.');
-      return;
-    }
-
+    if (newPass.length < 6) { toast.error('Kata Laluan Baru Mesti Sekurang-Kurangnya 6 Aksara.'); return; }
+    if (newPass !== confirmPass) { toast.error('Kata Laluan Baru Tidak Sepadan.'); return; }
     setChangingPass(true);
     try {
-      // Re-authenticate first
       const credential = EmailAuthProvider.credential(user.email, currentPass);
       await reauthenticateWithCredential(user, credential);
-
-      // Update password
       await updatePassword(user, newPass);
-
       toast.success(t('profil.passwordChanged'));
       setShowPasswordForm(false);
-      setCurrentPass('');
-      setNewPass('');
-      setConfirmPass('');
+      setCurrentPass(''); setNewPass(''); setConfirmPass('');
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : '';
       if (msg.includes('wrong-password') || msg.includes('invalid-credential')) {
-        toast.error('Kata laluan semasa tidak betul.');
+        toast.error('Kata Laluan Semasa Tidak Betul.');
       } else {
-        toast.error('Gagal tukar kata laluan. Cuba lagi.');
+        toast.error('Gagal Tukar Kata Laluan. Cuba Lagi.');
       }
     }
     setChangingPass(false);
   };
 
+  const profileData = profile as unknown as Record<string, string> | undefined;
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-bold text-forest">{t('profil.title')}</h2>
-
-      {/* Profile Header Card */}
-      <div className="bg-gradient-forest rounded-2xl p-6 text-white text-center relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-white/5 rounded-full -translate-y-16 translate-x-16" />
-        <div className="relative z-10">
-          <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-3 border-2 border-white/30">
-            <span className="text-3xl">👤</span>
-          </div>
-          <h3 className="text-lg font-bold">{profile?.nama || '-'}</h3>
-          <p className="text-white/60 text-sm mt-0.5">{getRoleLabel(profile?.role || 'pegawai')}</p>
-          <p className="text-white/40 text-xs mt-1">{profile?.email}</p>
+    <div className="h-[calc(100vh-120px)] flex flex-col gap-4 overflow-hidden">
+      {/* Header Card */}
+      <div className="bg-gradient-forest rounded-2xl p-5 text-white relative overflow-hidden flex items-center gap-4">
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-12 translate-x-12" />
+        <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center border-2 border-white/30 flex-shrink-0">
+          <span className="text-2xl">👤</span>
         </div>
-      </div>
-
-      {/* Profile Details */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 divide-y divide-gray-50">
-        {editMode ? (
-          <div className="p-5 space-y-3">
-            <h4 className="text-sm font-bold text-forest">✏️ Kemas Kini Profil</h4>
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500">Nama Penuh</label>
-              <input value={nama} onChange={(e) => setNama(capitalizeWords(e.target.value))}
-                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none" />
-            </div>
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500">No. Pekerja</label>
-              <input value={noPerkerja} onChange={(e) => setNoPerkerja(e.target.value)}
-                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none" />
-            </div>
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500">Daerah</label>
-              <input value={daerah} onChange={(e) => setDaerah(capitalizeWords(e.target.value))}
-                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none" />
-            </div>
-            <div className="flex gap-3 pt-2">
-              <button onClick={handleSaveProfile} disabled={saving}
-                className="flex-1 bg-gradient-forest text-white py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50">
-                {saving ? 'Menyimpan...' : '✓ Simpan'}
-              </button>
-              <button onClick={() => setEditMode(false)}
-                className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-600">
-                Batal
-              </button>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="px-5 py-4 flex justify-between items-center">
-              <div>
-                <label className="text-[10px] font-semibold text-gray-400 tracking-wider">Nama Penuh</label>
-                <p className="text-sm font-semibold text-gray-800 mt-0.5">{profile?.nama || '-'}</p>
-              </div>
-            </div>
-            <div className="px-5 py-4">
-              <label className="text-[10px] font-semibold text-gray-400 tracking-wider">No. Pekerja</label>
-              <p className="text-sm font-semibold text-gray-800 mt-0.5">{profile?.noPerkerja || '-'}</p>
-            </div>
-            <div className="px-5 py-4">
-              <label className="text-[10px] font-semibold text-gray-400 tracking-wider">Negeri</label>
-              <p className="text-sm font-semibold text-gray-800 mt-0.5">{profile?.negeri || '-'}</p>
-            </div>
-            <div className="px-5 py-4">
-              <label className="text-[10px] font-semibold text-gray-400 tracking-wider">Daerah</label>
-              <p className="text-sm font-semibold text-gray-800 mt-0.5">{profile?.daerah || '-'}</p>
-            </div>
-            <div className="px-5 py-4">
-              <label className="text-[10px] font-semibold text-gray-400 tracking-wider">Email</label>
-              <p className="text-sm font-semibold text-gray-800 mt-0.5">{profile?.email || '-'}</p>
-            </div>
-            <div className="px-5 py-4">
-              <label className="text-[10px] font-semibold text-gray-400 tracking-wider">Role</label>
-              <p className="text-sm font-semibold text-gray-800 mt-0.5">{getRoleLabel(profile?.role || '')}</p>
-            </div>
-            <div className="px-5 py-3">
-              <button onClick={() => { setEditMode(true); setNama(profile?.nama || ''); setNoPerkerja(profile?.noPerkerja || ''); setDaerah(profile?.daerah || ''); }}
-                className="w-full text-sm text-forest font-semibold py-2.5 border border-forest/20 rounded-xl hover:bg-forest/5">
-                ✏️ Kemas Kini Profil
-              </button>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Change Password */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        {showPasswordForm ? (
-          <div className="space-y-3">
-            <h4 className="text-sm font-bold text-forest">🔐 Tukar Kata Laluan</h4>
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500">Kata Laluan Semasa</label>
-              <input type="password" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)}
-                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
-                placeholder="Masukkan kata laluan semasa" />
-            </div>
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500">Kata Laluan Baru (min 6 aksara)</label>
-              <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)}
-                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
-                placeholder="Kata laluan baru" minLength={6} />
-            </div>
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500">Sahkan Kata Laluan Baru</label>
-              <input type="password" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)}
-                className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
-                placeholder="Ulangi kata laluan baru" />
-            </div>
-            {newPass && confirmPass && newPass !== confirmPass && (
-              <p className="text-xs text-red-500">⚠️ Kata laluan tidak sepadan</p>
-            )}
-            <div className="flex gap-3 pt-2">
-              <button onClick={handleChangePassword} disabled={changingPass || !currentPass || !newPass || newPass !== confirmPass}
-                className="flex-1 bg-gradient-gold text-black py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50">
-                {changingPass ? 'Menukar...' : '🔐 Tukar Kata Laluan'}
-              </button>
-              <button onClick={() => { setShowPasswordForm(false); setCurrentPass(''); setNewPass(''); setConfirmPass(''); }}
-                className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-600">
-                Batal
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button onClick={() => setShowPasswordForm(true)}
-            className="w-full text-sm text-amber-700 font-semibold py-2.5 border border-amber-200 rounded-xl hover:bg-amber-50">
-            🔐 Tukar Kata Laluan
+        <div className="relative z-10 flex-1 min-w-0">
+          <h3 className="text-lg font-bold truncate">{profile?.nama || '-'}</h3>
+          <p className="text-white/70 text-xs">{getRoleLabel(profile?.role || 'pegawai')}</p>
+          <p className="text-white/50 text-[10px] mt-0.5">{profile?.email}</p>
+        </div>
+        {!editMode && (
+          <button onClick={() => { setEditMode(true); setNama(profile?.nama || ''); setNoPerkerja(profile?.noPerkerja || ''); setDaerah(profile?.daerah || ''); setAlamatPejabat(profileData?.alamatPejabat || ''); setNoTelefon(profileData?.noTelefon || ''); }}
+            className="text-[9px] bg-white/20 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-white/30 transition-all flex-shrink-0">
+            ✏️ Edit
           </button>
         )}
       </div>
 
-      {/* Info */}
-      <p className="text-[10px] text-gray-400 text-center px-4">
-        ℹ️ Negeri dan Role diurus oleh pentadbir. Hubungi admin untuk perubahan.
+      {/* Main Content */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        {editMode ? (
+          /* Edit Form */
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
+            <h4 className="text-sm font-bold text-forest">✏️ Kemas Kini Profil</h4>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500">Nama Penuh</label>
+                <input value={nama} onChange={(e) => setNama(capitalizeWords(e.target.value))}
+                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500">No. Pekerja</label>
+                <input value={noPerkerja} onChange={(e) => setNoPerkerja(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500">Daerah</label>
+                <input value={daerah} onChange={(e) => setDaerah(capitalizeWords(e.target.value))}
+                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500">No. Telefon</label>
+                <input value={noTelefon} onChange={(e) => setNoTelefon(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
+                  placeholder="013-7717886" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-[10px] font-semibold text-gray-500">Alamat Pejabat</label>
+                <input value={alamatPejabat} onChange={(e) => setAlamatPejabat(capitalizeWords(e.target.value))}
+                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
+                  placeholder="Pejabat FAMA Negeri Kedah, Jalan..." />
+              </div>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setEditMode(false)}
+                className="px-4 py-2.5 border border-gray-300 rounded-xl text-sm text-gray-600">Batal</button>
+              <button onClick={handleSaveProfile} disabled={saving}
+                className="flex-1 bg-gradient-forest text-white py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50">
+                {saving ? 'Menyimpan...' : '✓ Simpan'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* View Mode — Two Column */
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
+            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Nama Penuh</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{profile?.nama || '-'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">No. Pekerja</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{profile?.noPerkerja || '-'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Negeri</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{profile?.negeri || '-'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Daerah</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{profile?.daerah || '-'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Email</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{profile?.email || '-'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Role</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{getRoleLabel(profile?.role || '')}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">No. Telefon</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{profileData?.noTelefon || '-'}</p>
+              </div>
+              <div>
+                <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Alamat Pejabat</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{profileData?.alamatPejabat || '-'}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Change Password */}
+        {!editMode && (
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mt-3">
+            {showPasswordForm ? (
+              <div className="space-y-3">
+                <h4 className="text-sm font-bold text-forest">🔐 Tukar Kata Laluan</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <input type="password" value={currentPass} onChange={(e) => setCurrentPass(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
+                    placeholder="Kata Laluan Semasa" />
+                  <input type="password" value={newPass} onChange={(e) => setNewPass(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
+                    placeholder="Kata Laluan Baru (Min 6)" minLength={6} />
+                  <input type="password" value={confirmPass} onChange={(e) => setConfirmPass(e.target.value)}
+                    className="px-3 py-2 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-forest/30 focus:outline-none"
+                    placeholder="Sahkan Kata Laluan Baru" />
+                </div>
+                {newPass && confirmPass && newPass !== confirmPass && (
+                  <p className="text-[9px] text-red-500">⚠️ Kata Laluan Tidak Sepadan</p>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={() => { setShowPasswordForm(false); setCurrentPass(''); setNewPass(''); setConfirmPass(''); }}
+                    className="px-4 py-2 border border-gray-300 rounded-xl text-xs text-gray-600">Batal</button>
+                  <button onClick={handleChangePassword} disabled={changingPass || !currentPass || !newPass || newPass !== confirmPass}
+                    className="flex-1 bg-gradient-gold text-black py-2 rounded-xl text-xs font-bold disabled:opacity-50">
+                    {changingPass ? 'Menukar...' : '🔐 Tukar'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button onClick={() => setShowPasswordForm(true)}
+                className="w-full text-xs text-amber-700 font-semibold py-2.5 border border-amber-200 rounded-xl hover:bg-amber-50">
+                🔐 Tukar Kata Laluan
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <p className="text-[9px] text-gray-400 text-center">
+        ℹ️ Negeri Dan Role Diurus Oleh Pentadbir. Hubungi Admin Untuk Perubahan.
       </p>
     </div>
   );
