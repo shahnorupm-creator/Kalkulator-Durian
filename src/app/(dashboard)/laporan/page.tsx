@@ -168,19 +168,111 @@ export default function LaporanPage() {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const W = 1080; const H = 600;
+
+    // Compute daerah breakdown for the infographic
+    const daerahMap: Record<string, { pekebun: Set<string>; ekar: number; kg: number; bulan: Set<number> }> = {};
+    filtered.forEach(k => {
+      const d = k.daerah || 'Lain-lain';
+      if (!daerahMap[d]) daerahMap[d] = { pekebun: new Set(), ekar: 0, kg: 0, bulan: new Set() };
+      daerahMap[d].pekebun.add(k.id);
+      daerahMap[d].ekar += k.saizKebun || 0;
+    });
+    latestLawatan.forEach(r => {
+      const farm = filteredById.get(r.kebunId);
+      if (!farm) return;
+      const d = farm.daerah || 'Lain-lain';
+      if (!daerahMap[d]) return;
+      daerahMap[d].kg += r.totalKg || 0;
+      if (r.tarikhLawatan && r.stages) {
+        const baseDate = new Date(`${r.tarikhLawatan}T00:00:00`);
+        if (!Number.isNaN(baseDate.getTime())) {
+          [{ key: 'mataketam', J: 120 }, { key: 'berbunga', J: 120 }, { key: 'putik', J: 90 }, { key: 'kecil', J: 60 }, { key: 'besar', J: 30 }].forEach(stage => {
+            const input = r.stages?.[stage.key];
+            if (!input || Number(input.pct) <= 0) return;
+            const hDate = new Date(baseDate);
+            hDate.setDate(hDate.getDate() + Math.max(0, stage.J - (Number(input.d) || 0)));
+            daerahMap[d].bulan.add(hDate.getMonth());
+          });
+        }
+      }
+    });
+    const BULAN_SHORT = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+    const daerahRows = Object.entries(daerahMap).map(([daerah, d]) => ({
+      daerah, pekebun: d.pekebun.size, ekar: d.ekar, kg: d.kg, mt: d.kg / 1000,
+      bulan: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN_SHORT[m]).join(' / ') : '-',
+    })).sort((a, b) => b.mt - a.mt);
+
+    const negeriName = isHQ ? (filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia') : userNegeri;
+    const rowH = 32;
+    const tableStartY = 240;
+    const W = 1080;
+    const H = Math.max(tableStartY + 50 + (daerahRows.length * rowH) + 80, 700);
     canvas.width = W; canvas.height = H;
+
+    // Background
     ctx.fillStyle = '#0C2D1C'; ctx.fillRect(0, 0, W, H);
-    ctx.fillStyle = '#FFC107'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('ANGGARAN KEBERHASILAN DURIAN MALAYSIA', W / 2, 50);
-    ctx.fillStyle = '#FFFFFF'; ctx.font = '16px sans-serif';
-    ctx.fillText(`${filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia'} | ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}`, W / 2, 80);
-    const stats = [{ l: 'Pekebun', v: String(totalPekebun) }, { l: 'Ekar', v: totalEkar.toFixed(1) }, { l: 'Pokok', v: totalPokok.toLocaleString() }, { l: 'Anggaran MT', v: totalMT.toFixed(2) }];
-    stats.forEach((s, i) => { const x = 80 + i * 250; ctx.fillStyle = '#1B5E20'; ctx.fillRect(x, 110, 210, 60); ctx.fillStyle = '#FFC107'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(s.v, x + 105, 145); ctx.fillStyle = '#80CBC4'; ctx.font = '11px sans-serif'; ctx.fillText(s.l, x + 105, 162); });
+
+    // Title
+    ctx.fillStyle = '#FFC107'; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`ANGGARAN KEBERHASILAN DURIAN`, W / 2, 45);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 22px sans-serif';
+    ctx.fillText(`NEGERI ${negeriName.toUpperCase()}`, W / 2, 78);
+    ctx.fillStyle = '#80CBC4'; ctx.font = '14px sans-serif';
+    ctx.fillText(`Dijana: ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })} | ${profile?.nama || 'FAMA'}`, W / 2, 105);
+
+    // Stats boxes
+    const statsData = [
+      { l: 'Bil. Pekebun', v: String(totalPekebun) },
+      { l: 'Bil. Daerah', v: String(daerahRows.length) },
+      { l: 'Jumlah Ekar', v: totalEkar.toFixed(1) },
+      { l: 'Jumlah Pokok', v: totalPokok.toLocaleString() },
+      { l: 'Anggaran (Mt)', v: totalMT.toFixed(2) },
+    ];
+    statsData.forEach((s, i) => {
+      const x = 45 + i * 202;
+      ctx.fillStyle = '#1B5E20'; ctx.fillRect(x, 125, 190, 55);
+      ctx.fillStyle = '#FFC107'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(s.v, x + 95, 155);
+      ctx.fillStyle = '#80CBC4'; ctx.font = '10px sans-serif';
+      ctx.fillText(s.l, x + 95, 172);
+    });
+
+    // Table header
     ctx.textAlign = 'start';
-    negeriBreakdown.slice(0, 10).forEach((n, i) => { const y = 200 + i * 35; ctx.fillStyle = i % 2 === 0 ? '#1a3d2a' : '#0C2D1C'; ctx.fillRect(60, y, W - 120, 30); ctx.fillStyle = '#FFFFFF'; ctx.font = '13px sans-serif'; ctx.fillText(n.negeri, 80, y + 20); ctx.fillStyle = '#FFC107'; ctx.textAlign = 'end'; ctx.fillText(`${n.mt.toFixed(1)} MT`, W - 80, y + 20); ctx.textAlign = 'start'; ctx.fillStyle = '#80CBC4'; ctx.fillText(`${n.pekebun} pekebun | ${n.ekar.toFixed(0)} ekar`, 300, y + 20); });
+    const colX = [60, 280, 430, 600, 750, 880];
+    const headers = ['Daerah', 'Bil. Pekebun', 'Ekar', 'Anggaran (Kg)', 'Metrik Tan (Mt)', 'Bulan Pengeluaran'];
+    ctx.fillStyle = '#2E7D32'; ctx.fillRect(50, tableStartY - 5, W - 100, 35);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 12px sans-serif';
+    headers.forEach((h, i) => { ctx.textAlign = i > 0 ? 'center' : 'start'; ctx.fillText(h, colX[i], tableStartY + 18); });
+
+    // Table rows
+    daerahRows.forEach((row, i) => {
+      const y = tableStartY + 35 + (i * rowH);
+      ctx.fillStyle = i % 2 === 0 ? '#102a1a' : '#0C2D1C'; ctx.fillRect(50, y, W - 100, rowH - 2);
+
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'start'; ctx.fillStyle = '#FFFFFF'; ctx.fillText(row.daerah, colX[0], y + 20);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#80CBC4'; ctx.fillText(String(row.pekebun), colX[1], y + 20);
+      ctx.fillText(row.ekar.toFixed(1), colX[2], y + 20);
+      ctx.fillStyle = '#FFC107'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colX[3], y + 20);
+      ctx.font = 'bold 12px sans-serif'; ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colX[4], y + 20);
+      ctx.font = '11px sans-serif'; ctx.fillStyle = '#80CBC4'; ctx.fillText(row.bulan, colX[5], y + 20);
+    });
+
+    // Total row
+    const totalY = tableStartY + 35 + (daerahRows.length * rowH) + 5;
+    ctx.fillStyle = '#FFC107'; ctx.fillRect(50, totalY, W - 100, 35);
+    ctx.fillStyle = '#0C2D1C'; ctx.font = 'bold 13px sans-serif';
+    ctx.textAlign = 'start'; ctx.fillText('JUMLAH', colX[0], totalY + 22);
+    ctx.textAlign = 'center'; ctx.fillText(String(totalPekebun), colX[1], totalY + 22);
+    ctx.fillText(totalEkar.toFixed(1), colX[2], totalY + 22);
+    ctx.fillText(totalKg > 0 ? totalKg.toLocaleString() : '-', colX[3], totalY + 22);
+    ctx.fillText(totalMT.toFixed(2), colX[4], totalY + 22);
+
+    // Footer
     ctx.fillStyle = '#80CBC4'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('Hak Cipta Terpelihara © FAMA 2026 | Sistem Kalkulator Durian', W / 2, H - 15);
+
     setPreviewUrl(canvas.toDataURL('image/png'));
     setShowPreview(true);
   };
@@ -250,7 +342,7 @@ export default function LaporanPage() {
         </div>
         <div className="bg-gold/10 rounded-xl p-2.5 text-center">
           <p className="text-lg font-bold text-gold">{totalMT.toFixed(1)}</p>
-          <p className="text-[8px] text-gray-500">Anggaran MT</p>
+          <p className="text-[8px] text-gray-500">Anggaran Mt</p>
         </div>
       </div>
 
@@ -313,13 +405,13 @@ export default function LaporanPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-gold/10 rounded-lg px-2 py-1.5 text-center">
-                      <p className="text-[8px] text-gray-500">Anggaran Pengeluaran</p>
-                      <p className="text-sm font-bold text-gold">{n.kg > 0 ? `${n.kg.toLocaleString()} kg` : '-'}</p>
+                    <div className="bg-gold/10 rounded-lg px-2 py-2 text-center">
+                      <p className="text-[8px] text-gray-500">Kilogram (Kg)</p>
+                      <p className="text-base font-bold text-gold">{n.kg > 0 ? `${n.kg.toLocaleString()}` : '-'}</p>
                     </div>
-                    <div className="bg-gold/10 rounded-lg px-2 py-1.5 text-center">
-                      <p className="text-[8px] text-gray-500">Metrik Tan</p>
-                      <p className="text-sm font-bold text-gold">{n.mt > 0 ? n.mt.toFixed(2) : '-'} <span className="text-[7px] font-normal">MT</span></p>
+                    <div className="bg-gold/10 rounded-lg px-2 py-2 text-center">
+                      <p className="text-[8px] text-gray-500">Metrik Tan (Mt)</p>
+                      <p className="text-base font-bold text-gold">{n.mt > 0 ? n.mt.toFixed(2) : '-'}</p>
                     </div>
                   </div>
                   {/* Varieti Breakdown */}
@@ -327,23 +419,23 @@ export default function LaporanPage() {
                     <div className="rounded-lg overflow-hidden border border-gray-100">
                       {/* Table header */}
                       <div className="grid grid-cols-3 bg-forest/10 px-3 py-1.5">
-                        <span className="text-[8px] font-bold text-forest">Varieti</span>
+                        <span className="text-[8px] font-bold text-forest">Varieti / Anggaran Pengeluaran :</span>
                         <span className="text-[8px] font-bold text-forest text-right">Anggaran Hasil (Kg)</span>
-                        <span className="text-[8px] font-bold text-forest text-right">Metrik Tan (MT)</span>
+                        <span className="text-[8px] font-bold text-forest text-right">Metrik Tan (Mt)</span>
                       </div>
                       {/* Table rows */}
                       {n.varietiKg.slice(0, 6).map(([name, kg], i) => (
                         <div key={name} className={`grid grid-cols-3 px-3 py-1.5 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                           <span className="text-[9px] text-gray-800 font-medium truncate">{name.split(' (')[0]}</span>
                           <span className="text-[9px] font-bold text-gray-700 text-right">{kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
-                          <span className="text-[9px] font-bold text-gold text-right">{(kg / 1000).toFixed(2)} MT</span>
+                          <span className="text-[9px] font-bold text-gold text-right">{(kg / 1000).toFixed(2)} Mt</span>
                         </div>
                       ))}
                       {/* Total row */}
                       <div className="grid grid-cols-3 px-3 py-1.5 bg-forest/5 border-t border-forest/20">
                         <span className="text-[8px] font-bold text-forest">Jumlah</span>
                         <span className="text-[8px] font-bold text-forest text-right">{n.kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
-                        <span className="text-[8px] font-bold text-gold text-right">{n.mt.toFixed(2)} MT</span>
+                        <span className="text-[8px] font-bold text-gold text-right">{n.mt.toFixed(2)} Mt</span>
                       </div>
                     </div>
                   )}
@@ -358,7 +450,7 @@ export default function LaporanPage() {
             {/* Total card */}
             <div className="bg-gold/10 border border-gold/30 rounded-xl p-3 flex justify-between items-center">
               <span className="text-xs font-bold text-gray-700">JUMLAH KESELURUHAN</span>
-              <span className="text-lg font-bold text-forest">{totalMT.toFixed(2)} MT</span>
+              <span className="text-lg font-bold text-forest">{totalMT.toFixed(2)} Mt</span>
             </div>
           </div>
         )}
