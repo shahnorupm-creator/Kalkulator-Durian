@@ -201,9 +201,11 @@ export default function LaporanPage() {
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-lg font-bold text-forest">{t('report.title')}</h2>
+            <h2 className="text-lg font-bold text-forest">
+              {t('report.title')} {!isHQ && userNegeri ? `— ${userNegeri}` : ''}
+            </h2>
             <p className="text-[9px] text-gray-500">
-              {filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia'}
+              {isHQ ? (filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia') : userNegeri}
               {filterDaerah !== 'Semua' && ` • ${filterDaerah}`}
             </p>
           </div>
