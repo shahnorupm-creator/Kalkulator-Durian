@@ -8,15 +8,23 @@
   --gold: #C98A2C;
   --gold-light: #FFC107;
   --moss: #5C8D5A;
-  --cream: #FAF7F0;
+  --cream: #F8FAFC;
   --fama-green: #124028;
 }
 
 body {
   background-color: var(--cream);
   color: #1a1a1a;
+  font-family: var(--font-jakarta), 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
+}
+
+/* Monospace font for numbers/data */
+.font-data {
+  font-family: var(--font-mono), 'DM Mono', monospace;
+  font-variant-numeric: tabular-nums;
 }
 
 /* Smooth transitions */

@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Inter } from 'next/font/google';
+import { Plus_Jakarta_Sans, DM_Mono } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { LanguageProvider } from '@/contexts/LanguageContext';
@@ -7,7 +7,18 @@ import { Toaster } from 'react-hot-toast';
 import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 import AutoSyncManager from '@/components/AutoSyncManager';
 
-const inter = Inter({ subsets: ['latin'] });
+const jakarta = Plus_Jakarta_Sans({ 
+  subsets: ['latin'],
+  variable: '--font-jakarta',
+  display: 'swap',
+});
+
+const dmMono = DM_Mono({ 
+  weight: ['400', '500'],
+  subsets: ['latin'],
+  variable: '--font-mono',
+  display: 'swap',
+});
 
 export const metadata: Metadata = {
   title: 'Kalkulator Durian FAMA',
@@ -37,7 +48,7 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
       </head>
-      <body className={inter.className}>
+      <body className={`${jakarta.variable} ${dmMono.variable} font-sans`}>
         <LanguageProvider>
           <AuthProvider>
             <ServiceWorkerRegister />
