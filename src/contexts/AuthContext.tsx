@@ -128,6 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               negeri: data.negeri || '',
               daerah: data.daerah || '',
               role: (data.role as UserRole) || 'pegawai',
+              alamatPejabat: data.alamatPejabat || '',
+              noTelefon: data.noTelefon || '',
             });
           }
         } catch (error) {
