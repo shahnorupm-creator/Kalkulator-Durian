@@ -788,7 +788,7 @@ export default function ProfilKebunPage() {
                       const ts = k.updatedAt || k.createdAt;
                       if (!ts || !ts.seconds) return '-';
                       const d = new Date(ts.seconds * 1000);
-                      return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' }) + ', ' + d.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
+                      return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }) + ', ' + d.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
                     })()}
                     {k.updatedAt && k.createdAt && k.updatedAt.seconds !== k.createdAt.seconds ? ' (dikemas kini)' : ''}
                   </p>

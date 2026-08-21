@@ -103,7 +103,7 @@ export default function DashboardHQPage() {
     lawatan.forEach(l => {
       if (!l.tarikhLawatan) return;
       const d = new Date(l.tarikhLawatan); d.setDate(d.getDate() + 30);
-      const key = d.toLocaleDateString('ms-MY', { month: 'short', year: '2-digit' });
+      const key = d.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
       if (!map[key]) map[key] = { kg: 0, negeri: new Set() };
       map[key].kg += l.totalKg || 0;
       map[key].negeri.add(l.negeri || l.pegawaiDaerah || '');

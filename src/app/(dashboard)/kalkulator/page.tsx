@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, collectionGroup, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS } from '@/lib/constants';
 import toast from 'react-hot-toast';
@@ -68,6 +68,26 @@ export default function KalkulatorPage() {
     });
     return () => unsub();
   }, [user, profile]);
+
+  // Track latest lawatan per kebun for status badge
+  const [lawatanMap, setLawatanMap] = useState<Record<string, { totalKg: number; createdAt: number }>>({});
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collectionGroup(db, 'lawatan')), (snap) => {
+      const map: Record<string, { totalKg: number; createdAt: number }> = {};
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const kebunId = data.kebunId || d.ref.parent.parent?.id || '';
+        if (!kebunId) return;
+        const time = data.createdAt?.seconds || 0;
+        if (!map[kebunId] || time > map[kebunId].createdAt) {
+          map[kebunId] = { totalKg: data.totalKg || 0, createdAt: time };
+        }
+      });
+      setLawatanMap(map);
+    });
+    return () => unsub();
+  }, []);
 
   const kebun = kebunList.find(k => k.id === selectedKebun);
 
@@ -217,6 +237,13 @@ export default function KalkulatorPage() {
                         ))}
                       </div>
                     )}
+                    {/* Anggaran status */}
+                    {lawatanMap[k.id] && (
+                      <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
+                        <p className="text-[9px] font-semibold text-green-700">✓ Anggaran hasil telah dikira</p>
+                        <p className="text-[8px] text-green-600">Kemaskini: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}</p>
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -285,7 +312,7 @@ export default function KalkulatorPage() {
                         onChange={(e) => handleStageChange(stage.key, 'pct', parseFloat(e.target.value) || 0)}
                         className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
                         min="0" max="100" />
-                      <p className="text-[7px] text-gray-400 text-center mt-0.5">%</p>
+                      <p className="text-[7px] text-gray-600 text-center mt-0.5">%</p>
                     </div>
                     {stage.J !== null && (
                       <div className="flex-1">
@@ -293,7 +320,7 @@ export default function KalkulatorPage() {
                           onChange={(e) => handleStageChange(stage.key, 'd', parseInt(e.target.value) || 0)}
                           className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
                           min="0" />
-                        <p className="text-[7px] text-gray-400 text-center mt-0.5">hari</p>
+                        <p className="text-[7px] text-gray-600 text-center mt-0.5">hari</p>
                       </div>
                     )}
                   </div>
@@ -389,8 +416,8 @@ export default function KalkulatorPage() {
 
           {/* Kira semula */}
           <button onClick={() => { setSelectedKebun(''); setStep(1); }}
-            className="w-full py-2.5 text-xs text-gray-400 hover:text-forest rounded-lg hover:bg-forest/5 transition-all">
-            Kira Pekebun Lain →
+            className="w-full py-3 text-sm font-semibold text-forest bg-forest/10 border-2 border-dashed border-forest/30 rounded-xl hover:bg-forest/20 hover:border-forest/50 transition-all active:scale-[0.98]">
+            🔄 Kira Pekebun Lain
           </button>
         </div>
       )}
