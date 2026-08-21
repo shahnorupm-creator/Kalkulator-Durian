@@ -240,8 +240,8 @@ export default function KalkulatorPage() {
                     {/* Anggaran status */}
                     {lawatanMap[k.id] && (
                       <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
-                        <p className="text-[9px] font-semibold text-green-700">✓ Anggaran hasil telah dikira</p>
-                        <p className="text-[8px] text-green-600">Kemaskini: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}</p>
+                        <p className="text-[9px] font-semibold text-green-700">✓ Anggaran Hasil Telah Dikira</p>
+                        <p className="text-[8px] text-green-600">Kemaskini: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}, {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}</p>
                       </div>
                     )}
                   </div>
