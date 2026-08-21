@@ -196,7 +196,7 @@ export default function LaporanPage() {
         }
       }
     });
-    const BULAN_SHORT = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+    const BULAN_SHORT = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
     const daerahRows = Object.entries(daerahMap).map(([daerah, d]) => ({
       daerah, pekebun: d.pekebun.size, ekar: d.ekar, kg: d.kg, mt: d.kg / 1000,
       bulan: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN_SHORT[m]).join(' / ') : '-',
