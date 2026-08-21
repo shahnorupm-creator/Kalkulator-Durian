@@ -228,6 +228,7 @@ export default function AdminPage() {
               <select value={form.negeri} onChange={(e) => setForm({ ...form, negeri: e.target.value })}
                 className="px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50">
                 <option value="">Negeri</option>
+                <option value="Ibupejabat">Ibupejabat</option>
                 {SENARAI_NEGERI.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             )}
@@ -298,6 +299,7 @@ export default function AdminPage() {
                         <select value={u.negeri || ''} onChange={(e) => handleUpdateNegeri(u.uid, e.target.value)}
                           className="text-[9px] px-2 py-0.5 border border-gray-200 rounded-lg bg-gray-50">
                           <option value="">Negeri</option>
+                          <option value="Ibupejabat">Ibupejabat</option>
                           {SENARAI_NEGERI.map(n => <option key={n} value={n}>{n}</option>)}
                         </select>
                       )}

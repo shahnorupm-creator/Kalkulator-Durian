@@ -30,11 +30,18 @@ interface KebunRecord {
   varieti20: string;
   jumlahPokok: number;
   varieti: string[];
+  varietiData?: VarietiEntry[];
   assignedTo: string;
   assignedNama: string;
   createdBy: string;
   createdAt: { seconds: number; nanoseconds: number } | null;
   updatedAt: { seconds: number; nanoseconds: number } | null;
+}
+
+interface VarietiEntry {
+  usia: string;
+  varieti: string;
+  bilangan: number;
 }
 
 interface PegawaiOption {
@@ -43,12 +50,11 @@ interface PegawaiOption {
   negeri: string;
 }
 
-// Konfigurasi 4 kolum usia pokok + varieti
-const USIA_COLUMNS = [
-  { label: '5 - 9 Tahun', usiaKey: 'usia5_9', varietiKey: 'varieti5_9' },
-  { label: '10 - 15 Tahun', usiaKey: 'usia10_15', varietiKey: 'varieti10_15' },
-  { label: '16 - 19 Tahun', usiaKey: 'usia16_19', varietiKey: 'varieti16_19' },
-  { label: '20 Tahun >', usiaKey: 'usia20', varietiKey: 'varieti20' },
+// Konfigurasi 3 kolum usia pokok
+const USIA_BRACKETS = [
+  { key: '5-9', label: '5 - 9 Tahun' },
+  { key: '10-15', label: '10 - 15 Tahun' },
+  { key: '16+', label: '16 Tahun Atas' },
 ] as const;
 
 export default function ProfilKebunPage() {
@@ -61,6 +67,7 @@ export default function ProfilKebunPage() {
   const [showForm, setShowForm] = useState(false);
   const [editingKebun, setEditingKebun] = useState<KebunRecord | null>(null);
   const [filterNegeri, setFilterNegeri] = useState('Semua');
+  const [filterDaerah, setFilterDaerah] = useState('Semua');
   const [search, setSearch] = useState('');
   const [errors, setErrors] = useState<string[]>([]);
   const [gettingLocation, setGettingLocation] = useState(false);
@@ -80,17 +87,29 @@ export default function ProfilKebunPage() {
     saizKebun: '',
     kepadatan: '70',
     pctMatang: '90',
-    usia5_9: '0',
-    usia10_15: '0',
-    usia16_19: '0',
-    usia20: '0',
-    varieti5_9: '',
-    varieti10_15: '',
-    varieti16_19: '',
-    varieti20: '',
-    varieti: [] as string[],
     assignedTo: '',
   });
+
+  const defaultVarietiData: VarietiEntry[] = [
+    { usia: '5-9', varieti: '', bilangan: 0 },
+    { usia: '10-15', varieti: '', bilangan: 0 },
+    { usia: '16+', varieti: '', bilangan: 0 },
+  ];
+
+  const [varietiData, setVarietiData] = useState<VarietiEntry[]>(defaultVarietiData);
+
+  // Helper functions for varietiData
+  const addVarietiEntry = (usia: string) => {
+    setVarietiData(prev => [...prev, { usia, varieti: '', bilangan: 0 }]);
+  };
+
+  const removeVarietiEntry = (index: number) => {
+    setVarietiData(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateVarietiEntry = (index: number, field: keyof VarietiEntry, value: string | number) => {
+    setVarietiData(prev => prev.map((item, i) => i === index ? { ...item, [field]: value } : item));
+  };
 
   useEffect(() => {
     if (!canAccessAllNegeri && userNegeri) {
@@ -100,8 +119,8 @@ export default function ProfilKebunPage() {
 
   const daerahOptions = form.negeri ? NEGERI_DAERAH[form.negeri] || [] : [];
 
-  // Jumlah pokok auto-calculate from usia
-  const jumlahPokokFromUsia = (parseInt(form.usia5_9) || 0) + (parseInt(form.usia10_15) || 0) + (parseInt(form.usia16_19) || 0) + (parseInt(form.usia20) || 0);
+  // Jumlah pokok auto-calculate from varietiData
+  const jumlahPokokFromUsia = varietiData.reduce((sum, item) => sum + (item.bilangan || 0), 0);
 
   useEffect(() => {
     if (!user) return;
@@ -210,13 +229,6 @@ export default function ProfilKebunPage() {
     setForm({ ...form, negeri, daerah: '' });
   };
 
-  const toggleVarieti = (key: string) => {
-    setForm(prev => ({
-      ...prev,
-      varieti: prev.varieti.includes(key) ? prev.varieti.filter(v => v !== key) : [...prev.varieti, key],
-    }));
-  };
-
   const validate = (): boolean => {
     const errs: string[] = [];
     if (!form.nama.trim()) errs.push('Nama Pekebun');
@@ -238,6 +250,11 @@ export default function ProfilKebunPage() {
       const assignedPegawai = pegawaiList.find(p => p.uid === assignedTo);
       const jumlahPokok = jumlahPokokFromUsia > 0 ? jumlahPokokFromUsia : Math.round(parseFloat(form.saizKebun) * (parseInt(form.kepadatan) || 70) * ((parseInt(form.pctMatang) || 90) / 100));
 
+      // Build legacy fields from varietiData for backward compatibility
+      const legacy5_9 = varietiData.filter(v => v.usia === '5-9');
+      const legacy10_15 = varietiData.filter(v => v.usia === '10-15');
+      const legacy16 = varietiData.filter(v => v.usia === '16+');
+
       const data = {
         nama: form.nama.trim(),
         negeri: form.negeri,
@@ -249,16 +266,19 @@ export default function ProfilKebunPage() {
         saizKebun: parseFloat(form.saizKebun) || 0,
         kepadatan: parseInt(form.kepadatan) || 70,
         pctMatang: parseInt(form.pctMatang) || 90,
-        usia5_9: parseInt(form.usia5_9) || 0,
-        usia10_15: parseInt(form.usia10_15) || 0,
-        usia16_19: parseInt(form.usia16_19) || 0,
-        usia20: parseInt(form.usia20) || 0,
-        varieti5_9: form.varieti5_9 || '',
-        varieti10_15: form.varieti10_15 || '',
-        varieti16_19: form.varieti16_19 || '',
-        varieti20: form.varieti20 || '',
+        // Legacy fields (first entry of each bracket for backward compat)
+        usia5_9: legacy5_9.reduce((s, v) => s + v.bilangan, 0),
+        usia10_15: legacy10_15.reduce((s, v) => s + v.bilangan, 0),
+        usia16_19: legacy16.reduce((s, v) => s + v.bilangan, 0),
+        usia20: 0,
+        varieti5_9: legacy5_9[0]?.varieti || '',
+        varieti10_15: legacy10_15[0]?.varieti || '',
+        varieti16_19: legacy16[0]?.varieti || '',
+        varieti20: '',
+        // New multi-varieti data
+        varietiData: varietiData.filter(v => v.varieti && v.bilangan > 0),
         jumlahPokok,
-        varieti: form.varieti,
+        varieti: [...new Set(varietiData.map(v => v.varieti).filter(Boolean))],
         assignedTo,
         assignedNama: assignedPegawai?.nama || profile?.nama || '',
         createdBy: editingKebun?.createdBy || user.uid,
@@ -284,10 +304,13 @@ export default function ProfilKebunPage() {
       negeri: canAccessAllNegeri ? '' : userNegeri,
       daerah: '', nama: '', mukim: '', alamat: '', latlong: '', noTelefon: '',
       saizKebun: '', kepadatan: '70', pctMatang: '90',
-      usia5_9: '0', usia10_15: '0', usia16_19: '0', usia20: '0',
-      varieti5_9: '', varieti10_15: '', varieti16_19: '', varieti20: '',
-      varieti: [], assignedTo: '',
+      assignedTo: '',
     });
+    setVarietiData([
+      { usia: '5-9', varieti: '', bilangan: 0 },
+      { usia: '10-15', varieti: '', bilangan: 0 },
+      { usia: '16+', varieti: '', bilangan: 0 },
+    ]);
     setShowForm(false);
     setEditingKebun(null);
     setErrors([]);
@@ -301,15 +324,37 @@ export default function ProfilKebunPage() {
       mukim: k.mukim || '', alamat: k.alamat || '', latlong: k.latlong || '',
       noTelefon: k.noTelefon || '', saizKebun: String(k.saizKebun || ''),
       kepadatan: String(k.kepadatan || 70), pctMatang: String(k.pctMatang || 90),
-      usia5_9: String(k.usia5_9 || 0), usia10_15: String(k.usia10_15 || 0),
-      usia16_19: String(k.usia16_19 || 0), usia20: String(k.usia20 || 0),
-      varieti5_9: k.varieti5_9 || '', varieti10_15: k.varieti10_15 || '',
-      varieti16_19: k.varieti16_19 || '', varieti20: k.varieti20 || '',
-      varieti: k.varieti || [], assignedTo: k.assignedTo || '',
+      assignedTo: k.assignedTo || '',
     });
+
+    // Hydrate varietiData from new field or legacy fields
+    const record = k as KebunRecord & { varietiData?: VarietiEntry[] };
+    if (record.varietiData && record.varietiData.length > 0) {
+      setVarietiData(record.varietiData);
+    } else {
+      // Convert legacy single-varieti-per-bracket to varietiData
+      const legacy: VarietiEntry[] = [];
+      if (k.varieti5_9 && (k.usia5_9 || 0) > 0) legacy.push({ usia: '5-9', varieti: k.varieti5_9, bilangan: k.usia5_9 });
+      if (k.varieti10_15 && (k.usia10_15 || 0) > 0) legacy.push({ usia: '10-15', varieti: k.varieti10_15, bilangan: k.usia10_15 });
+      if (k.varieti16_19 && (k.usia16_19 || 0) > 0) legacy.push({ usia: '16+', varieti: k.varieti16_19, bilangan: k.usia16_19 });
+      if (k.varieti20 && (k.usia20 || 0) > 0) legacy.push({ usia: '16+', varieti: k.varieti20, bilangan: k.usia20 });
+      // Jika tiada data langsung, set default satu row per bracket
+      if (legacy.length === 0) {
+        setVarietiData([
+          { usia: '5-9', varieti: '', bilangan: 0 },
+          { usia: '10-15', varieti: '', bilangan: 0 },
+          { usia: '16+', varieti: '', bilangan: 0 },
+        ]);
+      } else {
+        setVarietiData(legacy);
+      }
+    }
+
     setShowForm(true);
     setErrors([]);
     setLocationAccuracy(null);
+    // Auto scroll ke atas supaya form edit nampak
+    setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
   };
 
   const handleDelete = async (id: string) => {
@@ -320,6 +365,7 @@ export default function ProfilKebunPage() {
 
   const filtered = kebunList.filter(k => {
     if (filterNegeri !== 'Semua' && k.negeri !== filterNegeri) return false;
+    if (filterDaerah !== 'Semua' && k.daerah !== filterDaerah) return false;
     if (search && !k.nama?.toLowerCase().includes(search.toLowerCase()) && !k.daerah?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
@@ -332,9 +378,9 @@ export default function ProfilKebunPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-forest">{t('kebun.title')}</h2>
-          {(canAccessAllNegeri ? t('kebun.subtitleAdmin') : t('kebun.subtitleUser')) && (
+          {canAccessAllNegeri && (
             <p className="text-xs text-gray-500">
-              {canAccessAllNegeri ? t('kebun.subtitleAdmin') : t('kebun.subtitleUser')}
+              {t('kebun.subtitleAdmin')}
             </p>
           )}
         </div>
@@ -472,36 +518,55 @@ export default function ProfilKebunPage() {
           {/* Pilih Varieti & Tentukan Bilangan Pokok */}
           <div>
             <label className="text-[10px] font-semibold text-gray-500 mb-2 block">{t('kebun.varieti')}</label>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              {USIA_COLUMNS.map(col => (
-                <div key={col.usiaKey} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
-                  {/* Header usia */}
-                  <div className="bg-gold/15 px-2 py-1.5 text-center">
-                    <p className="text-[10px] font-bold text-forest leading-tight">{col.label}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {USIA_BRACKETS.map(bracket => {
+                const entries = varietiData.filter(v => v.usia === bracket.key);
+                return (
+                  <div key={bracket.key} className="border border-gray-200 rounded-xl overflow-hidden bg-white">
+                    {/* Header usia */}
+                    <div className="bg-gold/15 px-3 py-2 flex items-center justify-between">
+                      <p className="text-[10px] font-bold text-forest">{bracket.label}</p>
+                      <button type="button" onClick={() => addVarietiEntry(bracket.key)}
+                        className="text-[10px] bg-forest text-white w-5 h-5 rounded-full font-bold flex items-center justify-center active:scale-90">+</button>
+                    </div>
+                    <div className="p-2 space-y-2">
+                      {entries.length === 0 && (
+                        <p className="text-[9px] text-gray-400 text-center py-2">Tiada varieti. Klik + untuk tambah.</p>
+                      )}
+                      {entries.map((entry) => {
+                        const globalIdx = varietiData.indexOf(entry);
+                        return (
+                          <div key={globalIdx} className="bg-gray-50 rounded-lg p-2 space-y-1.5 relative">
+                            <button type="button" onClick={() => removeVarietiEntry(globalIdx)}
+                              className="absolute top-1 right-1 text-gray-300 hover:text-red-400 text-sm leading-none">×</button>
+                            <select
+                              value={entry.varieti}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                updateVarietiEntry(globalIdx, 'varieti', val);
+                                if (!val) updateVarietiEntry(globalIdx, 'bilangan', 0);
+                              }}
+                              className="w-full px-1.5 py-1.5 border border-gray-200 rounded-lg text-[9px] bg-white focus:ring-1 focus:ring-forest focus:outline-none"
+                            >
+                              <option value="">-- Varieti --</option>
+                              {VARIETIES.map(v => <option key={v.key} value={v.key}>{v.name}</option>)}
+                            </select>
+                            <input
+                              type="number"
+                              value={entry.bilangan || ''}
+                              onChange={(e) => updateVarietiEntry(globalIdx, 'bilangan', parseInt(e.target.value) || 0)}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-center font-semibold text-forest focus:ring-1 focus:ring-forest focus:outline-none"
+                              min="0"
+                              placeholder="0"
+                            />
+                            <p className="text-[8px] text-gray-400 text-center">{t('kebun.bilanganPokok')}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
-                  <div className="p-2 space-y-1.5">
-                    {/* Dropdown varieti */}
-                    <select
-                      value={form[col.varietiKey]}
-                      onChange={(e) => setForm({ ...form, [col.varietiKey]: e.target.value })}
-                      className="w-full px-1.5 py-1.5 border border-gray-200 rounded-lg text-[9px] bg-gray-50 focus:ring-1 focus:ring-forest focus:outline-none"
-                    >
-                      <option value="">-- Varieti --</option>
-                      {VARIETIES.map(v => <option key={v.key} value={v.key}>{v.name}</option>)}
-                    </select>
-                    {/* Bilangan pokok */}
-                    <input
-                      type="number"
-                      value={form[col.usiaKey]}
-                      onChange={(e) => setForm({ ...form, [col.usiaKey]: e.target.value })}
-                      className="w-full px-2 py-2 border border-gray-200 rounded-lg text-sm text-center font-semibold text-forest focus:ring-1 focus:ring-forest focus:outline-none"
-                      min="0"
-                      placeholder="0"
-                    />
-                    <p className="text-[8px] text-gray-400 text-center">{t('kebun.bilanganPokok')}</p>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             {jumlahPokokFromUsia > 0 && (
               <p className="text-xs text-forest font-bold mt-3 text-center bg-forest/5 rounded-lg py-2">
@@ -516,28 +581,51 @@ export default function ProfilKebunPage() {
               <p className="text-sm font-bold text-forest mb-2">{t('kebun.keberhasilan')}</p>
               <p>📐 Keluasan: <strong>{form.saizKebun} ekar</strong></p>
               {jumlahPokokFromUsia > 0 && <p>🌳 Jumlah Pokok: <strong>{jumlahPokokFromUsia} pokok</strong></p>}
-              {USIA_COLUMNS.map(col => {
-                const bil = parseInt(form[col.usiaKey]) || 0;
-                const vKey = form[col.varietiKey];
-                if (!vKey || bil <= 0) return null;
-                return (
-                  <p key={col.usiaKey}>
-                    • {col.label}: <strong>{VARIETIES.find(v => v.key === vKey)?.name}</strong> ({bil} pokok)
-                  </p>
-                );
-              })}
+              {varietiData.some(v => v.varieti && v.bilangan > 0) && (
+                <>
+                  <div className="flex items-center gap-1.5 mt-2 mb-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4 text-forest" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M19 4h-1V2h-2v2H8V2H6v2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2z"/>
+                      <circle cx="8" cy="13" r="1.2"/><circle cx="12" cy="13" r="1.2"/><circle cx="16" cy="13" r="1.2"/>
+                      <circle cx="8" cy="17" r="1.2"/><circle cx="12" cy="17" r="1.2"/><circle cx="16" cy="17" r="1.2"/>
+                    </svg>
+                    <span className="text-xs font-semibold text-forest">Pecahan Varieti Mengikut Usia:</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2">
+                    {USIA_BRACKETS.map(bracket => {
+                      const entries = varietiData.filter(v => v.usia === bracket.key && v.varieti && v.bilangan > 0);
+                      return (
+                        <div key={bracket.key} className="bg-white rounded-lg p-2 border border-gray-100">
+                          <p className="text-[9px] font-bold text-forest mb-1 border-b border-gray-100 pb-1">{bracket.label}</p>
+                          {entries.length === 0 ? (
+                            <p className="text-[8px] text-gray-300">-</p>
+                          ) : (
+                            <div className="space-y-0.5">
+                              {entries.map((entry, i) => (
+                                <p key={i} className="text-[9px] text-gray-600">
+                                  • <strong>{VARIETIES.find(v => v.key === entry.varieti)?.name}</strong> — {entry.bilangan}
+                                </p>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
           {/* Save */}
           <div className="flex gap-3">
+            {editingKebun && (
+              <button onClick={resetForm} className="px-4 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">{t('kebun.cancel')}</button>
+            )}
             <button onClick={handleSave} disabled={saving}
               className="flex-1 bg-gradient-forest text-white py-3 rounded-xl font-semibold shadow-lg active:scale-[0.98] disabled:opacity-50">
               {saving ? t('kebun.saving') : editingKebun ? t('kebun.update') : t('kebun.save')}
             </button>
-            {editingKebun && (
-              <button onClick={resetForm} className="px-4 py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">{t('kebun.cancel')}</button>
-            )}
           </div>
         </div>
       )}
@@ -547,13 +635,33 @@ export default function ProfilKebunPage() {
         {canAccessAllNegeri && negeriWithData.length > 1 && (
           <div className="flex gap-2 overflow-x-auto pb-1">
             {['Semua', ...negeriWithData].map(n => (
-              <button key={n} onClick={() => setFilterNegeri(n)}
+              <button key={n} onClick={() => { setFilterNegeri(n); setFilterDaerah('Semua'); }}
                 className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${filterNegeri === n ? 'bg-forest text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
                 {n}
               </button>
             ))}
           </div>
         )}
+
+        {/* Daerah filter */}
+        {(() => {
+          const scopedKebun = filterNegeri !== 'Semua' ? kebunList.filter(k => k.negeri === filterNegeri) : kebunList;
+          const daerahWithData = [...new Set(scopedKebun.map(k => k.daerah).filter(Boolean))].sort();
+          if (daerahWithData.length > 1) {
+            return (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {['Semua', ...daerahWithData].map(d => (
+                  <button key={d} onClick={() => setFilterDaerah(d)}
+                    className={`px-3 py-1.5 rounded-full text-[10px] font-medium whitespace-nowrap transition-all ${filterDaerah === d ? 'bg-gold text-black' : 'bg-white text-gray-600 border border-gray-200'}`}>
+                    {d}
+                  </button>
+                ))}
+              </div>
+            );
+          }
+          return null;
+        })()}
+
         <input placeholder={t('kebun.search')} value={search} onChange={(e) => setSearch(e.target.value)}
           className="w-full px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-forest/30 focus:outline-none" />
       </div>
@@ -571,14 +679,37 @@ export default function ProfilKebunPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {filtered.map(k => {
             const pokok = k.jumlahPokok || 0;
-            const hasVarieti = k.varieti5_9 || k.varieti10_15 || k.varieti16_19 || k.varieti20;
-            const isComplete = pokok > 0 && hasVarieti;
-            const varietiNames = [
-              k.varieti5_9 && VARIETIES.find(v => v.key === k.varieti5_9)?.name.split(' (')[0],
-              k.varieti10_15 && VARIETIES.find(v => v.key === k.varieti10_15)?.name.split(' (')[0],
-              k.varieti16_19 && VARIETIES.find(v => v.key === k.varieti16_19)?.name.split(' (')[0],
-              k.varieti20 && VARIETIES.find(v => v.key === k.varieti20)?.name.split(' (')[0],
-            ].filter(Boolean);
+            const hasVarietiData = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0);
+            const hasLegacyVarieti = (!k.varietiData || k.varietiData.length === 0) && (k.varieti5_9 || k.varieti10_15 || k.varieti16_19);
+            const hasVarieti = hasVarietiData || hasLegacyVarieti;
+            const isComplete = pokok > 0 && hasVarieti && !!k.alamat && !!k.mukim && !!k.latlong && !!k.noTelefon && k.noTelefon !== '-';
+
+            // Senarai perkara belum lengkap untuk tooltip
+            const missingItems: string[] = [];
+            if (pokok <= 0) missingItems.push('Bilangan Pokok');
+            if (!hasVarieti) missingItems.push('Varieti Pokok');
+            if (!k.latlong) missingItems.push('Koordinat GPS');
+            if (!k.noTelefon || k.noTelefon === '-') missingItems.push('No. Telefon');
+            if (!k.alamat) missingItems.push('Alamat Kebun');
+            if (!k.mukim) missingItems.push('Mukim');
+
+            const varietiNames = (() => {
+              if (k.varietiData && k.varietiData.length > 0) {
+                const map: Record<string, number> = {};
+                k.varietiData.forEach(v => {
+                  if (v.varieti && v.bilangan > 0) map[v.varieti] = (map[v.varieti] || 0) + v.bilangan;
+                });
+                return Object.entries(map).map(([vKey, total]) => {
+                  const name = VARIETIES.find(v => v.key === vKey)?.name.split(' (')[0] || vKey;
+                  return `${name} (${total})`;
+                });
+              }
+              return [
+                k.varieti5_9 && VARIETIES.find(v => v.key === k.varieti5_9)?.name.split(' (')[0],
+                k.varieti10_15 && VARIETIES.find(v => v.key === k.varieti10_15)?.name.split(' (')[0],
+                k.varieti16_19 && VARIETIES.find(v => v.key === k.varieti16_19)?.name.split(' (')[0],
+              ].filter(Boolean) as string[];
+            })();
             const uniqueVarieti = [...new Set(varietiNames)];
 
             return (
@@ -587,11 +718,26 @@ export default function ProfilKebunPage() {
                   isComplete ? 'border-gray-100' : 'border-amber-200'
                 }`}
                 onClick={() => handleEdit(k)}>
-                {/* Status badge */}
-                <div className={`absolute top-2.5 right-2.5 text-[8px] px-1.5 py-0.5 rounded-full font-bold ${
-                  isComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                }`}>
-                  {isComplete ? t('kebun.complete') : t('kebun.incomplete')}
+                {/* Status badge with tooltip */}
+                <div className="absolute top-2.5 right-2.5 group">
+                  <div className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold cursor-default ${
+                    isComplete ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
+                  }`}>
+                    {isComplete ? t('kebun.complete') : t('kebun.incomplete')}
+                  </div>
+                  {!isComplete && missingItems.length > 0 && (
+                    <div className="hidden group-hover:block absolute top-full right-0 mt-1 z-50 w-44 bg-gray-800 text-white rounded-lg p-2.5 shadow-lg text-[9px] leading-relaxed">
+                      <p className="font-bold mb-1 text-amber-300">⚠ Perlu dikemaskini:</p>
+                      <ul className="space-y-0.5">
+                        {missingItems.map(item => (
+                          <li key={item} className="flex items-center gap-1">
+                            <span className="text-red-300">•</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                      <div className="absolute -top-1 right-3 w-2 h-2 bg-gray-800 rotate-45" />
+                    </div>
+                  )}
                 </div>
 
                 {/* Nama */}
@@ -611,7 +757,7 @@ export default function ProfilKebunPage() {
                   <h4 className="font-bold text-forest text-sm pr-16 truncate">{k.nama}</h4>
                 </div>
                 <p className="text-[10px] text-gray-500 mt-0.5 truncate">
-                  {k.daerah || '-'}, {k.negeri || '-'} &bull; {k.mukim || '-'}
+                  {k.daerah || '-'}, {k.negeri || '-'} &bull; {k.alamat || '-'}
                 </p>
 
                 {/* Stats row */}
@@ -628,9 +774,11 @@ export default function ProfilKebunPage() {
 
                 {/* Varieti */}
                 {uniqueVarieti.length > 0 && (
-                  <p className="text-[9px] text-moss mt-1.5 truncate">
-                    {uniqueVarieti.join(', ')}
-                  </p>
+                  <div className="mt-1.5 space-y-0.5">
+                    {uniqueVarieti.map((v, i) => (
+                      <p key={i} className="text-[9px] text-moss">• {v}</p>
+                    ))}
+                  </div>
                 )}
 
                 {/* Timestamp */}
@@ -660,6 +808,88 @@ export default function ProfilKebunPage() {
             );
           })}
           <p className="text-[10px] text-gray-400 text-center pt-2">{t('kebun.total')}: {filtered.length} {t('kebun.pekebun')}</p>
+        </div>
+      )}
+
+      {/* Ringkasan Negeri */}
+      {kebunList.length > 0 && (
+        <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-4">
+          <h3 className="text-sm font-bold text-forest flex items-center gap-2">
+            📊 Ringkasan {filterNegeri !== 'Semua' ? filterNegeri : 'Keseluruhan'}
+            {filterDaerah !== 'Semua' && <span className="text-[9px] bg-gold/10 text-gold px-2 py-0.5 rounded-full">{filterDaerah}</span>}
+          </h3>
+
+          {(() => {
+            const scopedList = filtered;
+            const totalPekebun = scopedList.length;
+            const totalEkar = scopedList.reduce((s, k) => s + (k.saizKebun || 0), 0);
+            const totalPokok = scopedList.reduce((s, k) => s + (k.jumlahPokok || 0), 0);
+
+            // Aggregate varieti across all visible pekebun
+            const varietiTotals: Record<string, number> = {};
+            scopedList.forEach(k => {
+              if (k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)) {
+                k.varietiData.forEach(v => {
+                  if (v.varieti && v.bilangan > 0) varietiTotals[v.varieti] = (varietiTotals[v.varieti] || 0) + v.bilangan;
+                });
+              } else {
+                if (k.varieti5_9 && (k.usia5_9 || 0) > 0) varietiTotals[k.varieti5_9] = (varietiTotals[k.varieti5_9] || 0) + k.usia5_9;
+                if (k.varieti10_15 && (k.usia10_15 || 0) > 0) varietiTotals[k.varieti10_15] = (varietiTotals[k.varieti10_15] || 0) + k.usia10_15;
+                if (k.varieti16_19 && (k.usia16_19 || 0) > 0) varietiTotals[k.varieti16_19] = (varietiTotals[k.varieti16_19] || 0) + k.usia16_19;
+                if (k.varieti20 && (k.usia20 || 0) > 0) varietiTotals[k.varieti20] = (varietiTotals[k.varieti20] || 0) + k.usia20;
+              }
+            });
+
+            const varietiSorted = Object.entries(varietiTotals).sort((a, b) => b[1] - a[1]);
+
+            return (
+              <>
+                {/* Stats row */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-forest/5 rounded-xl p-3 text-center">
+                    <p className="text-xl font-bold text-forest">{totalPekebun}</p>
+                    <p className="text-[9px] text-gray-500">Jumlah Pekebun</p>
+                  </div>
+                  <div className="bg-forest/5 rounded-xl p-3 text-center">
+                    <p className="text-xl font-bold text-forest">{totalEkar.toFixed(1)}</p>
+                    <p className="text-[9px] text-gray-500">Jumlah Ekar</p>
+                  </div>
+                  <div className="bg-forest/5 rounded-xl p-3 text-center">
+                    <p className="text-xl font-bold text-forest">{totalPokok.toLocaleString()}</p>
+                    <p className="text-[9px] text-gray-500">Jumlah Pokok</p>
+                  </div>
+                </div>
+
+                {/* Varieti breakdown */}
+                {varietiSorted.length > 0 && (
+                  <div>
+                    <p className="text-[10px] font-semibold text-gray-500 mb-2">Pecahan Mengikut Varieti:</p>
+                    <div className="space-y-1.5">
+                      {(() => {
+                        const totalVarietiPokok = varietiSorted.reduce((s, [, t]) => s + t, 0);
+                        return varietiSorted.map(([vKey, total]) => {
+                          const pct = totalVarietiPokok > 0 ? ((total / totalVarietiPokok) * 100).toFixed(0) : '0';
+                          return (
+                            <div key={vKey} className="flex items-center gap-2">
+                              <div className="flex-1">
+                                <div className="flex justify-between items-center mb-0.5">
+                                  <span className="text-[10px] font-semibold text-gray-700">{VARIETIES.find(v => v.key === vKey)?.name || vKey}</span>
+                                <span className="text-[9px] text-forest font-bold">{total.toLocaleString()} pokok ({pct}%)</span>
+                              </div>
+                              <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-forest/60 rounded-full" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          </div>
+                        );
+                        });
+                      })()}
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 

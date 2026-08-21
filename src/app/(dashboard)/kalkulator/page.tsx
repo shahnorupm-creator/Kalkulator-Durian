@@ -8,6 +8,8 @@ import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
+interface VarietiEntry { usia: string; varieti: string; bilangan: number; }
+
 interface KebunRecord {
   id: string;
   nama: string;
@@ -16,60 +18,28 @@ interface KebunRecord {
   saizKebun: number;
   kepadatan: number;
   pctMatang: number;
+  jumlahPokok: number;
+  usia5_9: number;
+  usia10_15: number;
+  usia16_19: number;
+  usia20: number;
+  varieti5_9: string;
+  varieti10_15: string;
+  varieti16_19: string;
+  varieti20: string;
+  varietiData?: VarietiEntry[];
 }
 
 interface StageInput { pct: number; d: number; }
+interface VarietiResult { varietiKey: string; varietiName: string; bilPokok: number; hasilPerPokok: number; totalKg: number; }
 
-// Preset peratusan berdasarkan fasa utama yang dipilih
 const FASA_PRESETS: Record<string, Record<string, { pct: number; d: number }>> = {
-  mataketam: {
-    mataketam: { pct: 70, d: 15 },
-    berbunga: { pct: 10, d: 5 },
-    putik: { pct: 0, d: 0 },
-    kecil: { pct: 0, d: 0 },
-    besar: { pct: 0, d: 0 },
-    tidak: { pct: 20, d: 0 },
-  },
-  berbunga: {
-    mataketam: { pct: 10, d: 25 },
-    berbunga: { pct: 60, d: 15 },
-    putik: { pct: 10, d: 5 },
-    kecil: { pct: 0, d: 0 },
-    besar: { pct: 0, d: 0 },
-    tidak: { pct: 20, d: 0 },
-  },
-  putik: {
-    mataketam: { pct: 0, d: 0 },
-    berbunga: { pct: 10, d: 20 },
-    putik: { pct: 60, d: 20 },
-    kecil: { pct: 15, d: 10 },
-    besar: { pct: 0, d: 0 },
-    tidak: { pct: 15, d: 0 },
-  },
-  kecil: {
-    mataketam: { pct: 0, d: 0 },
-    berbunga: { pct: 0, d: 0 },
-    putik: { pct: 10, d: 40 },
-    kecil: { pct: 65, d: 30 },
-    besar: { pct: 15, d: 5 },
-    tidak: { pct: 10, d: 0 },
-  },
-  besar: {
-    mataketam: { pct: 0, d: 0 },
-    berbunga: { pct: 0, d: 0 },
-    putik: { pct: 0, d: 0 },
-    kecil: { pct: 22, d: 40 },
-    besar: { pct: 73, d: 2 },
-    tidak: { pct: 5, d: 0 },
-  },
-  tidak: {
-    mataketam: { pct: 0, d: 0 },
-    berbunga: { pct: 0, d: 0 },
-    putik: { pct: 0, d: 0 },
-    kecil: { pct: 0, d: 0 },
-    besar: { pct: 0, d: 0 },
-    tidak: { pct: 100, d: 0 },
-  },
+  mataketam: { mataketam: { pct: 70, d: 15 }, berbunga: { pct: 10, d: 5 }, putik: { pct: 0, d: 0 }, kecil: { pct: 0, d: 0 }, besar: { pct: 0, d: 0 }, tidak: { pct: 20, d: 0 } },
+  berbunga: { mataketam: { pct: 10, d: 25 }, berbunga: { pct: 60, d: 15 }, putik: { pct: 10, d: 5 }, kecil: { pct: 0, d: 0 }, besar: { pct: 0, d: 0 }, tidak: { pct: 20, d: 0 } },
+  putik: { mataketam: { pct: 0, d: 0 }, berbunga: { pct: 10, d: 20 }, putik: { pct: 60, d: 20 }, kecil: { pct: 15, d: 10 }, besar: { pct: 0, d: 0 }, tidak: { pct: 15, d: 0 } },
+  kecil: { mataketam: { pct: 0, d: 0 }, berbunga: { pct: 0, d: 0 }, putik: { pct: 10, d: 40 }, kecil: { pct: 65, d: 30 }, besar: { pct: 15, d: 5 }, tidak: { pct: 10, d: 0 } },
+  besar: { mataketam: { pct: 0, d: 0 }, berbunga: { pct: 0, d: 0 }, putik: { pct: 0, d: 0 }, kecil: { pct: 22, d: 40 }, besar: { pct: 73, d: 2 }, tidak: { pct: 5, d: 0 } },
+  tidak: { mataketam: { pct: 0, d: 0 }, berbunga: { pct: 0, d: 0 }, putik: { pct: 0, d: 0 }, kecil: { pct: 0, d: 0 }, besar: { pct: 0, d: 0 }, tidak: { pct: 100, d: 0 } },
 };
 
 export default function KalkulatorPage() {
@@ -78,21 +48,16 @@ export default function KalkulatorPage() {
   const [kebunList, setKebunList] = useState<KebunRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKebun, setSelectedKebun] = useState<string>('');
-  const [varieti, setVarieti] = useState<string>(VARIETIES[0].key);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
   const [fasaUtama, setFasaUtama] = useState<string>('besar');
   const [tarikhLawatan, setTarikhLawatan] = useState(new Date().toISOString().split('T')[0]);
   const [stages, setStages] = useState<Record<string, StageInput>>(FASA_PRESETS['besar']);
-  const [showResults, setShowResults] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showPopup, setShowPopup] = useState(false);
 
-  // Fetch kebun list from centralized collection
   useEffect(() => {
     if (!user) return;
-    // Pegawai nampak kebun assigned; superadmin / admin negeri / admin HQ nampak semua
-    const isAdminUser =
-      profile?.role === 'superadmin' ||
-      profile?.role === 'admin_negeri' ||
-      profile?.role === 'admin_hq';
+    const isAdminUser = profile?.role === 'superadmin' || profile?.role === 'admin_negeri' || profile?.role === 'admin_hq';
     const q = isAdminUser
       ? query(collection(db, 'kebun'), orderBy('nama'))
       : query(collection(db, 'kebun'), where('assignedTo', '==', user.uid), orderBy('nama'));
@@ -103,45 +68,59 @@ export default function KalkulatorPage() {
     return () => unsub();
   }, [user, profile]);
 
-  // Auto-populate stages when fasa changes
-  const handleFasaChange = (newFasa: string) => {
-    setFasaUtama(newFasa);
-    setStages(FASA_PRESETS[newFasa] || FASA_PRESETS['besar']);
-    setShowResults(false);
-  };
-
   const kebun = kebunList.find(k => k.id === selectedKebun);
-  const selectedVariety = VARIETIES.find(v => v.key === varieti);
-  const hasilPerPokok = selectedVariety?.hasil || 150;
 
-  const jumlahPokok = useMemo(() => {
+  const jumlahPokokKebun = useMemo(() => {
     if (!kebun) return 0;
+    if ((kebun.jumlahPokok || 0) > 0) return kebun.jumlahPokok;
     return Math.round(kebun.saizKebun * kebun.kepadatan * (kebun.pctMatang / 100));
+  }, [kebun]);
+
+  const varietiAggregate = useMemo(() => {
+    if (!kebun) return [];
+    const map: Record<string, number> = {};
+    const hasValid = kebun.varietiData && kebun.varietiData.some(v => v.varieti && v.bilangan > 0);
+    if (hasValid) {
+      kebun.varietiData!.forEach(v => { if (v.varieti && v.bilangan > 0) map[v.varieti] = (map[v.varieti] || 0) + v.bilangan; });
+    } else {
+      if (kebun.varieti5_9 && (kebun.usia5_9 || 0) > 0) map[kebun.varieti5_9] = (map[kebun.varieti5_9] || 0) + kebun.usia5_9;
+      if (kebun.varieti10_15 && (kebun.usia10_15 || 0) > 0) map[kebun.varieti10_15] = (map[kebun.varieti10_15] || 0) + kebun.usia10_15;
+      if (kebun.varieti16_19 && (kebun.usia16_19 || 0) > 0) map[kebun.varieti16_19] = (map[kebun.varieti16_19] || 0) + kebun.usia16_19;
+      if (kebun.varieti20 && (kebun.usia20 || 0) > 0) map[kebun.varieti20] = (map[kebun.varieti20] || 0) + kebun.usia20;
+    }
+    return Object.entries(map).map(([key, bilPokok]) => {
+      const v = VARIETIES.find(x => x.key === key);
+      return { varietiKey: key, varietiName: v?.name || key, bilPokok, hasilPerPokok: v?.hasil || 150 };
+    });
   }, [kebun]);
 
   const totalPct = useMemo(() => Object.values(stages).reduce((s, v) => s + v.pct, 0), [stages]);
 
-  const results = useMemo(() => {
-    return STAGES.map(stage => {
-      const input = stages[stage.key];
-      if (stage.J === null) return { ...stage, bakiHari: null, tarikh: null, kg: 0 };
-      const bakiHari = stage.J - input.d;
-      const kg = (input.pct / 100) * jumlahPokok * hasilPerPokok;
-      const d = new Date(tarikhLawatan);
-      d.setDate(d.getDate() + bakiHari);
-      return {
-        ...stage,
-        bakiHari,
-        tarikh: input.pct > 0 ? d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' }) : null,
-        kg,
-      };
-    });
-  }, [stages, jumlahPokok, hasilPerPokok, tarikhLawatan]);
+  const varietiResults: VarietiResult[] = useMemo(() => {
+    if (!kebun || varietiAggregate.length === 0) return [];
+    const producingPct = STAGES.reduce((sum, stage) => stage.J === null ? sum : sum + (stages[stage.key]?.pct || 0), 0);
+    return varietiAggregate.map(v => ({ ...v, totalKg: (producingPct / 100) * v.bilPokok * v.hasilPerPokok }));
+  }, [kebun, varietiAggregate, stages]);
 
-  const totalKg = results.reduce((s, r) => s + r.kg, 0);
+  const grandTotalKg = varietiResults.reduce((s, v) => s + v.totalKg, 0);
+
+  const handleFasaChange = (newFasa: string) => {
+    setFasaUtama(newFasa);
+    setStages(FASA_PRESETS[newFasa] || FASA_PRESETS['besar']);
+  };
 
   const handleStageChange = (key: string, field: 'pct' | 'd', value: number) => {
     setStages(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+  };
+
+  const handleSelectKebun = (id: string) => {
+    setSelectedKebun(id);
+    setShowPopup(true);
+  };
+
+  const handleConfirmKebun = () => {
+    setShowPopup(false);
+    setStep(2);
   };
 
   const handleSave = async () => {
@@ -149,344 +128,311 @@ export default function KalkulatorPage() {
     setSaving(true);
     try {
       await addDoc(collection(db, 'kebun', kebun.id, 'lawatan'), {
-        tarikhLawatan,
-        varieti: selectedVariety?.name,
-        varietiKey: varieti,
-        fasaUtama,
-        saizKebun: kebun.saizKebun,
-        jumlahPokok,
-        hasilPerPokok,
-        stages,
-        totalKg,
-        totalTan: totalKg / 1000,
-        pegawaiNama: profile?.nama || '',
-        pegawaiDaerah: profile?.daerah || '',
-        negeri: kebun.negeri || '',
+        kebunId: kebun.id, kebunNama: kebun.nama, daerah: kebun.daerah, tarikhLawatan, fasaUtama,
+        saizKebun: kebun.saizKebun, jumlahPokok: jumlahPokokKebun, stages,
+        varietiResults: varietiResults.map(v => ({ key: v.varietiKey, name: v.varietiName, pokok: v.bilPokok, kg: v.totalKg })),
+        totalKg: grandTotalKg, totalTan: grandTotalKg / 1000,
+        pegawaiNama: profile?.nama || '', pegawaiDaerah: profile?.daerah || '', negeri: kebun.negeri || '',
         createdAt: serverTimestamp(),
       });
       toast.success(t('calc.saved'));
-      setShowResults(false);
-    } catch (e) {
-      console.error(e);
-      toast.error(t('calc.saveFailed'));
-    }
+    } catch (e) { console.error(e); toast.error(t('calc.saveFailed')); }
     setSaving(false);
   };
 
-  const fasaLabel = (key: string) => {
-    const stage = STAGES.find(s => s.key === key);
-    return stage?.name || key;
-  };
+  const fasaLabel = (key: string) => STAGES.find(s => s.key === key)?.name || key;
 
   return (
     <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-forest">{t('calc.title')}</h2>
-        <p className="text-xs text-gray-500">{t('calc.subtitle')}</p>
-      </div>
-
-      {/* Step 1: Select Kebun — Card Grid */}
-      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-        <label className="text-[10px] font-semibold text-gray-500 mb-3 block">{t('calc.selectKebun')}</label>
-
-        {loading ? (
-          <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-gray-50 rounded-xl p-4 animate-pulse"><div className="h-4 bg-gray-200 rounded w-3/4 mb-2"/><div className="h-3 bg-gray-200 rounded w-1/2"/></div>)}</div>
-        ) : kebunList.length === 0 ? (
-          <div className="text-center py-8">
-            <span className="text-3xl">🌱</span>
-            <p className="text-sm text-gray-500 mt-2">{t('calc.noKebunRegistered')}</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {kebunList.map(k => {
-              const pokok = Math.round(k.saizKebun * k.kepadatan * (k.pctMatang / 100));
-              const isSelected = selectedKebun === k.id;
-              return (
-                <div
-                  key={k.id}
-                  onClick={() => { setSelectedKebun(k.id); setShowResults(false); }}
-                  className={`rounded-xl p-3.5 shadow-sm border cursor-pointer card-hover transition-all ${
-                    isSelected
-                      ? 'border-forest bg-forest/5 ring-2 ring-forest/30'
-                      : 'border-gray-100 bg-white hover:border-forest/30'
-                  }`}
-                >
-                  {/* Nama */}
-                  <div className="flex items-center gap-2">
-                    {k.negeri && NEGERI_FLAG[k.negeri] ? (
-                      <img src={NEGERI_FLAG[k.negeri]} alt={k.negeri}
-                        className="w-6 h-4 object-contain rounded-sm flex-shrink-0"
-                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    ) : k.negeri && NEGERI_FLAG_COLORS[k.negeri] ? (
-                      <div className="w-6 h-4 rounded-sm flex-shrink-0 border border-gray-200 overflow-hidden">
-                        <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].top }} />
-                        <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
-                      </div>
-                    ) : null}
-                    <h4 className="font-bold text-forest text-sm truncate">{k.nama}</h4>
-                    {isSelected && (
-                      <span className="ml-auto text-[8px] bg-forest text-white px-1.5 py-0.5 rounded-full font-bold">✓</span>
-                    )}
-                  </div>
-                  <p className="text-[10px] text-gray-500 mt-0.5 truncate">
-                    {k.daerah || '-'}, {k.negeri || '-'}
-                  </p>
-
-                  {/* Stats */}
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-[9px] bg-forest/10 text-forest px-2 py-0.5 rounded-full font-semibold">
-                      {k.saizKebun} {t('kebun.ekar')}
-                    </span>
-                    <span className="text-[9px] bg-gold/10 text-gold px-2 py-0.5 rounded-full font-semibold">
-                      {pokok} {t('kebun.pokok')}
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Selected kebun stats */}
-        {kebun && (
-          <div className="mt-4 bg-forest/5 rounded-xl p-3 grid grid-cols-3 gap-2 text-center">
-            <div><p className="text-lg font-bold text-forest">{kebun.saizKebun}</p><p className="text-[9px] text-gray-500">{t('kebun.ekar')}</p></div>
-            <div><p className="text-lg font-bold text-forest">{jumlahPokok}</p><p className="text-[9px] text-gray-500">{t('calc.pokokBerbuah')}</p></div>
-            <div><p className="text-lg font-bold text-forest">{kebun.pctMatang}%</p><p className="text-[9px] text-gray-500">{t('calc.matang')}</p></div>
-          </div>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg font-bold text-forest">{t('calc.title')}</h2>
+          <p className="text-xs text-gray-500">{t('calc.subtitle')}</p>
+        </div>
+        {step > 1 && (
+          <button onClick={() => { setStep(step === 3 ? 2 : 1); }} className="text-xs text-forest underline">
+            ← Kembali
+          </button>
         )}
       </div>
 
-      {kebun && (
-        <>
-          {/* Step 2: Varieti, Tarikh, Fasa Utama */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 space-y-3">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[10px] font-semibold text-gray-500">{t('calc.varieti')}</label>
-                <select value={varieti} onChange={(e) => setVarieti(e.target.value)}
-                  className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-forest/30 focus:outline-none">
-                  {VARIETIES.map(v => <option key={v.key} value={v.key}>{v.name}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-[10px] font-semibold text-gray-500">{t('calc.tarikhLawatan')}</label>
-                <input type="date" value={tarikhLawatan} onChange={(e) => setTarikhLawatan(e.target.value)}
-                  className="w-full mt-1 px-3 py-2.5 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-forest/30 focus:outline-none" />
-              </div>
-            </div>
+      {/* Step indicator */}
+      <div className="flex items-center gap-1">
+        {[1, 2, 3].map(s => (
+          <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${s <= step ? 'bg-forest' : 'bg-gray-200'}`} />
+        ))}
+      </div>
 
-            {/* Fasa Utama - the key dropdown */}
-            <div>
-              <label className="text-[10px] font-semibold text-gray-500">{t('calc.fasaUtama')}</label>
-              <p className="text-[9px] text-gray-400 mb-1">{t('calc.fasaDesc')}</p>
-              <select
-                value={fasaUtama}
-                onChange={(e) => handleFasaChange(e.target.value)}
-                className="w-full mt-1 px-3 py-3 border-2 border-forest/30 rounded-xl text-sm bg-forest/5 focus:ring-2 focus:ring-forest/30 focus:outline-none font-semibold text-forest"
-              >
-                {STAGES.map(s => (
-                  <option key={s.key} value={s.key}>{s.name}</option>
-                ))}
-              </select>
-            </div>
+      {/* ═══════════════════ STEP 1: Pilih Pekebun ═══════════════════ */}
+      {step === 1 && (
+        <div className="space-y-3">
+          <p className="text-[10px] font-semibold text-gray-500">1. {t('calc.selectKebun')}</p>
 
-            {/* Selected fasa info */}
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-3">
-              <p className="text-xs font-semibold text-amber-800">
-                {t('calc.fasaSelected')} <span className="text-forest">{fasaLabel(fasaUtama)}</span>
-              </p>
-              <p className="text-[9px] text-amber-700 mt-0.5">
-                {STAGES.find(s => s.key === fasaUtama)?.nota}
-              </p>
-              <p className="text-[9px] text-amber-600 mt-1">
-                {t('calc.fasaAutoFill')}
-              </p>
+          {loading ? (
+            <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-gray-50 rounded-xl p-4 animate-pulse"><div className="h-4 bg-gray-200 rounded w-3/4 mb-2"/><div className="h-3 bg-gray-200 rounded w-1/2"/></div>)}</div>
+          ) : kebunList.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-2xl border border-gray-100">
+              <span className="text-3xl">🌱</span>
+              <p className="text-sm text-gray-500 mt-2">{t('calc.noKebunRegistered')}</p>
             </div>
-          </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {kebunList.map(k => {
+                const pokok = (k.jumlahPokok || 0) > 0 ? k.jumlahPokok : Math.round(k.saizKebun * k.kepadatan * (k.pctMatang / 100));
+                const entries = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)
+                  ? k.varietiData.filter(v => v.varieti && v.bilangan > 0)
+                  : [
+                      k.varieti5_9 && (k.usia5_9 || 0) > 0 ? { varieti: k.varieti5_9, bilangan: k.usia5_9 } : null,
+                      k.varieti10_15 && (k.usia10_15 || 0) > 0 ? { varieti: k.varieti10_15, bilangan: k.usia10_15 } : null,
+                      k.varieti16_19 && (k.usia16_19 || 0) > 0 ? { varieti: k.varieti16_19, bilangan: k.usia16_19 } : null,
+                    ].filter(Boolean) as { varieti: string; bilangan: number }[];
+                const vMap: Record<string, number> = {};
+                entries.forEach(e => { vMap[e.varieti] = (vMap[e.varieti] || 0) + e.bilangan; });
 
-          {/* Step 3: Peringkat Detail (editable) */}
-          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-            <h3 className="font-bold text-forest text-sm mb-1">{t('calc.step4')}</h3>
-            <p className="text-[10px] text-gray-400 mb-3">{t('calc.step4Desc')}</p>
-            <div className="space-y-3">
-              {STAGES.map(stage => {
-                const isActive = stages[stage.key]?.pct > 0;
                 return (
-                  <div key={stage.key} className={`border rounded-xl p-3 transition-all ${isActive ? 'border-forest/30 bg-forest/5' : 'border-gray-100 bg-gray-50'}`}>
-                    <div className="flex justify-between items-center mb-1.5">
-                      <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-forest' : 'bg-gray-300'}`} />
-                        <span className="text-xs font-semibold text-forest">{stage.name}</span>
-                        <span className="text-[9px] text-moss">({stage.tempohHari})</span>
-                      </div>
-                      {stage.J && <span className="text-[9px] text-gray-400">J:{stage.J}d</span>}
+                  <div key={k.id} onClick={() => handleSelectKebun(k.id)}
+                    className="rounded-xl p-3.5 shadow-sm border border-gray-100 bg-white cursor-pointer card-hover hover:border-forest/30 transition-all">
+                    <div className="flex items-center gap-2">
+                      {k.negeri && NEGERI_FLAG[k.negeri] ? (
+                        <img src={NEGERI_FLAG[k.negeri]} alt={k.negeri} className="w-6 h-4 object-contain rounded-sm" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      ) : k.negeri && NEGERI_FLAG_COLORS[k.negeri] ? (
+                        <div className="w-6 h-4 rounded-sm border border-gray-200 overflow-hidden">
+                          <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].top }} />
+                          <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
+                        </div>
+                      ) : null}
+                      <h4 className="font-bold text-forest text-sm truncate">{k.nama}</h4>
                     </div>
-                    {stage.J !== null ? (
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-[9px] text-gray-400">% Pokok</label>
-                          <input type="number" value={stages[stage.key]?.pct || 0}
-                            onChange={(e) => handleStageChange(stage.key, 'pct', parseFloat(e.target.value) || 0)}
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-forest focus:outline-none"
-                            min="0" max="100" step="1" />
-                        </div>
-                        <div>
-                          <label className="text-[9px] text-gray-400">Usia (D) hari</label>
-                          <input type="number" value={stages[stage.key]?.d || 0}
-                            onChange={(e) => handleStageChange(stage.key, 'd', parseInt(e.target.value) || 0)}
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-forest focus:outline-none"
-                            min="0" />
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <label className="text-[9px] text-gray-400">% Pokok</label>
-                        <input type="number" value={stages[stage.key]?.pct || 0}
-                          onChange={(e) => handleStageChange(stage.key, 'pct', parseFloat(e.target.value) || 0)}
-                          className="w-full px-2 py-1.5 border border-gray-200 rounded-lg text-sm focus:ring-1 focus:ring-forest focus:outline-none"
-                          min="0" max="100" />
+                    <p className="text-[10px] text-gray-500 mt-0.5 truncate">{k.daerah || '-'}, {k.negeri || '-'}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-[9px] bg-forest/10 text-forest px-2 py-0.5 rounded-full font-semibold">{k.saizKebun} ekar</span>
+                      <span className="text-[9px] bg-gold/10 text-gold px-2 py-0.5 rounded-full font-semibold">{pokok} pokok</span>
+                    </div>
+                    {Object.keys(vMap).length > 0 && (
+                      <div className="mt-2 space-y-0.5">
+                        {Object.entries(vMap).map(([vKey, total]) => (
+                          <p key={vKey} className="text-[9px] text-gray-500">• {VARIETIES.find(v => v.key === vKey)?.name.split(' (')[0]} — <span className="font-semibold text-forest">{total}</span></p>
+                        ))}
                       </div>
                     )}
                   </div>
                 );
               })}
             </div>
-            <div className={`mt-3 text-xs font-semibold ${Math.abs(totalPct - 100) > 0.5 ? 'text-red-500' : 'text-moss'}`}>
-              {t('calc.total')}: {totalPct.toFixed(0)}% {Math.abs(totalPct - 100) > 0.5 && t('calc.needTotal100')}
+          )}
+        </div>
+      )}
+
+      {/* ═══════════════════ STEP 2: Tarikh + Fasa + Peringkat ═══════════════════ */}
+      {step === 2 && kebun && (
+        <div className="space-y-4">
+          {/* Selected kebun badge + varieti detail */}
+          <div className="bg-forest/5 rounded-xl p-3 space-y-2">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-bold text-forest">{kebun.nama}</p>
+                <p className="text-[9px] text-gray-500">{kebun.daerah}, {kebun.negeri}</p>
+              </div>
+              <button onClick={() => setStep(1)} className="text-[9px] text-forest underline">Tukar</button>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] bg-white text-forest px-2 py-0.5 rounded-full font-semibold">{kebun.saizKebun} ekar</span>
+              <span className="text-[9px] bg-white text-gold px-2 py-0.5 rounded-full font-semibold">{jumlahPokokKebun} pokok</span>
+            </div>
+            {varietiAggregate.length > 0 && (
+              <div className="space-y-0.5 pt-1 border-t border-forest/10">
+                {varietiAggregate.map(v => (
+                  <p key={v.varietiKey} className="text-[9px] text-gray-600">• {v.varietiName.split(' (')[0]} — <span className="font-semibold text-forest">{v.bilPokok}</span></p>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Tarikh & Fasa */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500">{t('calc.tarikhLawatan')}</label>
+                <input type="date" value={tarikhLawatan} onChange={(e) => setTarikhLawatan(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border border-gray-200 rounded-xl text-sm bg-gray-50 focus:ring-2 focus:ring-forest/30 focus:outline-none" />
+              </div>
+              <div>
+                <label className="text-[10px] font-semibold text-gray-500">{t('calc.fasaUtama')}</label>
+                <select value={fasaUtama} onChange={(e) => handleFasaChange(e.target.value)}
+                  className="w-full mt-1 px-3 py-2 border-2 border-forest/30 rounded-xl text-sm bg-forest/5 font-semibold text-forest focus:outline-none">
+                  {STAGES.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
+                </select>
+              </div>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              <p className="text-[9px] text-amber-700">{STAGES.find(s => s.key === fasaUtama)?.nota}</p>
             </div>
           </div>
 
-          {/* Calculate Button */}
-          <button onClick={() => setShowResults(true)}
-            className="w-full bg-gradient-forest text-white py-3.5 rounded-xl font-semibold shadow-lg active:scale-[0.98]">
+          {/* Pecahan Peringkat — compact */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <p className="text-[10px] font-semibold text-gray-500 mb-2">{t('calc.step4')}</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {STAGES.map(stage => (
+                <div key={stage.key} className={`border rounded-lg p-2 ${stages[stage.key]?.pct > 0 ? 'border-forest/30 bg-forest/5' : 'border-gray-100 bg-gray-50'}`}>
+                  <p className="text-[9px] font-semibold text-forest mb-1 truncate">{stage.name}</p>
+                  <div className="flex gap-1">
+                    <div className="flex-1">
+                      <input type="number" value={stages[stage.key]?.pct || 0}
+                        onChange={(e) => handleStageChange(stage.key, 'pct', parseFloat(e.target.value) || 0)}
+                        className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
+                        min="0" max="100" />
+                      <p className="text-[7px] text-gray-400 text-center mt-0.5">%</p>
+                    </div>
+                    {stage.J !== null && (
+                      <div className="flex-1">
+                        <input type="number" value={stages[stage.key]?.d || 0}
+                          onChange={(e) => handleStageChange(stage.key, 'd', parseInt(e.target.value) || 0)}
+                          className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
+                          min="0" />
+                        <p className="text-[7px] text-gray-400 text-center mt-0.5">hari</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className={`mt-2 text-[10px] font-semibold text-center ${Math.abs(totalPct - 100) > 0.5 ? 'text-red-500' : 'text-moss'}`}>
+              Jumlah: {totalPct.toFixed(0)}% {Math.abs(totalPct - 100) > 0.5 && '(Mesti 100%)'}
+            </div>
+          </div>
+
+          {/* Kira Button */}
+          <button onClick={() => setStep(3)}
+            disabled={Math.abs(totalPct - 100) > 0.5}
+            className="w-full bg-gradient-forest text-white py-3.5 rounded-xl font-semibold shadow-lg active:scale-[0.98] disabled:opacity-50">
             {t('calc.calculate')}
           </button>
-
-          {/* Results */}
-          {showResults && (
-            <div className="bg-white rounded-2xl p-5 shadow-sm border-l-4 border-gold space-y-3">
-              <h3 className="font-bold text-forest">{t('calc.results')}</h3>
-
-              {/* Info badge */}
-              <div className="bg-forest/5 rounded-lg px-3 py-2 text-[10px] text-gray-600">
-                <span className="font-bold text-forest">{kebun.nama}</span> &bull; {selectedVariety?.name} &bull; Fasa: {fasaLabel(fasaUtama)}
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="bg-forest text-white">
-                      <th className="px-2 py-2 text-left rounded-tl-lg">Peringkat</th>
-                      <th className="px-2 py-2 text-right">%</th>
-                      <th className="px-2 py-2 text-right">Baki Hari</th>
-                      <th className="px-2 py-2 text-right">Jangkaan Tarikh</th>
-                      <th className="px-2 py-2 text-right rounded-tr-lg">KG</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {results.map(r => (
-                      <tr key={r.key} className="border-b border-gray-50">
-                        <td className="px-2 py-2 font-medium">{r.name}</td>
-                        <td className="px-2 py-2 text-right">{stages[r.key]?.pct.toFixed(0)}%</td>
-                        <td className="px-2 py-2 text-right text-gray-400">{r.bakiHari != null && stages[r.key]?.pct > 0 ? `${r.bakiHari} hari` : '-'}</td>
-                        <td className="px-2 py-2 text-right text-gray-400 text-[9px]">{r.tarikh || '-'}</td>
-                        <td className="px-2 py-2 text-right font-semibold">{r.kg > 0 ? r.kg.toFixed(0) : '-'}</td>
-                      </tr>
-                    ))}
-                    <tr className="bg-gold/10 font-bold">
-                      <td className="px-2 py-2" colSpan={4}>JUMLAH ANGGARAN</td>
-                      <td className="px-2 py-2 text-right text-forest">{totalKg.toFixed(0)} kg</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Big total */}
-              <div className="bg-forest/5 rounded-xl p-4 text-center">
-                <p className="text-xs text-gray-500">{t('calc.anggaranKeseluruhan')}</p>
-                <p className="text-3xl font-bold text-forest">{totalKg.toFixed(0)} <span className="text-base font-normal">kg</span></p>
-                <p className="text-sm text-moss">({(totalKg / 1000).toFixed(3)} {t('calc.metrikTan')})</p>
-              </div>
-
-              <button onClick={handleSave} disabled={saving}
-                className="w-full bg-gradient-gold text-black py-3 rounded-xl font-bold shadow-md active:scale-[0.98] disabled:opacity-50">
-                {saving ? t('calc.saving') : t('calc.saveRecord')}
-              </button>
-
-              {/* Detail Kebun & Bulan Pengeluaran */}
-              <div className="mt-4 bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                <h4 className="text-sm font-bold text-forest border-b border-gray-100 pb-2">📋 Detail Kebun</h4>
-                <div className="grid grid-cols-2 gap-y-2 text-xs">
-                  <p className="text-gray-500">Pekebun:</p>
-                  <p className="font-semibold text-gray-800">{kebun.nama}</p>
-                  <p className="text-gray-500">Negeri/Daerah:</p>
-                  <p className="font-semibold text-gray-800">{kebun.negeri}, {kebun.daerah}</p>
-                  <p className="text-gray-500">Keluasan:</p>
-                  <p className="font-semibold text-gray-800">{kebun.saizKebun} ekar</p>
-                  <p className="text-gray-500">Pokok Berbuah:</p>
-                  <p className="font-semibold text-gray-800">{jumlahPokok} pokok</p>
-                  <p className="text-gray-500">Varieti:</p>
-                  <p className="font-semibold text-gray-800">{selectedVariety?.name || '-'}</p>
-                  <p className="text-gray-500">Fasa Semasa:</p>
-                  <p className="font-semibold text-forest">{fasaLabel(fasaUtama)}</p>
-                  <p className="text-gray-500">Tarikh Lawatan:</p>
-                  <p className="font-semibold text-gray-800">{new Date(tarikhLawatan).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
-                </div>
-              </div>
-
-              {/* Jangkaan Bulan Pengeluaran */}
-              <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                <h4 className="text-sm font-bold text-forest border-b border-gray-100 pb-2">📅 Jangkaan Bulan Pengeluaran</h4>
-                <div className="space-y-2">
-                  {results
-                    .filter(r => r.tarikh && stages[r.key]?.pct > 0)
-                    .map(r => {
-                      const d = new Date(tarikhLawatan);
-                      d.setDate(d.getDate() + (r.bakiHari || 0));
-                      const bulanStr = d.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
-                      return (
-                        <div key={r.key} className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2">
-                          <div>
-                            <p className="text-xs font-semibold text-forest">{r.name}</p>
-                            <p className="text-[9px] text-gray-500">{stages[r.key]?.pct}% pokok &bull; {r.bakiHari} hari lagi</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs font-bold text-gold">{bulanStr}</p>
-                            <p className="text-[9px] text-gray-400">{r.kg.toFixed(0)} kg</p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-                {/* Summary bulan */}
-                {(() => {
-                  const bulanSet = new Set<string>();
-                  results.filter(r => r.bakiHari !== null && stages[r.key]?.pct > 0).forEach(r => {
-                    const d = new Date(tarikhLawatan);
-                    d.setDate(d.getDate() + (r.bakiHari || 0));
-                    bulanSet.add(d.toLocaleDateString('ms-MY', { month: 'short' }));
-                  });
-                  const bulanArr = Array.from(bulanSet);
-                  return bulanArr.length > 0 ? (
-                    <div className="bg-gold/10 rounded-lg p-3 text-center">
-                      <p className="text-[9px] text-gray-500">Jangkaan Musim Pengeluaran</p>
-                      <p className="text-sm font-bold text-forest mt-1">
-                        {bulanArr.join(' / ')}
-                      </p>
-                    </div>
-                  ) : null;
-                })()}
-              </div>
-            </div>
-          )}
-        </>
+        </div>
       )}
 
-      {!kebun && kebunList.length > 0 && (
-        <div className="text-center py-8 bg-white rounded-2xl border border-gray-100">
-          <span className="text-3xl">👆</span>
-          <p className="text-sm text-gray-500 mt-2">{t('calc.noKebun')}</p>
+      {/* ═══════════════════ STEP 3: Hasil ═══════════════════ */}
+      {step === 3 && kebun && (
+        <div className="space-y-4">
+          {/* Kebun + Fasa badge */}
+          <div className="bg-forest/5 rounded-xl px-4 py-2 text-[10px] text-gray-600">
+            <span className="font-bold text-forest">{kebun.nama}</span> &bull; {varietiAggregate.length} varieti &bull; Fasa: {fasaLabel(fasaUtama)} &bull; {new Date(tarikhLawatan).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </div>
+
+          {/* Per-varieti results */}
+          <div className="space-y-2">
+            {varietiResults.map(v => (
+              <div key={v.varietiKey} className="flex items-center justify-between bg-white rounded-xl px-4 py-3 shadow-sm border border-gray-100">
+                <div>
+                  <p className="text-xs font-bold text-forest">{v.varietiName}</p>
+                  <p className="text-[9px] text-gray-400">{v.bilPokok} pokok × {v.hasilPerPokok} kg × {(totalPct - (stages['tidak']?.pct || 0)).toFixed(0)}%</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-gold">{v.totalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</p>
+                  <p className="text-[9px] text-gray-400">{(v.totalKg / 1000).toFixed(2)} MT</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Grand Total */}
+          <div className="bg-gold/10 border border-gold/30 rounded-xl p-4 text-center">
+            <p className="text-[9px] text-gray-500">Jumlah Anggaran Keseluruhan</p>
+            <p className="text-3xl font-bold text-forest">{grandTotalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} <span className="text-base font-normal">kg</span></p>
+            <p className="text-sm text-moss">({(grandTotalKg / 1000).toFixed(3)} Metrik Tan)</p>
+          </div>
+
+          {/* Actions */}
+          <div className="grid grid-cols-2 gap-3">
+            <button onClick={() => setStep(2)} className="py-3 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">
+              ← Ubah Peringkat
+            </button>
+            <button onClick={handleSave} disabled={saving}
+              className="py-3 bg-gradient-gold text-black rounded-xl font-bold shadow-md active:scale-[0.98] disabled:opacity-50">
+              {saving ? 'Menyimpan...' : '💾 Simpan Rekod'}
+            </button>
+          </div>
+
+          {/* Detail */}
+          <div className="bg-white border border-gray-200 rounded-xl p-4 text-xs space-y-2">
+            <p className="font-bold text-forest text-sm border-b border-gray-100 pb-1">📋 Pecahan Detail</p>
+            {varietiResults.map(v => (
+              <div key={v.varietiKey} className="flex justify-between py-0.5">
+                <span className="text-gray-600">{v.varietiName} ({v.bilPokok} pokok)</span>
+                <span className="font-bold text-forest">{v.totalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
+              </div>
+            ))}
+            <div className="flex justify-between pt-1 border-t border-gray-100 font-bold">
+              <span>JUMLAH</span>
+              <span className="text-forest">{grandTotalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg ({(grandTotalKg / 1000).toFixed(3)} MT)</span>
+            </div>
+          </div>
+
+          {/* Kira semula dari awal */}
+          <button onClick={() => { setSelectedKebun(''); setStep(1); }}
+            className="w-full py-2.5 text-xs text-gray-400 hover:text-forest rounded-lg hover:bg-forest/5 transition-all">
+            Kira Pekebun Lain →
+          </button>
+        </div>
+      )}
+
+      {/* Popup Maklumat Kebun */}
+      {showPopup && kebun && (
+        <div className="fixed inset-0 bg-black/60 z-[100] flex items-center justify-center p-4" onClick={() => setShowPopup(false)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              {kebun.negeri && NEGERI_FLAG[kebun.negeri] ? (
+                <img src={NEGERI_FLAG[kebun.negeri]} alt={kebun.negeri} className="w-8 h-6 object-contain rounded-sm" />
+              ) : kebun.negeri && NEGERI_FLAG_COLORS[kebun.negeri] ? (
+                <div className="w-8 h-6 rounded-sm border border-gray-200 overflow-hidden">
+                  <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[kebun.negeri].top }} />
+                  <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[kebun.negeri].bottom }} />
+                </div>
+              ) : null}
+              <div>
+                <h3 className="text-lg font-bold text-forest">{kebun.nama}</h3>
+                <p className="text-[10px] text-gray-500">{kebun.daerah}, {kebun.negeri}</p>
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-forest/5 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-forest">{kebun.saizKebun}</p>
+                <p className="text-[9px] text-gray-500">Ekar</p>
+              </div>
+              <div className="bg-forest/5 rounded-xl p-3 text-center">
+                <p className="text-lg font-bold text-forest">{jumlahPokokKebun}</p>
+                <p className="text-[9px] text-gray-500">Pokok</p>
+              </div>
+            </div>
+
+            {/* Varieti list */}
+            {varietiAggregate.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] font-semibold text-gray-500">Senarai Varieti:</p>
+                {varietiAggregate.map(v => (
+                  <div key={v.varietiKey} className="flex justify-between items-center bg-gray-50 rounded-lg px-3 py-2">
+                    <span className="text-xs text-gray-700">{v.varietiName}</span>
+                    <span className="text-xs font-bold text-forest">{v.bilPokok} pokok</span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Buttons */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button onClick={() => setShowPopup(false)} className="py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">
+                Batal
+              </button>
+              <button onClick={handleConfirmKebun} className="py-2.5 bg-gradient-forest text-white rounded-xl text-sm font-bold shadow-md active:scale-[0.98]">
+                Teruskan →
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

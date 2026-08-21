@@ -19,7 +19,7 @@ interface LawatanRecord {
 }
 
 export default function AdminDashboardPage() {
-  const { profile } = useAuth();
+  const { profile, isAnyAdmin } = useAuth();
   const router = useRouter();
   const [records, setRecords] = useState<LawatanRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,10 +27,10 @@ export default function AdminDashboardPage() {
   const [filterPegawai, setFilterPegawai] = useState('');
 
   useEffect(() => {
-    if (profile && profile.role !== 'admin') {
+    if (profile && !isAnyAdmin) {
       router.push('/');
     }
-  }, [profile, router]);
+  }, [profile, isAnyAdmin, router]);
 
   useEffect(() => {
     const q = query(collectionGroup(db, 'lawatan'), orderBy('tarikhLawatan', 'desc'));
@@ -92,7 +92,7 @@ export default function AdminDashboardPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (profile?.role !== 'admin') return null;
+  if (!isAnyAdmin) return null;
 
   return (
     <div className="space-y-4">

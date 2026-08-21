@@ -5,36 +5,29 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { NEGERI_FLAG_COLORS, NEGERI_FLAG } from '@/lib/constants';
+import { VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, STAGES, SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
-  id: string;
-  nama: string;
-  negeri: string;
-  daerah: string;
-  saizKebun: number;
-  jumlahPokok: number;
+  id: string; nama: string; negeri: string; daerah: string;
+  saizKebun: number; jumlahPokok: number;
+  varietiData?: { usia: string; varieti: string; bilangan: number }[];
+  varieti5_9: string; usia5_9: number;
+  varieti10_15: string; usia10_15: number;
+  varieti16_19: string; usia16_19: number;
+  varieti20: string; usia20: number;
 }
 
 interface LawatanRecord {
-  totalKg: number;
-  tarikhLawatan: string;
-  negeri: string;
-  pegawaiDaerah: string;
-}
-
-interface NegeriData {
-  negeri: string;
-  daerah: string[];
-  ekar: number;
-  pokok: number;
-  hasilMT: number;
-  bulanPengeluaran: string;
+  id: string; kebunId: string; totalKg: number; tarikhLawatan: string;
+  negeri: string; daerah?: string;
+  stages?: Record<string, { pct: number; d: number }>;
+  varietiResults?: { key: string; name: string; pokok: number; kg: number }[];
+  createdAt?: { seconds: number } | null;
 }
 
 export default function LaporanPage() {
-  const { profile } = useAuth();
+  const { profile, isSuperAdmin } = useAuth();
   const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
@@ -42,10 +35,15 @@ export default function LaporanPage() {
   const [loading, setLoading] = useState(true);
   const [previewUrl, setPreviewUrl] = useState('');
   const [showPreview, setShowPreview] = useState(false);
+  const [filterNegeri, setFilterNegeri] = useState('Semua');
+  const [filterDaerah, setFilterDaerah] = useState('Semua');
+
+  const isHQ = isSuperAdmin || profile?.role === 'admin_hq';
+  const isAdminNegeri = profile?.role === 'admin_negeri';
+  const userNegeri = profile?.negeri || '';
 
   useEffect(() => {
-    const q = query(collection(db, 'kebun'));
-    const unsub = onSnapshot(q, (snap) => {
+    const unsub = onSnapshot(query(collection(db, 'kebun')), (snap) => {
       setKebun(snap.docs.map(d => ({ id: d.id, ...d.data() } as KebunRecord)));
       setLoading(false);
     });
@@ -53,268 +51,303 @@ export default function LaporanPage() {
   }, []);
 
   useEffect(() => {
-    const q = query(collectionGroup(db, 'lawatan'));
-    const unsub = onSnapshot(q, (snap) => {
-      setLawatan(snap.docs.map(d => d.data() as LawatanRecord));
+    const unsub = onSnapshot(query(collectionGroup(db, 'lawatan')), (snap) => {
+      setLawatan(snap.docs.map(d => {
+        const data = d.data() as Omit<LawatanRecord, 'id' | 'kebunId'> & { kebunId?: string };
+        return { ...data, id: d.id, kebunId: data.kebunId || d.ref.parent.parent?.id || '' } as LawatanRecord;
+      }));
     });
     return () => unsub();
   }, []);
 
-  // Aggregate by negeri
-  const negeriData: NegeriData[] = (() => {
-    const map: Record<string, { daerah: Set<string>; ekar: number; pokok: number; kg: number }> = {};
-    kebun.forEach(k => {
+  // Scope access
+  const accessibleKebun = isHQ ? kebun : kebun.filter(k => k.negeri === userNegeri);
+
+  // Apply filters
+  const filtered = accessibleKebun.filter(k => {
+    if (filterNegeri !== 'Semua' && k.negeri !== filterNegeri) return false;
+    if (filterDaerah !== 'Semua' && k.daerah !== filterDaerah) return false;
+    return true;
+  });
+  const filteredById = new Map(filtered.map(k => [k.id, k]));
+
+  // Latest lawatan per kebun
+  const latestLawatan = (() => {
+    const map = new Map<string, LawatanRecord>();
+    lawatan.forEach(r => {
+      if (!r.kebunId || !filteredById.has(r.kebunId)) return;
+      const cur = map.get(r.kebunId);
+      const rTime = r.createdAt?.seconds || Date.parse(r.tarikhLawatan || '') / 1000 || 0;
+      const cTime = cur?.createdAt?.seconds || Date.parse(cur?.tarikhLawatan || '') / 1000 || 0;
+      if (!cur || rTime >= cTime) map.set(r.kebunId, r);
+    });
+    return Array.from(map.values());
+  })();
+
+  // Summary stats
+  const totalPekebun = filtered.length;
+  const totalEkar = filtered.reduce((s, k) => s + (k.saizKebun || 0), 0);
+  const totalPokok = filtered.reduce((s, k) => s + (k.jumlahPokok || 0), 0);
+  const totalKg = latestLawatan.reduce((s, r) => s + (r.totalKg || 0), 0);
+  const totalMT = totalKg / 1000;
+
+  // Varieti breakdown
+  const varietiDist = (() => {
+    const map: Record<string, number> = {};
+    filtered.forEach(k => {
+      const hasValid = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0);
+      if (hasValid) {
+        k.varietiData!.forEach(v => { if (v.varieti && v.bilangan > 0) map[v.varieti] = (map[v.varieti] || 0) + v.bilangan; });
+      } else {
+        if (k.varieti5_9 && (k.usia5_9 || 0) > 0) map[k.varieti5_9] = (map[k.varieti5_9] || 0) + k.usia5_9;
+        if (k.varieti10_15 && (k.usia10_15 || 0) > 0) map[k.varieti10_15] = (map[k.varieti10_15] || 0) + k.usia10_15;
+        if (k.varieti16_19 && (k.usia16_19 || 0) > 0) map[k.varieti16_19] = (map[k.varieti16_19] || 0) + k.usia16_19;
+        if (k.varieti20 && (k.usia20 || 0) > 0) map[k.varieti20] = (map[k.varieti20] || 0) + k.usia20;
+      }
+    });
+    return Object.entries(map).map(([key, count]) => ({
+      key, name: VARIETIES.find(v => v.key === key)?.name || key, count,
+    })).sort((a, b) => b.count - a.count);
+  })();
+  const totalVarietiPokok = varietiDist.reduce((s, v) => s + v.count, 0);
+
+  // Negeri list with data
+  const negeriWithData = [...new Set(accessibleKebun.map(k => k.negeri).filter(Boolean))].sort();
+  const daerahOptions = filterNegeri !== 'Semua' ? (NEGERI_DAERAH[filterNegeri] || []) : [];
+
+  // Per-negeri breakdown for table
+  const negeriBreakdown = (() => {
+    const map: Record<string, { pekebun: Set<string>; ekar: number; pokok: number; kg: number; varietiKg: Record<string, number>; bulan: Set<number> }> = {};
+    filtered.forEach(k => {
       const n = k.negeri || 'Lain-lain';
-      if (!map[n]) map[n] = { daerah: new Set(), ekar: 0, pokok: 0, kg: 0 };
-      map[n].daerah.add(k.daerah || '');
+      if (!map[n]) map[n] = { pekebun: new Set(), ekar: 0, pokok: 0, kg: 0, varietiKg: {}, bulan: new Set() };
+      map[n].pekebun.add(k.id);
       map[n].ekar += k.saizKebun || 0;
       map[n].pokok += k.jumlahPokok || 0;
     });
-    lawatan.forEach(l => {
-      const n = l.negeri || l.pegawaiDaerah || '';
-      Object.keys(map).forEach(key => {
-        if (key === n || n.includes(key)) map[key].kg += l.totalKg || 0;
-      });
+    latestLawatan.forEach(r => {
+      const farm = filteredById.get(r.kebunId);
+      if (!farm) return;
+      const n = farm.negeri || 'Lain-lain';
+      if (!map[n]) return;
+      map[n].kg += r.totalKg || 0;
+      // Aggregate varieti from saved kalkulator results
+      if (r.varietiResults) {
+        r.varietiResults.forEach(v => {
+          map[n].varietiKg[v.name] = (map[n].varietiKg[v.name] || 0) + (v.kg || 0);
+        });
+      }
+      // Harvest months from stages
+      if (r.tarikhLawatan && r.stages) {
+        const baseDate = new Date(`${r.tarikhLawatan}T00:00:00`);
+        if (!Number.isNaN(baseDate.getTime())) {
+          const STAGES_DATA = [
+            { key: 'mataketam', J: 120 }, { key: 'berbunga', J: 120 }, { key: 'putik', J: 90 },
+            { key: 'kecil', J: 60 }, { key: 'besar', J: 30 },
+          ];
+          STAGES_DATA.forEach(stage => {
+            const input = r.stages?.[stage.key];
+            if (!input || Number(input.pct) <= 0) return;
+            const harvestDate = new Date(baseDate);
+            harvestDate.setDate(harvestDate.getDate() + Math.max(0, stage.J - (Number(input.d) || 0)));
+            map[n].bulan.add(harvestDate.getMonth());
+          });
+        }
+      }
     });
-    return Object.entries(map)
-      .map(([negeri, d]) => ({
-        negeri,
-        daerah: Array.from(d.daerah).filter(Boolean),
-        ekar: d.ekar,
-        pokok: d.pokok,
-        hasilMT: d.kg / 1000,
-        bulanPengeluaran: 'Jun / Julai / Ogos',
-      }))
-      .sort((a, b) => b.hasilMT - a.hasilMT);
+    const BULAN = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
+    return Object.entries(map).map(([negeri, d]) => ({
+      negeri, pekebun: d.pekebun.size, ekar: d.ekar, pokok: d.pokok, kg: d.kg, mt: d.kg / 1000,
+      varietiKg: Object.entries(d.varietiKg).sort((a, b) => b[1] - a[1]),
+      bulanPengeluaran: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN[m]).join(' / ') : 'Belum direkodkan',
+    })).sort((a, b) => b.mt - a.mt);
   })();
 
-  const totalMT = negeriData.reduce((s, n) => s + n.hasilMT, 0);
-
-  // Generate canvas report image
   const generateReport = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
-    const W = 1080;
-    const rowH = 95;
-    const headerH = 200;
-    const tableHeaderH = 50;
-    const footerH = 80;
-    const H = headerH + tableHeaderH + (negeriData.length * rowH) + footerH + 60;
-    canvas.width = W;
-    canvas.height = Math.max(H, 800);
-
-    // Background
-    ctx.fillStyle = '#0C2D1C';
-    ctx.fillRect(0, 0, W, canvas.height);
-
-    // Header
-    ctx.fillStyle = '#124028';
-    ctx.fillRect(0, 0, W, headerH);
-
-    ctx.fillStyle = '#FFC107';
-    ctx.font = 'bold 32px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('ANGGARAN KEBERHASILAN DURIAN', W / 2, 60);
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = '20px sans-serif';
-    ctx.fillText('PERBANDINGAN PENGELUARAN ANTARA NEGERI & DAERAH', W / 2, 100);
-
-    ctx.fillStyle = '#80CBC4';
-    ctx.font = '16px sans-serif';
-    ctx.fillText(`Dijana: ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })} | ${profile?.nama || 'FAMA'}`, W / 2, 140);
-
-    ctx.fillStyle = '#FFC107';
-    ctx.font = 'bold 24px sans-serif';
-    ctx.fillText(`JUMLAH KESELURUHAN: ${totalMT.toFixed(2)} METRIK TAN (MT)`, W / 2, 180);
+    const W = 1080; const H = 600;
+    canvas.width = W; canvas.height = H;
+    ctx.fillStyle = '#0C2D1C'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#FFC107'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('ANGGARAN KEBERHASILAN DURIAN MALAYSIA', W / 2, 50);
+    ctx.fillStyle = '#FFFFFF'; ctx.font = '16px sans-serif';
+    ctx.fillText(`${filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia'} | ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}`, W / 2, 80);
+    const stats = [{ l: 'Pekebun', v: String(totalPekebun) }, { l: 'Ekar', v: totalEkar.toFixed(1) }, { l: 'Pokok', v: totalPokok.toLocaleString() }, { l: 'Anggaran MT', v: totalMT.toFixed(2) }];
+    stats.forEach((s, i) => { const x = 80 + i * 250; ctx.fillStyle = '#1B5E20'; ctx.fillRect(x, 110, 210, 60); ctx.fillStyle = '#FFC107'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(s.v, x + 105, 145); ctx.fillStyle = '#80CBC4'; ctx.font = '11px sans-serif'; ctx.fillText(s.l, x + 105, 162); });
     ctx.textAlign = 'start';
-
-    // Table header
-    let y = headerH + 10;
-    ctx.fillStyle = '#1B5E20';
-    ctx.fillRect(30, y, W - 60, tableHeaderH);
-
-    ctx.fillStyle = '#FFFFFF';
-    ctx.font = 'bold 14px sans-serif';
-    ctx.fillText('NEGERI & DAERAH', 80, y + 30);
-    ctx.textAlign = 'center';
-    ctx.fillText('ANGGARAN (MT)', 720, y + 20);
-    ctx.fillText('BERDASARKAN KELUASAN', 720, y + 38);
-    ctx.fillText('JANGKAAN BULAN', 940, y + 20);
-    ctx.fillText('PENGELUARAN', 940, y + 38);
-    ctx.textAlign = 'start';
-
-    y += tableHeaderH + 5;
-
-    // Data rows
-    negeriData.forEach((n, i) => {
-      const rowY = y + (i * rowH);
-
-      // Row background
-      ctx.fillStyle = i % 2 === 0 ? '#F5F5F5' : '#FFFFFF';
-      ctx.fillRect(30, rowY, W - 60, rowH - 5);
-
-      // Flag color bar
-      const flagColors = NEGERI_FLAG_COLORS[n.negeri];
-      if (flagColors) {
-        ctx.fillStyle = flagColors.bg;
-        ctx.fillRect(30, rowY, 8, rowH - 5);
-        // Mini flag
-        ctx.fillStyle = flagColors.bg;
-        ctx.fillRect(50, rowY + 15, 30, 20);
-        ctx.fillStyle = flagColors.accent;
-        ctx.fillRect(50, rowY + 35, 30, 20);
-      }
-
-      // Negeri name
-      ctx.fillStyle = '#1F2937';
-      ctx.font = 'bold 18px sans-serif';
-      ctx.fillText(n.negeri.toUpperCase(), 95, rowY + 32);
-
-      // Daerah
-      ctx.fillStyle = '#6B7280';
-      ctx.font = '12px sans-serif';
-      const daerahText = n.daerah.length > 0 ? `(${n.daerah.join('/')})` : '';
-      ctx.fillText(daerahText.slice(0, 50), 95, rowY + 55);
-
-      // Anggaran MT (big number)
-      ctx.fillStyle = '#1F4D36';
-      ctx.font = 'bold 28px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText(n.hasilMT > 0 ? n.hasilMT.toFixed(0).toLocaleString() : '-', 720, rowY + 45);
-
-      // Bulan pengeluaran
-      ctx.fillStyle = '#374151';
-      ctx.font = '14px sans-serif';
-      ctx.fillText(n.bulanPengeluaran, 940, rowY + 45);
-      ctx.textAlign = 'start';
-    });
-
-    // Footer / Total row
-    const totalY = y + (negeriData.length * rowH) + 10;
-    ctx.fillStyle = '#FFC107';
-    ctx.fillRect(30, totalY, W - 60, 50);
-
-    ctx.fillStyle = '#0C2D1C';
-    ctx.font = 'bold 18px sans-serif';
-    ctx.fillText('JUMLAH KESELURUHAN', 95, totalY + 32);
-
-    ctx.font = 'bold 28px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(`${totalMT.toFixed(0)}`, 720, totalY + 35);
-    ctx.font = '12px sans-serif';
-    ctx.fillText('METRIK TAN (MT)', 720, totalY + 48);
-    ctx.textAlign = 'start';
-
-    // Bottom footer
-    ctx.fillStyle = '#80CBC4';
-    ctx.font = '12px sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('Hak Cipta Terpelihara © FAMA 2026 | Sistem Kalkulator Durian PWA', W / 2, canvas.height - 20);
-    ctx.textAlign = 'start';
-
-    // Generate image
-    const dataUrl = canvas.toDataURL('image/png');
-    setPreviewUrl(dataUrl);
+    negeriBreakdown.slice(0, 10).forEach((n, i) => { const y = 200 + i * 35; ctx.fillStyle = i % 2 === 0 ? '#1a3d2a' : '#0C2D1C'; ctx.fillRect(60, y, W - 120, 30); ctx.fillStyle = '#FFFFFF'; ctx.font = '13px sans-serif'; ctx.fillText(n.negeri, 80, y + 20); ctx.fillStyle = '#FFC107'; ctx.textAlign = 'end'; ctx.fillText(`${n.mt.toFixed(1)} MT`, W - 80, y + 20); ctx.textAlign = 'start'; ctx.fillStyle = '#80CBC4'; ctx.fillText(`${n.pekebun} pekebun | ${n.ekar.toFixed(0)} ekar`, 300, y + 20); });
+    ctx.fillStyle = '#80CBC4'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('Hak Cipta Terpelihara © FAMA 2026 | Sistem Kalkulator Durian', W / 2, H - 15);
+    setPreviewUrl(canvas.toDataURL('image/png'));
     setShowPreview(true);
   };
 
   const downloadReport = () => {
     if (!previewUrl) return;
-    const a = document.createElement('a');
-    a.href = previewUrl;
-    a.download = `Laporan_Durian_FAMA_${Date.now()}.png`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    const a = document.createElement('a'); a.href = previewUrl;
+    a.download = `Laporan_Durian_${Date.now()}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
     toast.success(t('report.downloaded'));
   };
 
+  if (loading) return <div className="flex items-center justify-center h-[60vh]"><p className="text-sm text-gray-400 animate-pulse">Memuatkan data...</p></div>;
+
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-lg font-bold text-forest">{t('report.title')}</h2>
-        <p className="text-xs text-gray-500">{t('report.subtitle')}</p>
-      </div>
-
-      {/* Ringkasan Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 text-center">
-          <p className="text-xl font-bold text-forest">{negeriData.length}</p>
-          <p className="text-[9px] text-gray-500">Negeri</p>
-        </div>
-        <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 text-center">
-          <p className="text-xl font-bold text-forest">{kebun.length}</p>
-          <p className="text-[9px] text-gray-500">Kebun</p>
-        </div>
-        <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100 text-center">
-          <p className="text-xl font-bold text-gold">{totalMT.toFixed(2)}</p>
-          <p className="text-[9px] text-gray-500">Metrik Tan</p>
-        </div>
-      </div>
-
-      {/* Negeri List with Flags */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="bg-forest px-4 py-2.5">
-          <div className="grid grid-cols-12 text-[9px] text-white font-bold">
-            <div className="col-span-6">Negeri & Daerah</div>
-            <div className="col-span-3 text-center">Anggaran (MT)</div>
-            <div className="col-span-3 text-center">Bulan</div>
+    <div className="h-[calc(100vh-120px)] flex flex-col gap-3 overflow-hidden">
+      {/* Header + Filters */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-forest">{t('report.title')}</h2>
+            <p className="text-[9px] text-gray-500">
+              {filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia'}
+              {filterDaerah !== 'Semua' && ` • ${filterDaerah}`}
+            </p>
           </div>
+          <button onClick={generateReport}
+            className="bg-gradient-gold text-black px-3 py-2 rounded-xl text-[10px] font-bold shadow-md active:scale-[0.98]">
+            📥 Jana Infografik
+          </button>
         </div>
-        <div className="divide-y divide-gray-100">
-          {negeriData.map((n, i) => {
-            return (
-              <div key={n.negeri} className={`grid grid-cols-12 items-center px-4 py-3 ${i === 0 ? 'bg-gold/5' : ''}`}>
-                <div className="col-span-6 flex items-center gap-2">
-                  {/* Flag */}
+
+        {/* Filters — HQ/superadmin can filter negeri */}
+        {(isHQ || isAdminNegeri) && (
+          <div className="flex gap-2 items-center flex-wrap">
+            <select value={filterNegeri} onChange={(e) => { setFilterNegeri(e.target.value); setFilterDaerah('Semua'); }}
+              className="px-3 py-1.5 border border-gray-200 rounded-lg text-[10px] bg-white font-semibold text-forest focus:outline-none">
+              <option value="Semua">🇲🇾 Semua Negeri</option>
+              {negeriWithData.map(n => <option key={n} value={n}>{n}</option>)}
+            </select>
+            {filterNegeri !== 'Semua' && daerahOptions.length > 0 && (
+              <select value={filterDaerah} onChange={(e) => setFilterDaerah(e.target.value)}
+                className="px-3 py-1.5 border border-gray-200 rounded-lg text-[10px] bg-white font-semibold text-forest focus:outline-none">
+                <option value="Semua">Semua Daerah</option>
+                {daerahOptions.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Summary Stats */}
+      <div className="grid grid-cols-4 gap-2">
+        <div className="bg-forest/5 rounded-xl p-2.5 text-center">
+          <p className="text-lg font-bold text-forest">{totalPekebun}</p>
+          <p className="text-[8px] text-gray-500">Pekebun</p>
+        </div>
+        <div className="bg-forest/5 rounded-xl p-2.5 text-center">
+          <p className="text-lg font-bold text-forest">{totalEkar.toFixed(1)}</p>
+          <p className="text-[8px] text-gray-500">Ekar</p>
+        </div>
+        <div className="bg-forest/5 rounded-xl p-2.5 text-center">
+          <p className="text-lg font-bold text-forest">{totalPokok.toLocaleString()}</p>
+          <p className="text-[8px] text-gray-500">Pokok</p>
+        </div>
+        <div className="bg-gold/10 rounded-xl p-2.5 text-center">
+          <p className="text-lg font-bold text-gold">{totalMT.toFixed(1)}</p>
+          <p className="text-[8px] text-gray-500">Anggaran MT</p>
+        </div>
+      </div>
+
+      {/* Main Content — scrollable */}
+      <div className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-0">
+        {/* Varieti Distribution */}
+        {varietiDist.length > 0 && (
+          <div className="bg-white rounded-xl p-3 shadow-sm border border-gray-100">
+            <p className="text-[10px] font-semibold text-gray-500 mb-2">Pecahan Varieti</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+              {varietiDist.map(v => {
+                const pct = totalVarietiPokok > 0 ? ((v.count / totalVarietiPokok) * 100) : 0;
+                return (
+                  <div key={v.key} className="flex items-center gap-2 bg-gray-50 rounded-lg px-2 py-1.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[9px] text-gray-700 truncate">{v.name.split(' (')[0]}</p>
+                      <div className="w-full h-1 bg-gray-200 rounded-full mt-0.5">
+                        <div className="h-full bg-forest/60 rounded-full" style={{ width: `${pct}%` }} />
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-bold text-forest flex-shrink-0">{v.count}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Kad Detail Negeri */}
+        {negeriBreakdown.length > 0 && (
+          <div className="space-y-3">
+            {negeriBreakdown.map(n => (
+              <div key={n.negeri} className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                {/* Card Header */}
+                <div className="bg-forest px-3 py-2 flex items-center gap-2">
                   {NEGERI_FLAG[n.negeri] ? (
-                    <img src={NEGERI_FLAG[n.negeri]} alt={n.negeri}
-                      className="w-7 h-5 object-contain rounded-sm flex-shrink-0" />
+                    <img src={NEGERI_FLAG[n.negeri]} alt={n.negeri} className="w-7 h-5 object-contain rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                   ) : NEGERI_FLAG_COLORS[n.negeri] ? (
-                    <div className="w-6 h-4 rounded-sm flex-shrink-0 border border-gray-200 overflow-hidden">
+                    <div className="w-6 h-4 rounded-sm border border-white/30 overflow-hidden flex-shrink-0">
                       <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].top }} />
                       <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].bottom }} />
                     </div>
                   ) : null}
-                  <div>
-                    <p className="text-xs font-bold text-forest">{n.negeri}</p>
-                    <p className="text-[8px] text-gray-400 truncate">{n.daerah.join(', ') || '-'}</p>
+                  <p className="text-xs font-bold text-white">{n.negeri}</p>
+                </div>
+                {/* Card Body */}
+                <div className="p-3 space-y-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div className="bg-forest/5 rounded-lg px-2 py-1.5 text-center">
+                      <p className="text-[8px] text-gray-500">Bil. Pekebun</p>
+                      <p className="text-sm font-bold text-forest">{n.pekebun}</p>
+                    </div>
+                    <div className="bg-forest/5 rounded-lg px-2 py-1.5 text-center">
+                      <p className="text-[8px] text-gray-500">Keluasan</p>
+                      <p className="text-sm font-bold text-forest">{n.ekar.toFixed(1)} <span className="text-[7px] font-normal">ekar</span></p>
+                    </div>
+                    <div className="bg-forest/5 rounded-lg px-2 py-1.5 text-center">
+                      <p className="text-[8px] text-gray-500">Bil. Pokok</p>
+                      <p className="text-sm font-bold text-forest">{n.pokok.toLocaleString()}</p>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-gold/10 rounded-lg px-2 py-1.5 text-center">
+                      <p className="text-[8px] text-gray-500">Anggaran Pengeluaran</p>
+                      <p className="text-sm font-bold text-gold">{n.kg > 0 ? `${n.kg.toLocaleString()} kg` : '-'}</p>
+                    </div>
+                    <div className="bg-gold/10 rounded-lg px-2 py-1.5 text-center">
+                      <p className="text-[8px] text-gray-500">Metrik Tan</p>
+                      <p className="text-sm font-bold text-gold">{n.mt > 0 ? n.mt.toFixed(2) : '-'} <span className="text-[7px] font-normal">MT</span></p>
+                    </div>
+                  </div>
+                  {/* Varieti Breakdown */}
+                  {n.varietiKg.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[8px] text-gray-500 font-semibold">Pecahan Varieti:</p>
+                      {n.varietiKg.slice(0, 5).map(([name, kg]) => (
+                        <div key={name} className="flex justify-between items-center bg-gray-50 rounded px-2 py-1">
+                          <span className="text-[9px] text-gray-700 truncate">{name.split(' (')[0]}</span>
+                          <span className="text-[9px] font-bold text-forest">{kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {/* Bulan Pengeluaran */}
+                  <div className="bg-blue-50 rounded-lg px-2 py-1.5 text-center">
+                    <p className="text-[8px] text-gray-500">Jangkaan Bulan Pengeluaran</p>
+                    <p className="text-[10px] font-bold text-blue-700">{n.bulanPengeluaran}</p>
                   </div>
                 </div>
-                <div className="col-span-3 text-center">
-                  <p className="text-sm font-bold text-forest">{n.hasilMT > 0 ? n.hasilMT.toFixed(0) : '-'}</p>
-                </div>
-                <div className="col-span-3 text-center">
-                  <p className="text-[9px] text-gray-600">{n.bulanPengeluaran}</p>
-                </div>
               </div>
-            );
-          })}
-        </div>
-        {/* Total */}
-        <div className="bg-gold/20 px-4 py-3 grid grid-cols-12 items-center">
-          <div className="col-span-6">
-            <p className="text-xs font-bold text-forest">JUMLAH KESELURUHAN</p>
+            ))}
+            {/* Total card */}
+            <div className="bg-gold/10 border border-gold/30 rounded-xl p-3 flex justify-between items-center">
+              <span className="text-xs font-bold text-gray-700">JUMLAH KESELURUHAN</span>
+              <span className="text-lg font-bold text-forest">{totalMT.toFixed(2)} MT</span>
+            </div>
           </div>
-          <div className="col-span-3 text-center">
-            <p className="text-lg font-bold text-forest">{totalMT.toFixed(0)}</p>
-            <p className="text-[8px] text-gray-500">Metrik Tan</p>
-          </div>
-          <div className="col-span-3 text-center">
-            <span className="text-lg">🌱</span>
-          </div>
-        </div>
+        )}
       </div>
-
-      {/* Generate Button */}
-      <button onClick={generateReport}
-        className="w-full bg-gradient-gold text-black py-3.5 rounded-xl font-bold shadow-lg active:scale-[0.98] flex items-center justify-center gap-2">
-        <span>📥</span> {t('report.generate')}
-      </button>
 
       {/* Hidden canvas */}
       <canvas ref={canvasRef} className="hidden" />
@@ -332,8 +365,6 @@ export default function LaporanPage() {
           </div>
         </div>
       )}
-
-      {loading && <p className="text-xs text-gray-400 text-center animate-pulse">Memuatkan data...</p>}
     </div>
   );
 }

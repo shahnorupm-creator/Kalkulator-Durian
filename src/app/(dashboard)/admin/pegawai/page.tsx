@@ -17,7 +17,7 @@ interface Pegawai {
 }
 
 export default function AdminPegawaiPage() {
-  const { profile } = useAuth();
+  const { profile, isAnyAdmin } = useAuth();
   const router = useRouter();
   const [pegawaiList, setPegawaiList] = useState<Pegawai[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,10 +33,10 @@ export default function AdminPegawaiPage() {
 
   // Redirect if not admin
   useEffect(() => {
-    if (profile && profile.role !== 'admin') {
+    if (profile && !isAnyAdmin) {
       router.push('/');
     }
-  }, [profile, router]);
+  }, [profile, isAnyAdmin, router]);
 
   // Fetch all users
   useEffect(() => {
@@ -105,7 +105,7 @@ export default function AdminPegawaiPage() {
     }
   };
 
-  if (profile?.role !== 'admin') {
+  if (!isAnyAdmin) {
     return null;
   }
 

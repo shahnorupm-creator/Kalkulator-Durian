@@ -1,11 +1,11 @@
 // Durian variety data
 export const VARIETIES = [
-  { key: 'musangking', name: 'Musang King (D197)', bilanganBuah: 100, beratPerBuah: 1.5, hasil: 150 },
-  { key: 'blackthorn', name: 'Black Thorn (D200)', bilanganBuah: 85, beratPerBuah: 1.5, hasil: 130 },
-  { key: 'ioi', name: 'IOI / Hajah Hasmah (D168)', bilanganBuah: 93, beratPerBuah: 1.5, hasil: 140 },
-  { key: 'udangmerah', name: 'Udang Merah (D175)', bilanganBuah: 97, beratPerBuah: 1.5, hasil: 145 },
-  { key: 'kampung', name: 'Durian Kampung', bilanganBuah: 60, beratPerBuah: 1.5, hasil: 90 },
-  { key: 'd24', name: 'D24 (Sultan)', bilanganBuah: 90, beratPerBuah: 1.5, hasil: 135 },
+  { key: 'musangking', name: 'Musang King (D197)', bilanganBuah: 100, beratPerBuah: 1.5, hasil: 150, note: 'Isi kuning keemasan dengan rasa pahit-manis. Laraskan tempoh peringkat mengikut pemerhatian sebenar di kebun.' },
+  { key: 'blackthorn', name: 'Black Thorn (D200)', bilanganBuah: 85, beratPerBuah: 1.5, hasil: 130, note: 'Duri Hitam mempunyai isi pekat dan tempoh matang yang lazimnya lebih panjang. Gunakan pemerhatian lapangan sebenar.' },
+  { key: 'ioi', name: 'IOI / Hajah Hasmah (D168)', bilanganBuah: 93, beratPerBuah: 1.5, hasil: 140, note: 'IOI juga dikenali sebagai Hajah Hasmah atau Mas Muar. Buah sederhana dengan rasa manis dan kurang pahit.' },
+  { key: 'udangmerah', name: 'Udang Merah (D175)', bilanganBuah: 97, beratPerBuah: 1.5, hasil: 145, note: 'Udang Merah mempunyai isi jingga kemerahan dan rasa manis berlemak. Sahkan tahap kematangan melalui lawatan kebun.' },
+  { key: 'kampung', name: 'Durian Kampung', bilanganBuah: 60, beratPerBuah: 1.5, hasil: 90, note: 'Durian baka biji benih mempunyai saiz, hasil dan kualiti yang tidak seragam antara pokok.' },
+  { key: 'd24', name: 'Bukit Merah/Sultan (D24)', bilanganBuah: 90, beratPerBuah: 1.5, hasil: 135, note: 'D24 mempunyai isi kuning keemasan dan rasa pahit sederhana. Laraskan anggaran berdasarkan keadaan kebun.' },
 ] as const;
 
 // Growth stages
@@ -78,8 +78,7 @@ export const NEGERI_FLAG_COLORS: Record<string, { top: string; bottom: string }>
 export const UMUR_POKOK = [
   { key: '5-9', label: '5-9 tahun', faktorHasil: 0.5 },
   { key: '10-15', label: '10-15 tahun', faktorHasil: 0.8 },
-  { key: '16-19', label: '16-19 tahun', faktorHasil: 1.0 },
-  { key: '20+', label: '20+ tahun', faktorHasil: 1.2 },
+  { key: '16+', label: '16 tahun atas', faktorHasil: 1.0 },
 ] as const;
 
 // Fasa pengeluaran

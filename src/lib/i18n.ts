@@ -105,7 +105,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     // --- Kalkulator ---
     'calc.title': 'Pokok & Fasa Pengeluaran',
     'calc.subtitle': 'Pilih kebun, tetapkan fasa semasa, kira anggaran hasil',
-    'calc.selectKebun': '1. Pilih Kebun Pekebun',
+    'calc.selectKebun': '1. Pilih Pekebun',
     'calc.selectKebunPlaceholder': '-- Pilih Kebun --',
     'calc.varieti': '2. Varieti Durian',
     'calc.tarikhLawatan': 'Tarikh Lawatan',

@@ -14,7 +14,21 @@ export default function ServiceWorkerRegister() {
       process.env.NODE_ENV === 'production' ||
       window.location.search.includes('sw-dev');
 
-    if (!shouldRegister) return;
+    if (!shouldRegister) {
+      // Remove service workers and PWA caches left by an earlier production/dev
+      // session so they cannot serve stale Next.js webpack chunks during HMR.
+      navigator.serviceWorker.getRegistrations().then((registrations) => {
+        registrations.forEach((registration) => registration.unregister());
+      });
+      if ('caches' in window) {
+        caches.keys().then((keys) => {
+          keys
+            .filter((key) => key.startsWith('durian-fama-'))
+            .forEach((key) => caches.delete(key));
+        });
+      }
+      return;
+    }
 
     navigator.serviceWorker
       .register('/sw.js')
