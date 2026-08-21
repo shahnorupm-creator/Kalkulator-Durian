@@ -89,3 +89,44 @@ export const FASA_PENGELUARAN = [
 ] as const;
 
 export type VarietyKey = (typeof VARIETIES)[number]['key'];
+
+// Format masa mengikut pembahagian Bahasa Melayu yang tepat
+// Pagi: 12:01 AM – 11:59 AM | Tengah Hari: 12:00 PM – 1:59 PM
+// Petang: 2:00 PM – 6:59 PM | Malam: 7:00 PM – 12:00 AM
+export function formatMasaBM(date: Date): string {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const h12 = hours % 12 || 12;
+  const mm = String(minutes).padStart(2, '0');
+  let period: string;
+  if (hours >= 0 && hours < 12) {
+    period = 'Pagi';
+  } else if (hours >= 12 && hours < 14) {
+    period = 'Tengah Hari';
+  } else if (hours >= 14 && hours < 19) {
+    period = 'Petang';
+  } else {
+    period = 'Malam';
+  }
+  return `${String(h12).padStart(2, '0')}:${mm} ${period}`;
+}
+
+export function formatMasaBMWithSeconds(date: Date): string {
+  const hours = date.getHours();
+  const minutes = date.getMinutes();
+  const seconds = date.getSeconds();
+  const h12 = hours % 12 || 12;
+  const mm = String(minutes).padStart(2, '0');
+  const ss = String(seconds).padStart(2, '0');
+  let period: string;
+  if (hours >= 0 && hours < 12) {
+    period = 'Pagi';
+  } else if (hours >= 12 && hours < 14) {
+    period = 'Tengah Hari';
+  } else if (hours >= 14 && hours < 19) {
+    period = 'Petang';
+  } else {
+    period = 'Malam';
+  }
+  return `${String(h12).padStart(2, '0')}:${mm}:${ss} ${period}`;
+}

@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { NEGERI_DAERAH, SENARAI_NEGERI, VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG } from '@/lib/constants';
+import { NEGERI_DAERAH, SENARAI_NEGERI, VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, formatMasaBM } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
@@ -793,7 +793,7 @@ export default function ProfilKebunPage() {
                       const ts = k.updatedAt || k.createdAt;
                       if (!ts || !ts.seconds) return '-';
                       const d = new Date(ts.seconds * 1000);
-                      return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }) + ', ' + d.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' });
+                      return d.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' }) + ', ' + formatMasaBM(d);
                     })()}
                     {k.updatedAt && k.createdAt && k.updatedAt.seconds !== k.createdAt.seconds ? ' (dikemas kini)' : ''}
                   </p>

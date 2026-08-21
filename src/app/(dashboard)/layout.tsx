@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Locale, LOCALE_SHORT } from '@/lib/i18n';
+import { formatMasaBMWithSeconds } from '@/lib/constants';
 import Navbar from '@/components/Navbar';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import PendingSyncBadge from '@/components/PendingSyncBadge';
@@ -28,7 +29,7 @@ function LiveClock() {
         {now.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
       </p>
       <p className="text-sm font-bold text-forest">
-        {now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        {formatMasaBMWithSeconds(now)}
       </p>
     </div>
   );

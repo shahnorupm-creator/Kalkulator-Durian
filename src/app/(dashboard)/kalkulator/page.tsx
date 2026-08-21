@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, collectionGroup, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS } from '@/lib/constants';
+import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 interface VarietiEntry { usia: string; varieti: string; bilangan: number; }
@@ -243,7 +243,7 @@ export default function KalkulatorPage() {
                     {lawatanMap[k.id] && (
                       <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
                         <p className="text-[9px] font-semibold text-green-700">✓ Anggaran Hasil Telah Dikira</p>
-                        <p className="text-[8px] text-green-600">Kemaskini: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}, {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase()}</p>
+                        <p className="text-[8px] text-green-600">Kemaskini: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}, {formatMasaBM(new Date(lawatanMap[k.id].createdAt * 1000))}</p>
                       </div>
                     )}
                   </div>
