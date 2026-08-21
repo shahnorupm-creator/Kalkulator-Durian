@@ -55,6 +55,7 @@ export default function KalkulatorPage() {
   const [stages, setStages] = useState<Record<string, StageInput>>(FASA_PRESETS['besar']);
   const [saving, setSaving] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
     if (!user) return;
@@ -190,7 +191,30 @@ export default function KalkulatorPage() {
       {/* ═══════════════════ STEP 1: Pilih Pekebun ═══════════════════ */}
       {step === 1 && (
         <div className="space-y-3">
-          <p className="text-[10px] font-semibold text-gray-500">1. {t('calc.selectKebun')}</p>
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-semibold text-gray-500">1. {t('calc.selectKebun')}</p>
+            {/* Grid/List Toggle */}
+            <div className="flex bg-gray-100 rounded-lg p-0.5">
+              <div className="relative group">
+                <button onClick={() => setViewMode('list')}
+                  className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+                  ☰
+                </button>
+                <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-gray-800 text-white text-[8px] px-2 py-1 rounded whitespace-nowrap">
+                  List Layout
+                </div>
+              </div>
+              <div className="relative group">
+                <button onClick={() => setViewMode('grid')}
+                  className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+                  ⊞
+                </button>
+                <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-gray-800 text-white text-[8px] px-2 py-1 rounded whitespace-nowrap">
+                  Grid Layout
+                </div>
+              </div>
+            </div>
+          </div>
 
           {loading ? (
             <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-gray-50 rounded-xl p-4 animate-pulse"><div className="h-4 bg-gray-200 rounded w-3/4 mb-2"/><div className="h-3 bg-gray-200 rounded w-1/2"/></div>)}</div>
@@ -200,6 +224,57 @@ export default function KalkulatorPage() {
               <p className="text-sm text-gray-500 mt-2">{t('calc.noKebunRegistered')}</p>
             </div>
           ) : (
+            viewMode === 'list' ? (
+              <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-forest/5 text-[9px] font-bold text-forest border-b border-gray-100">
+                  <span className="col-span-3">Pekebun</span>
+                  <span className="col-span-2">Daerah</span>
+                  <span className="col-span-1 text-center">Ekar</span>
+                  <span className="col-span-1 text-center">Pokok</span>
+                  <span className="col-span-3">Varieti</span>
+                  <span className="col-span-2 text-center">Status</span>
+                </div>
+                {kebunList.map(k => {
+                  const pokok = (k.jumlahPokok || 0) > 0 ? k.jumlahPokok : Math.round(k.saizKebun * k.kepadatan * (k.pctMatang / 100));
+                  const entries = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)
+                    ? k.varietiData.filter(v => v.varieti && v.bilangan > 0)
+                    : [
+                        k.varieti5_9 && (k.usia5_9 || 0) > 0 ? { varieti: k.varieti5_9, bilangan: k.usia5_9 } : null,
+                        k.varieti10_15 && (k.usia10_15 || 0) > 0 ? { varieti: k.varieti10_15, bilangan: k.usia10_15 } : null,
+                        k.varieti16_19 && (k.usia16_19 || 0) > 0 ? { varieti: k.varieti16_19, bilangan: k.usia16_19 } : null,
+                      ].filter(Boolean) as { varieti: string; bilangan: number }[];
+                  const vMap: Record<string, number> = {};
+                  entries.forEach(e => { vMap[e.varieti] = (vMap[e.varieti] || 0) + e.bilangan; });
+                  const varietiNames = Object.entries(vMap).map(([vKey]) => VARIETIES.find(v => v.key === vKey)?.name.split(' (')[0] || vKey);
+                  const hasCalc = !!lawatanMap[k.id];
+                  return (
+                    <div key={k.id} onClick={() => handleSelectKebun(k.id)}
+                      className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-all">
+                      <div className="col-span-3 flex items-center gap-2 min-w-0">
+                        {k.negeri && NEGERI_FLAG[k.negeri] ? (
+                          <img src={NEGERI_FLAG[k.negeri]} alt={k.negeri} className="w-5 h-3.5 object-contain rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                        ) : k.negeri && NEGERI_FLAG_COLORS[k.negeri] ? (
+                          <div className="w-4 h-3 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
+                            <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].top }} />
+                            <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
+                          </div>
+                        ) : null}
+                        <span className="text-[10px] font-bold text-forest truncate">{k.nama}</span>
+                      </div>
+                      <span className="col-span-2 text-[9px] text-gray-500 truncate">{k.daerah || '-'}</span>
+                      <span className="col-span-1 text-[9px] text-center font-semibold text-forest">{k.saizKebun}</span>
+                      <span className="col-span-1 text-[9px] text-center font-semibold text-gold">{pokok}</span>
+                      <span className="col-span-3 text-[8px] text-gray-500 truncate">{varietiNames.join(', ')}</span>
+                      <span className="col-span-2 text-center">
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${hasCalc ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
+                          {hasCalc ? '✓ Dikira' : 'Belum'}
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {kebunList.map(k => {
                 const pokok = (k.jumlahPokok || 0) > 0 ? k.jumlahPokok : Math.round(k.saizKebun * k.kepadatan * (k.pctMatang / 100));
@@ -250,6 +325,7 @@ export default function KalkulatorPage() {
                 );
               })}
             </div>
+            )
           )}
         </div>
       )}

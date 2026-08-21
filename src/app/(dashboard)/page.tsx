@@ -673,14 +673,24 @@ export default function ProfilKebunPage() {
             className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-forest/30 focus:outline-none" />
           {/* Grid/List Toggle */}
           <div className="flex bg-gray-100 rounded-lg p-0.5">
-            <button onClick={() => setViewMode('list')}
-              className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
-              ☰
-            </button>
-            <button onClick={() => setViewMode('grid')}
-              className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
-              ⊞
-            </button>
+            <div className="relative group">
+              <button onClick={() => setViewMode('list')}
+                className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+                ☰
+              </button>
+              <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-gray-800 text-white text-[8px] px-2 py-1 rounded whitespace-nowrap">
+                List Layout
+              </div>
+            </div>
+            <div className="relative group">
+              <button onClick={() => setViewMode('grid')}
+                className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+                ⊞
+              </button>
+              <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-gray-800 text-white text-[8px] px-2 py-1 rounded whitespace-nowrap">
+                Grid Layout
+              </div>
+            </div>
           </div>
         </div>
       </div>
