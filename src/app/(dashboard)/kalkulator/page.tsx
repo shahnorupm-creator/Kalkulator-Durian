@@ -276,7 +276,6 @@ export default function KalkulatorPage() {
           {/* Pecahan Peringkat — compact */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <p className="text-[10px] font-semibold text-gray-500 mb-1">{t('calc.step4')}</p>
-            {!isAdmin && <p className="text-[8px] text-amber-600 mb-2">⚠ Hanya admin boleh mengedit pecahan peringkat</p>}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {STAGES.map(stage => (
                 <div key={stage.key} className={`border rounded-lg p-2 ${stages[stage.key]?.pct > 0 ? 'border-forest/30 bg-forest/5' : 'border-gray-100 bg-gray-50'}`}>
