@@ -80,7 +80,7 @@ export default function ProfilPage() {
     <div className="h-[calc(100vh-120px)] flex flex-col gap-4 overflow-hidden">
       {/* Header Card */}
       <div className="bg-gradient-forest rounded-2xl p-5 text-white relative overflow-hidden flex items-center gap-4">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-12 translate-x-12" />
+        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-12 translate-x-12 pointer-events-none" />
         <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center border-2 border-white/30 flex-shrink-0">
           <span className="text-2xl">👤</span>
         </div>
@@ -91,7 +91,7 @@ export default function ProfilPage() {
         </div>
         {!editMode && (
           <button onClick={() => { setEditMode(true); setNama(profile?.nama || ''); setNoPerkerja(profile?.noPerkerja || ''); setDaerah(profile?.daerah || ''); setAlamatPejabat(profileData?.alamatPejabat || ''); setNoTelefon(profileData?.noTelefon || ''); }}
-            className="text-[9px] bg-white/20 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-white/30 transition-all flex-shrink-0">
+            className="text-[9px] bg-white/20 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-white/30 transition-all flex-shrink-0 relative z-20">
             ✏️ Edit
           </button>
         )}
