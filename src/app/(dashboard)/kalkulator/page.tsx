@@ -156,6 +156,8 @@ export default function KalkulatorPage() {
         pegawaiNama: profile?.nama || '', pegawaiDaerah: profile?.daerah || '', negeri: kebun.negeri || '',
         createdAt: serverTimestamp(),
       });
+      // Optimistic update — badge terus update tanpa tunggu Firestore listener
+      setLawatanMap(prev => ({ ...prev, [kebun.id]: { totalKg: grandTotalKg, createdAt: Math.floor(Date.now() / 1000) } }));
       toast.success(t('calc.saved'));
     } catch (e) { console.error(e); toast.error(t('calc.saveFailed')); }
     setSaving(false);
@@ -320,7 +322,7 @@ export default function KalkulatorPage() {
                           onChange={(e) => handleStageChange(stage.key, 'd', parseInt(e.target.value) || 0)}
                           className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
                           min="0" />
-                        <p className="text-[7px] text-gray-600 text-center mt-0.5">hari</p>
+                        <p className="text-[7px] text-gray-600 text-center mt-0.5">Hari</p>
                       </div>
                     )}
                   </div>
