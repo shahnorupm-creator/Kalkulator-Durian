@@ -722,12 +722,14 @@ export default function ProfilKebunPage() {
                 <div key={k.id} onClick={() => handleEdit(k)}
                   className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-all">
                   <div className="col-span-3 flex items-center gap-2 min-w-0">
-                    {k.negeri && NEGERI_FLAG_COLORS[k.negeri] && (
+                    {k.negeri && NEGERI_FLAG[k.negeri] ? (
+                      <img src={NEGERI_FLAG[k.negeri]} alt={k.negeri} className="w-5 h-3.5 object-contain rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    ) : k.negeri && NEGERI_FLAG_COLORS[k.negeri] ? (
                       <div className="w-4 h-3 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
                         <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].top }} />
                         <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
                       </div>
-                    )}
+                    ) : null}
                     <span className="text-[10px] font-bold text-forest truncate">{k.nama}</span>
                   </div>
                   <span className="col-span-2 text-[9px] text-gray-500 truncate">{k.daerah || '-'}</span>
