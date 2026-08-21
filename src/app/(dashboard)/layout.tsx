@@ -44,7 +44,7 @@ function DesktopSidebar() {
     { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', desc: locale === 'bm' ? 'Kira anggaran hasil' : 'Estimate yield', pageKey: 'kalkulator' },
     { href: '/dashboard-hq', label: t('nav.dashboard'), icon: '🗺️', desc: locale === 'bm' ? 'Analisis keseluruhan' : 'Overall analysis', pageKey: 'dashboard_hq' },
     { href: '/laporan', label: locale === 'bm' ? 'Laporan' : 'Reports', icon: '📋', desc: locale === 'bm' ? 'Jana laporan infografik' : 'Generate infographic report', pageKey: 'laporan' },
-    { href: '/profil', label: t('nav.profil'), icon: '👤', desc: locale === 'bm' ? 'Kemaskini profil & password' : 'Update profile & password', pageKey: 'profil' },
+    { href: '/profil', label: t('nav.profil'), icon: '👤', desc: locale === 'bm' ? 'Kemaskini Profil & Kata Laluan' : 'Update Profile & Password', pageKey: 'profil' },
     ...(isAnyAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: '⚙️', desc: locale === 'bm' ? 'Urus pengguna & role' : 'Manage users & roles', pageKey: 'admin' }] : []),
     ...(isSuperAdmin ? [{ href: '/admin/settings', label: locale === 'bm' ? 'Tetapan Akses' : 'Access Settings', icon: '🔒', desc: locale === 'bm' ? 'Kawal akses halaman' : 'Control page access', pageKey: 'admin' }] : []),
   ];

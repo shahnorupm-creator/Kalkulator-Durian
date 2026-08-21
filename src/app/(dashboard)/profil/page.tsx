@@ -18,8 +18,8 @@ export default function ProfilPage() {
   const [nama, setNama] = useState(profile?.nama || '');
   const [noPerkerja, setNoPerkerja] = useState(profile?.noPerkerja || '');
   const [daerah, setDaerah] = useState(profile?.daerah || '');
-  const [alamatPejabat, setAlamatPejabat] = useState((profile as unknown as Record<string, string>)?.alamatPejabat || '');
-  const [noTelefon, setNoTelefon] = useState((profile as unknown as Record<string, string>)?.noTelefon || '');
+  const [alamatPejabat, setAlamatPejabat] = useState(profile?.alamatPejabat || '');
+  const [noTelefon, setNoTelefon] = useState(profile?.noTelefon || '');
 
   const [currentPass, setCurrentPass] = useState('');
   const [newPass, setNewPass] = useState('');
@@ -74,7 +74,7 @@ export default function ProfilPage() {
     setChangingPass(false);
   };
 
-  const profileData = profile as unknown as Record<string, string> | undefined;
+  const profileData = profile;
 
   return (
     <div className="h-[calc(100vh-120px)] flex flex-col gap-4 overflow-hidden">
@@ -92,7 +92,7 @@ export default function ProfilPage() {
         {!editMode && (
           <button onClick={() => { setEditMode(true); setNama(profile?.nama || ''); setNoPerkerja(profile?.noPerkerja || ''); setDaerah(profile?.daerah || ''); setAlamatPejabat(profileData?.alamatPejabat || ''); setNoTelefon(profileData?.noTelefon || ''); }}
             className="text-[9px] bg-white/20 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-white/30 transition-all flex-shrink-0 relative z-20">
-            ✏️ Edit
+            ✏️ Kemaskini
           </button>
         )}
       </div>

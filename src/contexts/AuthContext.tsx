@@ -59,6 +59,8 @@ export interface UserProfile {
   negeri: string;
   daerah: string;
   role: UserRole;
+  alamatPejabat?: string;
+  noTelefon?: string;
 }
 
 interface AuthContextType {
