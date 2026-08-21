@@ -261,8 +261,7 @@ export default function KalkulatorPage() {
               <div>
                 <label className="text-[10px] font-semibold text-gray-500">{t('calc.fasaUtama')}</label>
                 <select value={fasaUtama} onChange={(e) => handleFasaChange(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border-2 border-forest/30 rounded-xl text-sm bg-forest/5 font-semibold text-forest focus:outline-none"
-                  disabled={!isAdmin}>
+                  className="w-full mt-1 px-3 py-2 border-2 border-forest/30 rounded-xl text-sm bg-forest/5 font-semibold text-forest focus:outline-none">
                   {STAGES.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
                 </select>
               </div>
@@ -284,16 +283,16 @@ export default function KalkulatorPage() {
                     <div className="flex-1">
                       <input type="number" value={stages[stage.key]?.pct || 0}
                         onChange={(e) => handleStageChange(stage.key, 'pct', parseFloat(e.target.value) || 0)}
-                        className={`w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none ${!isAdmin ? 'bg-gray-100 text-gray-500' : ''}`}
-                        min="0" max="100" disabled={!isAdmin} />
+                        className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
+                        min="0" max="100" />
                       <p className="text-[7px] text-gray-400 text-center mt-0.5">%</p>
                     </div>
                     {stage.J !== null && (
                       <div className="flex-1">
                         <input type="number" value={stages[stage.key]?.d || 0}
                           onChange={(e) => handleStageChange(stage.key, 'd', parseInt(e.target.value) || 0)}
-                          className={`w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none ${!isAdmin ? 'bg-gray-100 text-gray-500' : ''}`}
-                          min="0" disabled={!isAdmin} />
+                          className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
+                          min="0" />
                         <p className="text-[7px] text-gray-400 text-center mt-0.5">hari</p>
                       </div>
                     )}
@@ -307,7 +306,20 @@ export default function KalkulatorPage() {
           </div>
 
           {/* Kira Button */}
-          <button onClick={() => setStep(3)}
+          <button onClick={() => {
+  // Pegawai wajib isi semua field — tidak boleh tinggal kosong
+  if (!isAdmin) {
+    const hasEmpty = Object.entries(stages).some(([key, val]) => {
+      if (key === 'tidak') return false; // tidak berbuah tak perlu hari
+      return val.pct > 0 && val.d <= 0;
+    });
+    if (hasEmpty) {
+      toast.error('Sila isi semua hari (D) untuk peringkat yang mempunyai peratusan.');
+      return;
+    }
+  }
+  setStep(3);
+}}
             disabled={Math.abs(totalPct - 100) > 0.5}
             className="w-full bg-gradient-forest text-white py-3.5 rounded-xl font-semibold shadow-lg active:scale-[0.98] disabled:opacity-50">
             {t('calc.calculate')}
