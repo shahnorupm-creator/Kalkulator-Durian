@@ -44,6 +44,7 @@ const FASA_PRESETS: Record<string, Record<string, { pct: number; d: number }>> =
 
 export default function KalkulatorPage() {
   const { user, profile } = useAuth();
+  const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin_negeri' || profile?.role === 'admin_hq';
   const { t } = useLanguage();
   const [kebunList, setKebunList] = useState<KebunRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -260,7 +261,8 @@ export default function KalkulatorPage() {
               <div>
                 <label className="text-[10px] font-semibold text-gray-500">{t('calc.fasaUtama')}</label>
                 <select value={fasaUtama} onChange={(e) => handleFasaChange(e.target.value)}
-                  className="w-full mt-1 px-3 py-2 border-2 border-forest/30 rounded-xl text-sm bg-forest/5 font-semibold text-forest focus:outline-none">
+                  className="w-full mt-1 px-3 py-2 border-2 border-forest/30 rounded-xl text-sm bg-forest/5 font-semibold text-forest focus:outline-none"
+                  disabled={!isAdmin}>
                   {STAGES.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
                 </select>
               </div>
@@ -273,7 +275,8 @@ export default function KalkulatorPage() {
 
           {/* Pecahan Peringkat — compact */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-            <p className="text-[10px] font-semibold text-gray-500 mb-2">{t('calc.step4')}</p>
+            <p className="text-[10px] font-semibold text-gray-500 mb-1">{t('calc.step4')}</p>
+            {!isAdmin && <p className="text-[8px] text-amber-600 mb-2">⚠ Hanya admin boleh mengedit pecahan peringkat</p>}
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {STAGES.map(stage => (
                 <div key={stage.key} className={`border rounded-lg p-2 ${stages[stage.key]?.pct > 0 ? 'border-forest/30 bg-forest/5' : 'border-gray-100 bg-gray-50'}`}>
@@ -282,16 +285,16 @@ export default function KalkulatorPage() {
                     <div className="flex-1">
                       <input type="number" value={stages[stage.key]?.pct || 0}
                         onChange={(e) => handleStageChange(stage.key, 'pct', parseFloat(e.target.value) || 0)}
-                        className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
-                        min="0" max="100" />
+                        className={`w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none ${!isAdmin ? 'bg-gray-100 text-gray-500' : ''}`}
+                        min="0" max="100" disabled={!isAdmin} />
                       <p className="text-[7px] text-gray-400 text-center mt-0.5">%</p>
                     </div>
                     {stage.J !== null && (
                       <div className="flex-1">
                         <input type="number" value={stages[stage.key]?.d || 0}
                           onChange={(e) => handleStageChange(stage.key, 'd', parseInt(e.target.value) || 0)}
-                          className="w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none"
-                          min="0" />
+                          className={`w-full px-1.5 py-1 border border-gray-200 rounded text-[11px] text-center focus:ring-1 focus:ring-forest focus:outline-none ${!isAdmin ? 'bg-gray-100 text-gray-500' : ''}`}
+                          min="0" disabled={!isAdmin} />
                         <p className="text-[7px] text-gray-400 text-center mt-0.5">hari</p>
                       </div>
                     )}
