@@ -40,7 +40,7 @@ function DesktopSidebar() {
   const { locale, setLocale, t } = useLanguage();
 
   const allNavItems = [
-    { href: '/', label: t('nav.kebun'), icon: '🌱', desc: locale === 'bm' ? 'Kemaskini' : 'Update', pageKey: 'profil_kebun' },
+    { href: '/', label: t('nav.kebun'), icon: '🌱', desc: locale === 'bm' ? 'Daftar & Kemaskini Profil Pekebun' : 'Register & Update Farmer Profile', pageKey: 'profil_kebun' },
     { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', desc: locale === 'bm' ? 'Kira Anggaran Pengeluaran' : 'Calculate Production Estimate', pageKey: 'kalkulator' },
     { href: '/dashboard-hq', label: t('nav.dashboard'), icon: '🗺️', desc: locale === 'bm' ? 'Analisis keseluruhan' : 'Overall analysis', pageKey: 'dashboard_hq' },
     { href: '/laporan', label: locale === 'bm' ? 'Laporan' : 'Reports', icon: '📋', desc: locale === 'bm' ? 'Jana Laporan Infografik' : 'Generate Infographic Report', pageKey: 'laporan' },
