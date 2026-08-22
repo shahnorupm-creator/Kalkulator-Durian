@@ -66,8 +66,8 @@ export default function LoginPage() {
 
         {/* Logo / Header */}
         <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg border border-white/20">
-            <span className="text-4xl">🌱</span>
+          <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto mb-4 shadow-lg border border-white/20">
+            <img src="/pemantauan-durian.png" alt="FAMA Durian" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-white">Durian FAMA</h1>
           <p className="text-white/50 text-sm mt-1">{t('app.subtitle')}</p>
