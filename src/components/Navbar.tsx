@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { formatMasaBM } from '@/lib/constants';
 
 function MobileDateTime() {
   const [now, setNow] = useState<Date | null>(null);
@@ -19,9 +20,9 @@ function MobileDateTime() {
 
   return (
     <>
-      {now.toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })}
+      {now.toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}
       {' \u2022 '}
-      {now.toLocaleTimeString('ms-MY', { hour: '2-digit', minute: '2-digit' })}
+      {formatMasaBM(now)}
     </>
   );
 }

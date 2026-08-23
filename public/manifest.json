@@ -4,7 +4,7 @@
   "description": "Sistem Kalkulator Anggaran Pengeluaran Durian - FAMA",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FAF7F0",
+  "background_color": "#F8FAFC",
   "theme_color": "#1F4D36",
   "orientation": "portrait",
   "icons": [
@@ -19,6 +19,26 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Profil Pekebun",
+      "short_name": "Kebun",
+      "url": "/",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Kira Anggaran",
+      "short_name": "Kalkulator",
+      "url": "/kalkulator",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Laporan",
+      "short_name": "Laporan",
+      "url": "/laporan",
+      "icons": [{ "src": "/icons/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }
