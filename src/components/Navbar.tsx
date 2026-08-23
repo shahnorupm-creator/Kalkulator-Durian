@@ -66,7 +66,10 @@ export default function Navbar() {
       </header>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-50 safe-bottom shadow-[0_-2px_15px_rgba(0,0,0,0.05)]">
-        <div className={`max-w-2xl mx-auto grid grid-cols-${Math.min(navItems.length, 5)}`}>
+        <div className={`max-w-2xl mx-auto grid ${
+          navItems.length <= 3 ? 'grid-cols-3' :
+          navItems.length === 4 ? 'grid-cols-4' : 'grid-cols-5'
+        }`}>
           {navItems.map((item) => {
             const isActive = pathname === item.href ||
               (item.href !== '/' && pathname.startsWith(item.href));
