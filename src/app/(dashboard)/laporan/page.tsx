@@ -420,7 +420,7 @@ export default function LaporanPage() {
                       {/* Table header */}
                       <div className="grid grid-cols-3 bg-forest/10 px-3 py-1.5">
                         <span className="text-[8px] font-bold text-forest">Varieti / Anggaran Pengeluaran :</span>
-                        <span className="text-[8px] font-bold text-forest text-right">Anggaran Hasil (Kg)</span>
+                        <span className="text-[8px] font-bold text-forest text-right">Kilogram (Kg)</span>
                         <span className="text-[8px] font-bold text-forest text-right">Metrik Tan (Mt)</span>
                       </div>
                       {/* Table rows */}
