@@ -926,7 +926,7 @@ export default function ProfilKebunPage() {
             return (
               <>
                 {/* Stats row */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <div className="bg-forest/5 rounded-xl p-3 text-center">
                     <p className="text-xl font-bold text-forest">{totalPekebun}</p>
                     <p className="text-[9px] text-gray-500">Jumlah Pekebun</p>

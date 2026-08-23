@@ -83,7 +83,7 @@ export default function ProfilPage() {
   const profileData = profile;
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col gap-4 overflow-hidden">
+    <div className="min-h-0 flex flex-col gap-4 lg:h-[calc(100vh-120px)] lg:overflow-hidden">
       {/* Header Card */}
       <div className="bg-gradient-forest rounded-2xl p-5 text-white relative overflow-hidden flex items-center gap-4">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-12 translate-x-12 pointer-events-none" />
@@ -109,7 +109,7 @@ export default function ProfilPage() {
           /* Edit Form */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 space-y-3">
             <h4 className="text-sm font-bold text-forest">✏️ Kemas Kini Profil</h4>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-semibold text-gray-500">Nama Penuh</label>
                 <input value={nama} onChange={(e) => setNama(capitalizeWords(e.target.value))}
@@ -150,7 +150,7 @@ export default function ProfilPage() {
         ) : (
           /* View Mode — Two Column */
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
               <div>
                 <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Nama Penuh</p>
                 <p className="text-sm font-bold text-gray-800 mt-0.5">{profile?.nama || '-'}</p>

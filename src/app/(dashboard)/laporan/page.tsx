@@ -288,7 +288,7 @@ export default function LaporanPage() {
   if (loading) return <div className="flex items-center justify-center h-[60vh]"><p className="text-sm text-gray-400 animate-pulse">Memuatkan data...</p></div>;
 
   return (
-    <div className="h-[calc(100vh-120px)] flex flex-col gap-3 overflow-hidden">
+    <div className="min-h-0 flex flex-col gap-3 lg:h-[calc(100vh-120px)] lg:overflow-hidden">
       {/* Header + Filters */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -327,7 +327,7 @@ export default function LaporanPage() {
       </div>
 
       {/* Summary Stats */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         <div className="bg-forest/5 rounded-xl p-2.5 text-center">
           <p className="text-lg font-bold text-forest">{totalPekebun}</p>
           <p className="text-[8px] text-gray-500">Pekebun</p>
