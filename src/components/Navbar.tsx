@@ -35,7 +35,7 @@ export default function Navbar() {
   const allNavItems = [
     { href: '/', label: t('nav.kebun'), icon: '🌱', pageKey: 'profil_kebun' },
     { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', pageKey: 'kalkulator' },
-    { href: '/dashboard-hq', label: t('nav.dashboard'), icon: '🗺️', pageKey: 'dashboard_hq' },
+    { href: '/laporan', label: 'Laporan', icon: '📋', pageKey: 'laporan' },
     { href: '/profil', label: t('nav.profil'), icon: '👤', pageKey: 'profil' },
     ...(isAnyAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: '⚙️', pageKey: 'admin' }] : []),
   ];

@@ -310,18 +310,29 @@ export default function LaporanPage() {
         {/* Filters — HQ/superadmin can filter negeri */}
         {(isHQ || isAdminNegeri) && (
           <div className="flex gap-2 items-center flex-wrap">
-            <select value={filterNegeri} onChange={(e) => { setFilterNegeri(e.target.value); setFilterDaerah('Semua'); }}
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-[10px] bg-white font-semibold text-forest focus:outline-none">
-              <option value="Semua">🇲🇾 Semua Negeri</option>
-              {negeriWithData.map(n => <option key={n} value={n}>{n}</option>)}
-            </select>
-            {filterNegeri !== 'Semua' && daerahOptions.length > 0 && (
-              <select value={filterDaerah} onChange={(e) => setFilterDaerah(e.target.value)}
+            {/* Negeri filter — only for HQ/superadmin */}
+            {isHQ && (
+              <select value={filterNegeri} onChange={(e) => { setFilterNegeri(e.target.value); setFilterDaerah('Semua'); }}
                 className="px-3 py-1.5 border border-gray-200 rounded-lg text-[10px] bg-white font-semibold text-forest focus:outline-none">
-                <option value="Semua">Semua Daerah</option>
-                {daerahOptions.map(d => <option key={d} value={d}>{d}</option>)}
+                <option value="Semua">🇲🇾 Semua Negeri</option>
+                {negeriWithData.map(n => <option key={n} value={n}>{n}</option>)}
               </select>
             )}
+            {/* Daerah filter — for admin negeri (always show) and HQ (when negeri selected) */}
+            {(() => {
+              const showDaerah = isAdminNegeri || (isHQ && filterNegeri !== 'Semua');
+              const daerahList = isAdminNegeri
+                ? [...new Set(accessibleKebun.map(k => k.daerah).filter(Boolean))].sort()
+                : daerahOptions;
+              if (!showDaerah || daerahList.length === 0) return null;
+              return (
+                <select value={filterDaerah} onChange={(e) => setFilterDaerah(e.target.value)}
+                  className="px-3 py-1.5 border border-gray-200 rounded-lg text-[10px] bg-white font-semibold text-forest focus:outline-none">
+                  <option value="Semua">📍 Semua Daerah</option>
+                  {daerahList.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
+              );
+            })()}
           </div>
         )}
       </div>
