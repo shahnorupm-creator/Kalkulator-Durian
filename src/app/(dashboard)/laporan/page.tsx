@@ -205,7 +205,7 @@ export default function LaporanPage() {
         bulan: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN_FULL[m]).join(' / ') : '-',
       })).sort((a, b) => b.mt - a.mt);
 
-      const rowH = 50;
+      const rowH = 65;
       const tableStartY = 180;
       const W = 1080;
       const H = Math.max(tableStartY + 45 + (negeriRows.length * rowH) + 80, 700);
@@ -244,7 +244,7 @@ export default function LaporanPage() {
       // Table header
       ctx.textAlign = 'start';
       const colXHQ = [60, 350, 530, 680, 830, 950];
-      const headersHQ = ['Negeri (Daerah)', 'Bil. Pekebun', 'Ekar', 'Kilogram (Kg)', 'Metrik Tan (Mt)', 'Bulan'];
+      const headersHQ = ['Negeri (Daerah)', 'Bil. Pekebun', 'Ekar', 'Kilogram (Kg)', 'Metrik Tan (Mt)', 'Bulan Pengeluaran'];
       ctx.fillStyle = '#1F4D36'; ctx.fillRect(50, tableStartY, W - 100, 35);
       ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 11px sans-serif';
       headersHQ.forEach((h, i) => { ctx.textAlign = i > 0 ? 'center' : 'start'; ctx.fillText(h, colXHQ[i], tableStartY + 22); });
@@ -259,11 +259,15 @@ export default function LaporanPage() {
 
         // Negeri name (bold)
         ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
-        ctx.fillText(row.negeri.toUpperCase(), colXHQ[0], y + 20);
-        // Daerah (smaller, below)
+        ctx.fillText(row.negeri.toUpperCase(), colXHQ[0], y + 18);
+        // Daerah (smaller, below — wrap to 2 lines if needed)
         ctx.fillStyle = '#C98A2C'; ctx.font = '10px sans-serif';
-        const daerahText = row.daerah.length > 60 ? row.daerah.substring(0, 60) + '...' : row.daerah;
-        ctx.fillText(`(${daerahText})`, colXHQ[0], y + 36);
+        const daerahParts = row.daerah.split(' / ');
+        const maxPerLine = 4;
+        const line1 = daerahParts.slice(0, maxPerLine).join(' / ');
+        const line2 = daerahParts.length > maxPerLine ? daerahParts.slice(maxPerLine).join(' / ') : '';
+        ctx.fillText(`(${line1})`, colXHQ[0], y + 34);
+        if (line2) { ctx.fillText(`(${line2})`, colXHQ[0], y + 47); }
 
         // Data
         ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.font = '12px sans-serif';
@@ -272,9 +276,12 @@ export default function LaporanPage() {
         ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colXHQ[3], y + 28);
         ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 12px sans-serif';
         ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colXHQ[4], y + 28);
-        // Bulan Pengeluaran
-        ctx.fillStyle = '#6B7280'; ctx.font = '9px sans-serif';
-        ctx.fillText(row.bulan.length > 15 ? row.bulan.substring(0, 15) + '..' : row.bulan, colXHQ[5], y + 28);
+        // Bulan Pengeluaran — stack vertically if multiple
+        ctx.fillStyle = '#6B7280'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
+        const bulanParts = row.bulan.split(' / ');
+        bulanParts.forEach((b, bi) => {
+          ctx.fillText(b, colXHQ[5], y + 20 + (bi * 12));
+        });
       });
 
       // Total row
