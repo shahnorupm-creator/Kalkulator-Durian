@@ -308,7 +308,7 @@ export default function LaporanPage() {
         </div>
 
         {/* Filters — HQ/superadmin can filter negeri */}
-        {(isHQ || isAdminNegeri) && (
+        {(isHQ || isAdminNegeri || userNegeri) && (
           <div className="flex gap-2 items-center flex-wrap">
             {/* Negeri filter — only for HQ/superadmin */}
             {isHQ && (
@@ -320,8 +320,8 @@ export default function LaporanPage() {
             )}
             {/* Daerah filter — for admin negeri (always show) and HQ (when negeri selected) */}
             {(() => {
-              const showDaerah = isAdminNegeri || (isHQ && filterNegeri !== 'Semua');
-              const daerahList = isAdminNegeri
+              const showDaerah = isAdminNegeri || !!userNegeri || (isHQ && filterNegeri !== 'Semua');
+              const daerahList = (isAdminNegeri || (!isHQ && userNegeri))
                 ? [...new Set(accessibleKebun.map(k => k.daerah).filter(Boolean))].sort()
                 : daerahOptions;
               if (!showDaerah || daerahList.length === 0) return null;
