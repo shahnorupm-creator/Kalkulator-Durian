@@ -169,6 +169,121 @@ export default function LaporanPage() {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    // HQ "Semua Negeri" — show all negeri with daerah listing
+    if (isHQ && filterNegeri === 'Semua') {
+      // Compute per-negeri data with daerah
+      const negeriMap: Record<string, { daerah: Set<string>; pekebun: number; ekar: number; kg: number }> = {};
+      filtered.forEach(k => {
+        const n = k.negeri || 'Lain-lain';
+        if (!negeriMap[n]) negeriMap[n] = { daerah: new Set(), pekebun: 0, ekar: 0, kg: 0 };
+        if (k.daerah) negeriMap[n].daerah.add(k.daerah);
+        negeriMap[n].pekebun++;
+        negeriMap[n].ekar += k.saizKebun || 0;
+      });
+      latestLawatan.forEach(r => {
+        const farm = filteredById.get(r.kebunId);
+        if (!farm) return;
+        const n = farm.negeri || 'Lain-lain';
+        if (negeriMap[n]) negeriMap[n].kg += r.totalKg || 0;
+      });
+      const negeriRows = Object.entries(negeriMap).map(([negeri, d]) => ({
+        negeri, daerah: Array.from(d.daerah).sort().join(' / '), pekebun: d.pekebun, ekar: d.ekar, kg: d.kg, mt: d.kg / 1000,
+      })).sort((a, b) => b.mt - a.mt);
+
+      const rowH = 50;
+      const tableStartY = 180;
+      const W = 1080;
+      const H = Math.max(tableStartY + 45 + (negeriRows.length * rowH) + 80, 700);
+      canvas.width = W; canvas.height = H;
+
+      // Background white + header bar
+      ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#1F4D36'; ctx.fillRect(0, 0, W, 110);
+
+      // Title
+      ctx.fillStyle = '#FFC107'; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('ANGGARAN KEBERHASILAN DURIAN', W / 2, 40);
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('SELURUH MALAYSIA', W / 2, 70);
+      ctx.fillStyle = '#80CBC4'; ctx.font = '13px sans-serif';
+      ctx.fillText(`Dijana: ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })} | ${profile?.nama || 'FAMA'}`, W / 2, 95);
+
+      // Summary stats
+      const statsHQ = [
+        { l: 'Bil. Negeri', v: String(negeriRows.length) },
+        { l: 'Bil. Pekebun', v: String(totalPekebun) },
+        { l: 'Jumlah Ekar', v: totalEkar.toFixed(1) },
+        { l: 'Jumlah Pokok', v: totalPokok.toLocaleString() },
+        { l: 'Anggaran (Mt)', v: totalMT.toFixed(2) },
+      ];
+      statsHQ.forEach((s, i) => {
+        const x = 45 + i * 202;
+        ctx.fillStyle = '#F0FDF4'; ctx.fillRect(x, 120, 190, 48);
+        ctx.strokeStyle = '#1F4D36'; ctx.lineWidth = 1; ctx.strokeRect(x, 120, 190, 48);
+        ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 18px sans-serif'; ctx.textAlign = 'center';
+        ctx.fillText(s.v, x + 95, 145);
+        ctx.fillStyle = '#6B7280'; ctx.font = '9px sans-serif';
+        ctx.fillText(s.l, x + 95, 160);
+      });
+
+      // Table header
+      ctx.textAlign = 'start';
+      const colXHQ = [60, 350, 530, 680, 830, 950];
+      const headersHQ = ['Negeri (Daerah)', 'Bil. Pekebun', 'Ekar', 'Kilogram (Kg)', 'Metrik Tan (Mt)', 'Status'];
+      ctx.fillStyle = '#1F4D36'; ctx.fillRect(50, tableStartY, W - 100, 35);
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 11px sans-serif';
+      headersHQ.forEach((h, i) => { ctx.textAlign = i > 0 ? 'center' : 'start'; ctx.fillText(h, colXHQ[i], tableStartY + 22); });
+
+      // Table rows
+      negeriRows.forEach((row, i) => {
+        const y = tableStartY + 40 + (i * rowH);
+        ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF'; ctx.fillRect(50, y, W - 100, rowH - 2);
+        // Border bottom
+        ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(50, y + rowH - 2); ctx.lineTo(W - 50, y + rowH - 2); ctx.stroke();
+
+        // Negeri name (bold)
+        ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
+        ctx.fillText(row.negeri.toUpperCase(), colXHQ[0], y + 20);
+        // Daerah (smaller, below)
+        ctx.fillStyle = '#C98A2C'; ctx.font = '10px sans-serif';
+        const daerahText = row.daerah.length > 60 ? row.daerah.substring(0, 60) + '...' : row.daerah;
+        ctx.fillText(`(${daerahText})`, colXHQ[0], y + 36);
+
+        // Data
+        ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.font = '12px sans-serif';
+        ctx.fillText(String(row.pekebun), colXHQ[1], y + 28);
+        ctx.fillText(row.ekar.toFixed(1), colXHQ[2], y + 28);
+        ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colXHQ[3], y + 28);
+        ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 12px sans-serif';
+        ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colXHQ[4], y + 28);
+        // Status
+        ctx.fillStyle = row.kg > 0 ? '#16A34A' : '#9CA3AF'; ctx.font = '10px sans-serif';
+        ctx.fillText(row.kg > 0 ? '✓ Aktif' : 'Belum', colXHQ[5], y + 28);
+      });
+
+      // Total row
+      const totalYHQ = tableStartY + 40 + (negeriRows.length * rowH) + 5;
+      ctx.fillStyle = '#FEF3C7'; ctx.fillRect(50, totalYHQ, W - 100, 35);
+      ctx.strokeStyle = '#C98A2C'; ctx.lineWidth = 1; ctx.strokeRect(50, totalYHQ, W - 100, 35);
+      ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'start'; ctx.fillText('JUMLAH KESELURUHAN', colXHQ[0], totalYHQ + 22);
+      ctx.textAlign = 'center';
+      ctx.fillText(String(totalPekebun), colXHQ[1], totalYHQ + 22);
+      ctx.fillText(totalEkar.toFixed(1), colXHQ[2], totalYHQ + 22);
+      ctx.fillStyle = '#C98A2C'; ctx.fillText(totalKg > 0 ? totalKg.toLocaleString() : '-', colXHQ[3], totalYHQ + 22);
+      ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
+      ctx.fillText(totalMT.toFixed(2), colXHQ[4], totalYHQ + 22);
+
+      // Footer
+      ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText('Hak Cipta Terpelihara © FAMA 2026 | Sistem Kalkulator Durian', W / 2, H - 15);
+
+      setPreviewUrl(canvas.toDataURL('image/png'));
+      setShowPreview(true);
+      return; // Exit early — don't run the daerah-level report below
+    }
+
     // Compute daerah breakdown for the infographic
     const daerahMap: Record<string, { pekebun: Set<string>; ekar: number; kg: number; bulan: Set<number> }> = {};
     filtered.forEach(k => {
@@ -209,8 +324,10 @@ export default function LaporanPage() {
     const H = Math.max(tableStartY + 50 + (daerahRows.length * rowH) + 80, 700);
     canvas.width = W; canvas.height = H;
 
-    // Background
-    ctx.fillStyle = '#0C2D1C'; ctx.fillRect(0, 0, W, H);
+    // Background — lighter
+    ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
+    // Header bar
+    ctx.fillStyle = '#1F4D36'; ctx.fillRect(0, 0, W, 115);
 
     // Title
     ctx.fillStyle = '#FFC107'; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
@@ -230,10 +347,11 @@ export default function LaporanPage() {
     ];
     statsData.forEach((s, i) => {
       const x = 45 + i * 202;
-      ctx.fillStyle = '#1B5E20'; ctx.fillRect(x, 125, 190, 55);
-      ctx.fillStyle = '#FFC107'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillStyle = '#F0FDF4'; ctx.fillRect(x, 125, 190, 55);
+      ctx.strokeStyle = '#1F4D36'; ctx.lineWidth = 1; ctx.strokeRect(x, 125, 190, 55);
+      ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
       ctx.fillText(s.v, x + 95, 155);
-      ctx.fillStyle = '#80CBC4'; ctx.font = '10px sans-serif';
+      ctx.fillStyle = '#6B7280'; ctx.font = '10px sans-serif';
       ctx.fillText(s.l, x + 95, 172);
     });
 
@@ -241,28 +359,29 @@ export default function LaporanPage() {
     ctx.textAlign = 'start';
     const colX = [60, 280, 430, 600, 750, 880];
     const headers = ['Daerah', 'Bil. Pekebun', 'Ekar', 'Anggaran (Kg)', 'Metrik Tan (Mt)', 'Bulan Pengeluaran'];
-    ctx.fillStyle = '#2E7D32'; ctx.fillRect(50, tableStartY - 5, W - 100, 35);
+    ctx.fillStyle = '#1F4D36'; ctx.fillRect(50, tableStartY - 5, W - 100, 35);
     ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 12px sans-serif';
     headers.forEach((h, i) => { ctx.textAlign = i > 0 ? 'center' : 'start'; ctx.fillText(h, colX[i], tableStartY + 18); });
 
     // Table rows
     daerahRows.forEach((row, i) => {
       const y = tableStartY + 35 + (i * rowH);
-      ctx.fillStyle = i % 2 === 0 ? '#102a1a' : '#0C2D1C'; ctx.fillRect(50, y, W - 100, rowH - 2);
+      ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF'; ctx.fillRect(50, y, W - 100, rowH - 2);
 
       ctx.font = '12px sans-serif';
-      ctx.textAlign = 'start'; ctx.fillStyle = '#FFFFFF'; ctx.fillText(row.daerah, colX[0], y + 20);
-      ctx.textAlign = 'center'; ctx.fillStyle = '#80CBC4'; ctx.fillText(String(row.pekebun), colX[1], y + 20);
+      ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.fillText(row.daerah, colX[0], y + 20);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.fillText(String(row.pekebun), colX[1], y + 20);
       ctx.fillText(row.ekar.toFixed(1), colX[2], y + 20);
-      ctx.fillStyle = '#FFC107'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colX[3], y + 20);
-      ctx.font = 'bold 12px sans-serif'; ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colX[4], y + 20);
-      ctx.font = '11px sans-serif'; ctx.fillStyle = '#80CBC4'; ctx.fillText(row.bulan, colX[5], y + 20);
+      ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colX[3], y + 20);
+      ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#1F4D36'; ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colX[4], y + 20);
+      ctx.font = '11px sans-serif'; ctx.fillStyle = '#6B7280'; ctx.fillText(row.bulan, colX[5], y + 20);
     });
 
     // Total row
     const totalY = tableStartY + 35 + (daerahRows.length * rowH) + 5;
-    ctx.fillStyle = '#FFC107'; ctx.fillRect(50, totalY, W - 100, 35);
-    ctx.fillStyle = '#0C2D1C'; ctx.font = 'bold 13px sans-serif';
+    ctx.fillStyle = '#FEF3C7'; ctx.fillRect(50, totalY, W - 100, 35);
+    ctx.strokeStyle = '#C98A2C'; ctx.lineWidth = 1; ctx.strokeRect(50, totalY, W - 100, 35);
+    ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
     ctx.textAlign = 'start'; ctx.fillText('JUMLAH', colX[0], totalY + 22);
     ctx.textAlign = 'center'; ctx.fillText(String(totalPekebun), colX[1], totalY + 22);
     ctx.fillText(totalEkar.toFixed(1), colX[2], totalY + 22);
@@ -270,7 +389,7 @@ export default function LaporanPage() {
     ctx.fillText(totalMT.toFixed(2), colX[4], totalY + 22);
 
     // Footer
-    ctx.fillStyle = '#80CBC4'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('Hak Cipta Terpelihara © FAMA 2026 | Sistem Kalkulator Durian', W / 2, H - 15);
 
     setPreviewUrl(canvas.toDataURL('image/png'));
@@ -472,13 +591,21 @@ export default function LaporanPage() {
 
       {/* Preview Modal */}
       {showPreview && (
-        <div className="fixed inset-0 bg-black/70 z-[100] flex items-center justify-center p-4" onClick={() => setShowPreview(false)}>
-          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5" onClick={(e) => e.stopPropagation()}>
-            <h3 className="font-bold text-forest text-center mb-2">{t('report.generated')}</h3>
+        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowPreview(false)}>
+          <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 relative" onClick={(e) => e.stopPropagation()}>
+            {/* Close X button */}
+            <button onClick={() => setShowPreview(false)} className="absolute top-3 right-3 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-red-600 transition-all">
+              ✕
+            </button>
+            <h3 className="font-bold text-forest text-center mb-3">{t('report.generated')}</h3>
             {previewUrl && <img src={previewUrl} alt="Laporan" className="w-full rounded-lg border border-gray-200 mb-4" />}
             <div className="grid grid-cols-2 gap-3">
-              <button onClick={() => setShowPreview(false)} className="bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm">{t('report.close')}</button>
-              <button onClick={downloadReport} className="bg-gradient-forest text-white py-3 rounded-xl font-semibold text-sm">{t('report.download')}</button>
+              <button onClick={() => { window.print(); }} className="bg-gray-100 text-gray-700 py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
+                🖨️ Print
+              </button>
+              <button onClick={downloadReport} className="bg-gradient-forest text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2">
+                💾 {t('report.download')}
+              </button>
             </div>
           </div>
         </div>
