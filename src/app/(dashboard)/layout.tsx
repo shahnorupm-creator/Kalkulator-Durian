@@ -57,8 +57,8 @@ function DesktopSidebar() {
       {/* Logo */}
       <div className="p-5 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-forest rounded-xl flex items-center justify-center shadow-md">
-            <img src="/logo.png" alt="FAMA" className="w-7 h-7 rounded object-contain" />
+          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md">
+            <img src="/logo-durian.png" alt="FAMA" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-sm font-bold text-forest">{locale === 'bm' ? 'Kalkulator Durian' : 'Durian Calculator'}</h1>
@@ -151,8 +151,8 @@ export default function DashboardLayout({
     return (
       <div className="min-h-screen bg-cream flex items-center justify-center">
         <div className="text-center">
-          <div className="w-20 h-20 bg-gradient-forest rounded-2xl flex items-center justify-center mx-auto mb-4 animate-pulse shadow-lg">
-            <img src="/logo.png" alt="FAMA" className="w-12 h-12 rounded-lg object-contain" />
+          <div className="w-20 h-20 rounded-2xl overflow-hidden mx-auto mb-4 animate-pulse shadow-lg">
+            <img src="/logo-durian.png" alt="FAMA" className="w-full h-full object-cover" />
           </div>
           <p className="text-forest font-semibold text-sm">{t('app.loading')}</p>
           <p className="text-gray-400 text-xs mt-1">{t('app.pleaseWait')}</p>

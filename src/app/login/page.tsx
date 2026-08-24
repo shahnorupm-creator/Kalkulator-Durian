@@ -72,7 +72,7 @@ export default function LoginPage() {
         {/* Logo / Header */}
         <div className="text-center mb-8">
           <div className="w-28 h-28 rounded-2xl overflow-hidden mx-auto mb-4 shadow-lg border border-white/20">
-            <img src="/logo.png" alt="Kalkulator Durian FAMA" className="w-full h-full object-cover" />
+            <img src="/logo-durian.png" alt="Kalkulator Durian FAMA" className="w-full h-full object-cover" />
           </div>
           <h1 className="text-2xl font-bold text-white">Durian FAMA</h1>
           <p className="text-white/50 text-sm mt-1">{t('app.subtitle')}</p>

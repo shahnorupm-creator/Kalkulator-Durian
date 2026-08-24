@@ -46,8 +46,8 @@ export default function Navbar() {
     <>
       <header className="bg-gradient-forest text-white px-4 py-3 flex items-center justify-between shadow-lg sticky top-0 z-50">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center">
-            <img src="/logo.png" alt="FAMA" className="w-6 h-6 rounded object-contain" />
+          <div className="w-9 h-9 rounded-lg overflow-hidden">
+            <img src="/logo-durian.png" alt="FAMA" className="w-full h-full object-cover" />
           </div>
           <div>
             <h1 className="text-sm font-bold leading-tight">{t('app.title')}</h1>
