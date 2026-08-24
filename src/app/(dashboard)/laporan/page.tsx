@@ -581,10 +581,15 @@ export default function LaporanPage() {
             </button>
             <h3 className="font-bold text-forest text-center mb-3">{t('report.generated')}</h3>
             {previewUrl && <img src={previewUrl} alt="Laporan" className="w-full rounded-lg border border-gray-200 mb-4" />}
-            <button onClick={downloadReport} className="w-full bg-gradient-forest text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
-              <img src="/muat-turun.jpg" alt="Muat Turun" className="w-5 h-5 rounded-sm object-contain" />
-              Muat Turun
-            </button>
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={downloadReport} className="bg-gradient-forest text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
+                <img src="/muat-turun.jpg" alt="" className="w-5 h-5 rounded-sm object-contain" />
+                Muat Turun
+              </button>
+              <button onClick={() => window.print()} className="bg-white border-2 border-forest text-forest py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
+                🖨️ Cetak
+              </button>
+            </div>
           </div>
         </div>
       )}
