@@ -112,3 +112,43 @@ body {
     text-wrap: balance;
   }
 }
+
+/* Print styles — A4 output, hide UI elements */
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide everything except the print content */
+  .no-print,
+  nav,
+  header,
+  aside,
+  button,
+  .fixed {
+    display: none !important;
+  }
+
+  /* Show only the infographic image */
+  .print-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .print-content img {
+    width: 100% !important;
+    height: auto !important;
+    max-height: 95vh !important;
+    object-fit: contain !important;
+  }
+}

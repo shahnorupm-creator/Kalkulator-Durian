@@ -583,14 +583,22 @@ export default function LaporanPage() {
         <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4" onClick={() => setShowPreview(false)}>
           <div className="bg-white rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-5 relative" onClick={(e) => e.stopPropagation()}>
             {/* Close X button */}
-            <button onClick={() => setShowPreview(false)} className="absolute top-3 right-3 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-red-600 transition-all">
+            <button onClick={() => setShowPreview(false)} className="absolute top-3 right-3 w-7 h-7 bg-red-500 text-white rounded-full flex items-center justify-center text-sm font-bold hover:bg-red-600 transition-all no-print">
               ✕
             </button>
-            <h3 className="font-bold text-forest text-center mb-3">{t('report.generated')}</h3>
-            {previewUrl && <img src={previewUrl} alt="Laporan" className="w-full rounded-lg border border-gray-200 mb-4" />}
-            <div className="grid grid-cols-2 gap-3">
+            <h3 className="font-bold text-forest text-center mb-3 no-print">{t('report.generated')}</h3>
+            {previewUrl && (
+              <div className="print-content">
+                <img src={previewUrl} alt="Laporan" className="w-full rounded-lg border border-gray-200 mb-4 print:border-0 print:rounded-none print:mb-0" />
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3 no-print">
               <button onClick={downloadReport} className="bg-gradient-forest text-white py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
-                <img src="/muat-turun.jpg" alt="" className="w-5 h-5 rounded-sm object-contain" />
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
                 Muat Turun
               </button>
               <button onClick={() => window.print()} className="bg-white border-2 border-forest text-forest py-3 rounded-xl font-semibold text-sm flex items-center justify-center gap-2 active:scale-[0.98]">
