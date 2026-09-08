@@ -273,11 +273,11 @@ export default function DashboardHQPage() {
                   <div key={v.name} className="flex items-center gap-2">
                     <div className={`w-2.5 h-2.5 rounded-full ${dotColors[i % dotColors.length]}`} />
                     <span className="text-[10px] text-gray-700 flex-1 truncate">{v.name}</span>
-                    <span className="text-[9px] font-bold text-forest whitespace-nowrap">{(v.kg / 1000).toFixed(2)} MT</span>
                     <span className="text-[9px] font-bold text-gray-600 w-10 text-right">{v.pct.toFixed(1)}%</span>
                     <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
                       <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${v.pct}%` }} />
                     </div>
+                    <span className="text-[9px] font-bold text-forest whitespace-nowrap w-16 text-right">{(v.kg / 1000).toFixed(2)} MT</span>
                   </div>
                 );
               })}
