@@ -274,10 +274,16 @@ export default function DashboardHQPage() {
                     <div className={`w-2.5 h-2.5 rounded-full ${dotColors[i % dotColors.length]}`} />
                     <span className="text-[10px] text-gray-700 flex-1 truncate">{v.name}</span>
                     <span className="text-[9px] font-bold text-gray-600 w-10 text-right">{v.pct.toFixed(1)}%</span>
-                    <div className="w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                    <div className="relative w-16 h-1.5 bg-gray-100 rounded-full overflow-hidden group cursor-pointer">
                       <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${v.pct}%` }} />
+                      {/* Pop-out MT — muncul bila cursor hover pada bar */}
+                      <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-20 opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                        <div className="bg-forest text-white text-[9px] font-bold px-2 py-1 rounded-md shadow-lg whitespace-nowrap">
+                          {(v.kg / 1000).toFixed(2)} MT
+                        </div>
+                        <div className="w-2 h-2 bg-forest rotate-45 absolute top-full left-1/2 -translate-x-1/2 -translate-y-1" />
+                      </div>
                     </div>
-                    <span className="text-[9px] font-bold text-forest whitespace-nowrap w-16 text-right">{(v.kg / 1000).toFixed(2)} MT</span>
                   </div>
                 );
               })}
