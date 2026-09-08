@@ -162,7 +162,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     'dash.cadanganKritikal': 'Sediakan logistik segera, aktifkan pusat pengumpulan & hubungi pembeli eksport.',
     'dash.cadanganBiasa': 'Pantau perkembangan & koordinasi logistik dengan HQ.',
     'dash.negeriRanking': 'Pengeluaran Durian Mengikut Negeri',
-    'dash.varietiDist': 'Pecahan Varieti',
+    'dash.varietiDist': 'Kategori Varieti',
     'dash.monthlyForecast': 'Jangkaan Pengeluaran Bulanan',
     'dash.jadualNegeri': 'Jadual Ringkasan Negeri',
     'dash.ringkasanEksekutif': 'Ringkasan Eksekutif',

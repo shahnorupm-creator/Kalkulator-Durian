@@ -595,7 +595,7 @@ export default function ProfilKebunPage() {
                       <circle cx="8" cy="13" r="1.2"/><circle cx="12" cy="13" r="1.2"/><circle cx="16" cy="13" r="1.2"/>
                       <circle cx="8" cy="17" r="1.2"/><circle cx="12" cy="17" r="1.2"/><circle cx="16" cy="17" r="1.2"/>
                     </svg>
-                    <span className="text-xs font-semibold text-forest">Pecahan Varieti Mengikut Usia:</span>
+                    <span className="text-xs font-semibold text-forest">Kategori Varieti Mengikut Usia:</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     {USIA_BRACKETS.map(bracket => {
