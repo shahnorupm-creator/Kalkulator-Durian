@@ -313,29 +313,60 @@ export default function DashboardHQPage() {
         {monthlyForecast.length === 0 ? (
           <p className="text-xs text-gray-400 text-center py-6">Belum ada data</p>
         ) : (
-          <div className="flex items-end gap-2 h-36 pt-4">
-            {monthlyForecast.map((m, i) => {
-              const height = Math.max((m.kg / maxMonthKg) * 100, 8);
-              const isHighest = m.kg === maxMonthKg;
-              return (
-                <div key={m.bulan} className="flex-1 flex flex-col items-center gap-1">
-                  <span className={`text-[8px] font-bold ${isHighest ? 'text-forest' : 'text-gray-400'}`}>
-                    {(m.kg / 1000).toFixed(1)}
-                  </span>
-                  <div className="w-full relative" style={{ height: '100px' }}>
-                    <div
-                      className={`absolute bottom-0 w-full rounded-t-md transition-all duration-700 ${
-                        isHighest ? 'bg-forest' : 'bg-forest/30'
-                      }`}
-                      style={{ height: `${height}%` }}
-                    />
-                  </div>
-                  <span className="text-[8px] text-gray-500 text-center">{m.bulan}</span>
-                  <span className="text-[7px] text-gray-300">{m.negeriCount}n</span>
+          (() => {
+            const totalKgAll = monthlyForecast.reduce((s, m) => s + m.kg, 0) || 1;
+            const puncak = monthlyForecast.reduce((a, b) => (b.kg > a.kg ? b : a), monthlyForecast[0]);
+            return (
+              <div className="space-y-2.5">
+                {monthlyForecast.map((m) => {
+                  const width = Math.max((m.kg / maxMonthKg) * 100, 3);
+                  const pct = (m.kg / totalKgAll) * 100;
+                  const isPuncak = m.bulan === puncak.bulan;
+                  return (
+                    <div key={m.bulan} className="space-y-1">
+                      {/* Baris atas: bulan + nilai MT */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-1.5">
+                          <span className={`text-[11px] font-semibold ${isPuncak ? 'text-forest' : 'text-gray-700'}`}>
+                            {m.bulan}
+                          </span>
+                          {isPuncak && (
+                            <span className="text-[7px] font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full">
+                              PUNCAK
+                            </span>
+                          )}
+                          <span className="text-[8px] text-gray-400">{m.negeriCount} negeri</span>
+                        </div>
+                        <div className="flex items-baseline gap-1">
+                          <span className={`text-xs font-bold ${isPuncak ? 'text-forest' : 'text-gray-600'}`}>
+                            {(m.kg / 1000).toFixed(1)}
+                          </span>
+                          <span className="text-[8px] text-gray-400">MT</span>
+                        </div>
+                      </div>
+                      {/* Bar mendatar */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-700 ${isPuncak ? 'bg-forest' : 'bg-forest/40'}`}
+                            style={{ width: `${width}%` }}
+                          />
+                        </div>
+                        <span className="text-[8px] font-semibold text-gray-400 w-9 text-right">
+                          {pct.toFixed(0)}%
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+                {/* Ringkasan bawah */}
+                <div className="flex items-center justify-between pt-2 mt-1 border-t border-gray-100">
+                  <span className="text-[9px] text-gray-500">Jumlah keseluruhan</span>
+                  <span className="text-xs font-bold text-forest">{(totalKgAll / 1000).toFixed(1)} MT</span>
                 </div>
-              );
-            })}
-          </div>
+              </div>
+            );
+          })()
         )}
       </div>
 
