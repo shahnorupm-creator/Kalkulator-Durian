@@ -248,7 +248,7 @@ export default function DashboardHQPage() {
                           style={{ width: `${(n.ekar / maxEkar) * 100}%` }} />
                       </div>
                     </div>
-                    <span className="text-[8px] text-gray-400 w-10 text-right">{n.kebun} kbn</span>
+                    <span className="text-[8px] text-gray-400 w-12 text-right">{n.kebun} kebun</span>
                   </div>
                 );
               })}
