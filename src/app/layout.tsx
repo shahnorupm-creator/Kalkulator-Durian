@@ -24,6 +24,11 @@ export const metadata: Metadata = {
   title: 'Kalkulator Durian FAMA',
   description: 'Sistem Kalkulator Anggaran Pengeluaran Durian - FAMA',
   manifest: '/manifest.json',
+  icons: {
+    icon: '/logo-durian.png',
+    shortcut: '/logo-durian.png',
+    apple: '/logo-durian.png',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -46,7 +51,10 @@ export default function RootLayout({
   return (
     <html lang="ms">
       <head>
-        <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        <link rel="icon" href="/logo-durian.png" type="image/png" />
+        <link rel="apple-touch-icon" href="/logo-durian.png" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
       </head>
       <body className={`${jakarta.variable} ${dmMono.variable} font-sans`}>
         <LanguageProvider>

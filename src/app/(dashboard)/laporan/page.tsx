@@ -340,24 +340,47 @@ export default function LaporanPage() {
     })).sort((a, b) => b.mt - a.mt);
 
     const negeriName = isHQ ? (filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia') : userNegeri;
-    const rowH = 32;
-    const tableStartY = 240;
+
+    // Varieti breakdown for this negeri (from saved kalkulator results)
+    const varietiKgMap: Record<string, { kg: number; pokok: number }> = {};
+    latestLawatan.forEach(r => {
+      const farm = filteredById.get(r.kebunId);
+      if (!farm) return;
+      if (r.varietiResults) {
+        r.varietiResults.forEach(v => {
+          if (!varietiKgMap[v.name]) varietiKgMap[v.name] = { kg: 0, pokok: 0 };
+          varietiKgMap[v.name].kg += v.kg || 0;
+          varietiKgMap[v.name].pokok += v.pokok || 0;
+        });
+      }
+    });
+    const varietiReportRows = Object.entries(varietiKgMap)
+      .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, mt: d.kg / 1000 }))
+      .sort((a, b) => b.kg - a.kg);
+    const allBulan = daerahRows.filter(d => d.bulan !== '-').map(d => d.bulan).join(' / ');
+    const bulanNegeri = allBulan ? [...new Set(allBulan.split(' / '))].join(' / ') : '-';
+
+    const rowH = 34;
+    const daerahStartY = 250;
+    const daerahTableH = 35 + (daerahRows.length * rowH) + 40;
+    const varietiStartY = daerahStartY + daerahTableH + 40;
+    const varietiTableH = varietiReportRows.length > 0 ? 35 + (varietiReportRows.length * rowH) + 40 : 0;
     const W = 1080;
-    const H = Math.max(tableStartY + 50 + (daerahRows.length * rowH) + 80, 700);
+    const H = Math.max(varietiStartY + varietiTableH + 90, 750);
     canvas.width = W; canvas.height = H;
 
-    // Background — lighter
+    // Background — white
     ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, W, H);
     // Header bar
-    ctx.fillStyle = '#1F4D36'; ctx.fillRect(0, 0, W, 115);
+    ctx.fillStyle = '#1F4D36'; ctx.fillRect(0, 0, W, 120);
 
     // Title
-    ctx.fillStyle = '#FFC107'; ctx.font = 'bold 26px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(`ANGGARAN KEBERHASILAN DURIAN`, W / 2, 45);
+    ctx.fillStyle = '#FFC107'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`ANGGARAN KEBERHASILAN DURIAN`, W / 2, 48);
     ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`NEGERI ${negeriName.toUpperCase()}`, W / 2, 78);
-    ctx.fillStyle = '#80CBC4'; ctx.font = '14px sans-serif';
-    ctx.fillText(`Dijana: ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })} | ${profile?.nama || 'FAMA'}`, W / 2, 105);
+    ctx.fillText(`NEGERI ${negeriName.toUpperCase()}`, W / 2, 82);
+    ctx.fillStyle = '#80CBC4'; ctx.font = '13px sans-serif';
+    ctx.fillText(`Dijana: ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })} | ${profile?.nama || 'FAMA'}`, W / 2, 106);
 
     // Stats boxes
     const statsData = [
@@ -369,50 +392,92 @@ export default function LaporanPage() {
     ];
     statsData.forEach((s, i) => {
       const x = 45 + i * 202;
-      ctx.fillStyle = '#F0FDF4'; ctx.fillRect(x, 125, 190, 55);
-      ctx.strokeStyle = '#1F4D36'; ctx.lineWidth = 1; ctx.strokeRect(x, 125, 190, 55);
-      ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 20px sans-serif'; ctx.textAlign = 'center';
-      ctx.fillText(s.v, x + 95, 155);
+      ctx.fillStyle = '#F0FDF4'; ctx.fillRect(x, 140, 190, 58);
+      ctx.strokeStyle = '#1F4D36'; ctx.lineWidth = 1; ctx.strokeRect(x, 140, 190, 58);
+      ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 22px sans-serif'; ctx.textAlign = 'center';
+      ctx.fillText(s.v, x + 95, 172);
       ctx.fillStyle = '#6B7280'; ctx.font = '10px sans-serif';
-      ctx.fillText(s.l, x + 95, 172);
+      ctx.fillText(s.l, x + 95, 190);
     });
 
-    // Table header
-    ctx.textAlign = 'start';
-    const colX = [60, 280, 430, 600, 750, 880];
-    const headers = ['Daerah', 'Bil. Pekebun', 'Ekar', 'Anggaran (Kg)', 'Metrik Tan (Mt)', 'Bulan Pengeluaran'];
-    ctx.fillStyle = '#1F4D36'; ctx.fillRect(50, tableStartY - 5, W - 100, 35);
+    // ═══ SECTION 1: Pecahan Mengikut Daerah ═══
+    ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 15px sans-serif';
+    ctx.fillText('📍 Pecahan Mengikut Daerah', 50, daerahStartY - 12);
+
+    const colX = [60, 300, 450, 620, 780, 900];
+    const headers = ['Daerah', 'Bil. Pekebun', 'Ekar', 'Kilogram (Kg)', 'Metrik Tan (Mt)', 'Bulan'];
+    ctx.fillStyle = '#1F4D36'; ctx.fillRect(50, daerahStartY, W - 100, 35);
     ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 12px sans-serif';
-    headers.forEach((h, i) => { ctx.textAlign = i > 0 ? 'center' : 'start'; ctx.fillText(h, colX[i], tableStartY + 18); });
+    headers.forEach((h, i) => { ctx.textAlign = i > 0 ? 'center' : 'start'; ctx.fillText(h, colX[i], daerahStartY + 22); });
 
-    // Table rows
     daerahRows.forEach((row, i) => {
-      const y = tableStartY + 35 + (i * rowH);
+      const y = daerahStartY + 37 + (i * rowH);
       ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF'; ctx.fillRect(50, y, W - 100, rowH - 2);
-
       ctx.font = '12px sans-serif';
-      ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.fillText(row.daerah, colX[0], y + 20);
-      ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.fillText(String(row.pekebun), colX[1], y + 20);
-      ctx.fillText(row.ekar.toFixed(1), colX[2], y + 20);
-      ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colX[3], y + 20);
-      ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#1F4D36'; ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colX[4], y + 20);
-      ctx.font = '11px sans-serif'; ctx.fillStyle = '#6B7280'; ctx.fillText(row.bulan, colX[5], y + 20);
+      ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.fillText(row.daerah, colX[0], y + 21);
+      ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.fillText(String(row.pekebun), colX[1], y + 21);
+      ctx.fillText(row.ekar.toFixed(1), colX[2], y + 21);
+      ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colX[3], y + 21);
+      ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#1F4D36'; ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colX[4], y + 21);
+      ctx.font = '9px sans-serif'; ctx.fillStyle = '#6B7280';
+      ctx.fillText(row.bulan.length > 16 ? row.bulan.substring(0, 16) + '..' : row.bulan, colX[5], y + 21);
     });
 
-    // Total row
-    const totalY = tableStartY + 35 + (daerahRows.length * rowH) + 5;
-    ctx.fillStyle = '#FEF3C7'; ctx.fillRect(50, totalY, W - 100, 35);
-    ctx.strokeStyle = '#C98A2C'; ctx.lineWidth = 1; ctx.strokeRect(50, totalY, W - 100, 35);
+    // Daerah total row
+    const daerahTotalY = daerahStartY + 37 + (daerahRows.length * rowH);
+    ctx.fillStyle = '#FEF3C7'; ctx.fillRect(50, daerahTotalY, W - 100, 35);
+    ctx.strokeStyle = '#C98A2C'; ctx.lineWidth = 1; ctx.strokeRect(50, daerahTotalY, W - 100, 35);
     ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
-    ctx.textAlign = 'start'; ctx.fillText('JUMLAH', colX[0], totalY + 22);
-    ctx.textAlign = 'center'; ctx.fillText(String(totalPekebun), colX[1], totalY + 22);
-    ctx.fillText(totalEkar.toFixed(1), colX[2], totalY + 22);
-    ctx.fillText(totalKg > 0 ? totalKg.toLocaleString() : '-', colX[3], totalY + 22);
-    ctx.fillText(totalMT.toFixed(2), colX[4], totalY + 22);
+    ctx.textAlign = 'start'; ctx.fillText('JUMLAH', colX[0], daerahTotalY + 23);
+    ctx.textAlign = 'center'; ctx.fillText(String(totalPekebun), colX[1], daerahTotalY + 23);
+    ctx.fillText(totalEkar.toFixed(1), colX[2], daerahTotalY + 23);
+    ctx.fillStyle = '#C98A2C'; ctx.fillText(totalKg > 0 ? totalKg.toLocaleString() : '-', colX[3], daerahTotalY + 23);
+    ctx.fillStyle = '#1F4D36'; ctx.fillText(totalMT.toFixed(2), colX[4], daerahTotalY + 23);
+
+    // ═══ SECTION 2: Pecahan Mengikut Varieti ═══
+    if (varietiReportRows.length > 0) {
+      ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 15px sans-serif';
+      ctx.fillText('🌳 Pecahan Mengikut Varieti', 50, varietiStartY - 12);
+
+      const vColX = [60, 500, 720, 920];
+      const vHeaders = ['Varieti', 'Bil. Pokok', 'Kilogram (Kg)', 'Metrik Tan (Mt)'];
+      ctx.fillStyle = '#1F4D36'; ctx.fillRect(50, varietiStartY, W - 100, 35);
+      ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 12px sans-serif';
+      vHeaders.forEach((h, i) => { ctx.textAlign = i > 0 ? 'center' : 'start'; ctx.fillText(h, vColX[i], varietiStartY + 22); });
+
+      varietiReportRows.forEach((row, i) => {
+        const y = varietiStartY + 37 + (i * rowH);
+        ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF'; ctx.fillRect(50, y, W - 100, rowH - 2);
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.fillText(row.name, vColX[0], y + 21);
+        ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.fillText(row.pokok.toLocaleString(), vColX[1], y + 21);
+        ctx.fillStyle = '#C98A2C'; ctx.fillText(`${row.kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg`, vColX[2], y + 21);
+        ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#1F4D36'; ctx.fillText(`${row.mt.toFixed(2)} Mt`, vColX[3], y + 21);
+      });
+
+      // Varieti total row
+      const vTotalY = varietiStartY + 37 + (varietiReportRows.length * rowH);
+      const vTotalPokok = varietiReportRows.reduce((s, v) => s + v.pokok, 0);
+      const vTotalKg = varietiReportRows.reduce((s, v) => s + v.kg, 0);
+      ctx.fillStyle = '#FEF3C7'; ctx.fillRect(50, vTotalY, W - 100, 35);
+      ctx.strokeStyle = '#C98A2C'; ctx.lineWidth = 1; ctx.strokeRect(50, vTotalY, W - 100, 35);
+      ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
+      ctx.textAlign = 'start'; ctx.fillText('JUMLAH', vColX[0], vTotalY + 23);
+      ctx.textAlign = 'center'; ctx.fillText(vTotalPokok.toLocaleString(), vColX[1], vTotalY + 23);
+      ctx.fillStyle = '#C98A2C'; ctx.fillText(`${vTotalKg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg`, vColX[2], vTotalY + 23);
+      ctx.fillStyle = '#1F4D36'; ctx.fillText(`${(vTotalKg / 1000).toFixed(2)} Mt`, vColX[3], vTotalY + 23);
+    }
+
+    // Bulan Pengeluaran banner
+    const bulanY = H - 55;
+    ctx.fillStyle = '#EFF6FF'; ctx.fillRect(50, bulanY, W - 100, 30);
+    ctx.strokeStyle = '#3B82F6'; ctx.lineWidth = 1; ctx.strokeRect(50, bulanY, W - 100, 30);
+    ctx.fillStyle = '#1E40AF'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText(`Jangkaan Bulan Pengeluaran: ${bulanNegeri}`, W / 2, bulanY + 20);
 
     // Footer
     ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText('Hak Cipta Terpelihara © FAMA 2026 | Sistem Kalkulator Durian', W / 2, H - 15);
+    ctx.fillText('Hak Cipta Terpelihara © FAMA 2026 | Sistem Kalkulator Durian', W / 2, H - 12);
 
     setPreviewUrl(canvas.toDataURL('image/png'));
     setShowPreview(true);
