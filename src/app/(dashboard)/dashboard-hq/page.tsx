@@ -104,13 +104,21 @@ export default function DashboardHQPage() {
   // Anggaran hasil (kg) = bilangan pokok x hasil/pokok bagi varieti tersebut.
   // Ini sumber data varieti sebenar yang diuruskan pengguna, jadi tiada lagi kategori "Lain".
   const varietiDist = useMemo(() => {
+    // Format nama bebas kepada Capitalize Each Word
+    const capitalizeWords = (str: string) =>
+      str.replace(/\b[\p{L}']+/gu, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
+
     const map: Record<string, { kg: number; pokok: number }> = {};
     kebun.forEach(k => {
       (k.varietiData || []).forEach(v => {
-        const nama = (v.varieti && v.varieti.trim()) || '';
-        if (!nama || !(v.bilangan > 0)) return; // langkau entri kosong
-        // Padan hasil/pokok berdasarkan nama atau key varieti; jika tak dijumpai guna 120 kg
-        const ref = VARIETIES.find(x => x.name === nama || x.key === nama);
+        const raw = (v.varieti && v.varieti.trim()) || '';
+        if (!raw || !(v.bilangan > 0)) return; // langkau entri kosong
+        // Padan varieti rasmi berdasarkan key atau nama (tidak kira huruf besar/kecil)
+        const ref = VARIETIES.find(
+          x => x.key === raw || x.name === raw || x.name.toLowerCase() === raw.toLowerCase()
+        );
+        // Nama papar: guna nama penuh rasmi; jika varieti bebas, Capitalize Each Word
+        const nama = ref?.name || capitalizeWords(raw);
         const hasilPerPokok = ref?.hasil ?? 120;
         if (!map[nama]) map[nama] = { kg: 0, pokok: 0 };
         map[nama].kg += v.bilangan * hasilPerPokok;
