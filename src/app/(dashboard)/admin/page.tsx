@@ -30,6 +30,11 @@ export default function AdminPage() {
   const [editingUser, setEditingUser] = useState<string | null>(null);
   const [showAdminPass, setShowAdminPass] = useState(false);
   const [filterRole, setFilterRole] = useState('Semua');
+  // Kemas kini tetapan akaun (email & kata laluan) — superadmin sahaja
+  const [settingsTarget, setSettingsTarget] = useState<UserRecord | null>(null);
+  const [settingsForm, setSettingsForm] = useState({ email: '', password: '' });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [showSettingsPass, setShowSettingsPass] = useState(false);
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -131,6 +136,47 @@ export default function AdminPage() {
       toast.success('Negeri dikemas kini!');
     } catch (e) {
       toast.error('Gagal kemaskini.');
+    }
+  };
+
+  const openSettings = (u: UserRecord) => {
+    setSettingsTarget(u);
+    setSettingsForm({ email: u.email, password: '' });
+    setShowSettingsPass(false);
+  };
+
+  const handleUpdateSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!settingsTarget) return;
+
+    const emailChanged = settingsForm.email.trim() && settingsForm.email.trim() !== settingsTarget.email;
+    const passwordChanged = settingsForm.password.trim().length > 0;
+
+    if (!emailChanged && !passwordChanged) {
+      toast.error('Tiada perubahan untuk disimpan.');
+      return;
+    }
+
+    setSettingsLoading(true);
+    try {
+      const res = await fetch('/api/admin/update-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: settingsTarget.uid,
+          email: emailChanged ? settingsForm.email.trim() : undefined,
+          password: passwordChanged ? settingsForm.password.trim() : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Gagal mengemas kini tetapan');
+      toast.success('Tetapan akaun berjaya dikemas kini!');
+      setSettingsTarget(null);
+      setSettingsForm({ email: '', password: '' });
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : 'Gagal kemaskini.');
+    } finally {
+      setSettingsLoading(false);
     }
   };
 
@@ -303,9 +349,12 @@ export default function AdminPage() {
                       <button onClick={() => setEditingUser(null)} className="text-[8px] text-gray-400 ml-1">✕</button>
                     </div>
                   ) : (
-                    <div className="flex gap-2 mt-2 items-center">
+                    <div className="flex gap-2 mt-2 items-center flex-wrap">
                       {(isSuperAdmin || (isAdminNegeri && u.role !== 'superadmin' && u.role !== 'admin_negeri')) && (
                         <button onClick={() => setEditingUser(u.uid)} className="text-[9px] text-forest underline">Tukar Role</button>
+                      )}
+                      {isSuperAdmin && (
+                        <button onClick={() => openSettings(u)} className="text-[9px] text-forest underline">Kemas Kini Tetapan</button>
                       )}
                       {isSuperAdmin && (
                         <select value={u.negeri || ''} onChange={(e) => handleUpdateNegeri(u.uid, e.target.value)}
@@ -327,6 +376,76 @@ export default function AdminPage() {
           <p className="text-[10px] text-gray-400 text-center pt-2">
             Jumlah: {filtered.length} pengguna
           </p>
+        </div>
+      )}
+
+      {/* Modal: Kemas Kini Tetapan Akaun (Email & Kata Laluan) — Superadmin sahaja */}
+      {settingsTarget && isSuperAdmin && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => !settingsLoading && setSettingsTarget(null)}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleUpdateSettings}
+            className="bg-white rounded-2xl p-5 shadow-xl w-full max-w-sm space-y-3 border-t-4 border-forest"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-forest text-sm">Kemas Kini Tetapan Akaun</h3>
+              <button type="button" onClick={() => setSettingsTarget(null)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none">×</button>
+            </div>
+
+            <div className="bg-forest/5 rounded-lg p-2.5">
+              <p className="text-xs font-semibold text-forest">{settingsTarget.nama}</p>
+              <p className="text-[10px] text-gray-500">
+                {ROLE_LABELS[settingsTarget.role] || settingsTarget.role} &bull; {settingsTarget.negeri || '-'} &bull; {settingsTarget.daerah || '-'}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 mb-1 block">Email</label>
+              <input
+                type="email"
+                value={settingsForm.email}
+                onChange={(e) => setSettingsForm({ ...settingsForm, email: e.target.value })}
+                className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm"
+                placeholder="email@fama.gov.my"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 mb-1 block">Kata Laluan Baru</label>
+              <div className="relative">
+                <input
+                  type={showSettingsPass ? 'text' : 'password'}
+                  value={settingsForm.password}
+                  onChange={(e) => setSettingsForm({ ...settingsForm, password: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm pr-9"
+                  placeholder="Biar kosong jika tidak mahu tukar"
+                  minLength={6}
+                />
+                <button type="button" onClick={() => setShowSettingsPass(!showSettingsPass)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">
+                  {showSettingsPass ? '🙈' : '👁'}
+                </button>
+              </div>
+              <p className="text-[9px] text-gray-400 mt-1">
+                Minimum 6 aksara. Biar kosong untuk kekalkan kata laluan sedia ada.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button type="button" onClick={() => setSettingsTarget(null)} disabled={settingsLoading}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50">
+                Batal
+              </button>
+              <button type="submit" disabled={settingsLoading}
+                className="flex-1 bg-forest text-white py-2.5 rounded-xl text-sm font-semibold disabled:opacity-50">
+                {settingsLoading ? 'Menyimpan...' : '💾 Simpan'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>
