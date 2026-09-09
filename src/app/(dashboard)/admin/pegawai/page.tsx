@@ -17,7 +17,7 @@ interface Pegawai {
 }
 
 export default function AdminPegawaiPage() {
-  const { profile, isAnyAdmin } = useAuth();
+  const { profile, isAnyAdmin, isSuperAdmin } = useAuth();
   const router = useRouter();
   const [pegawaiList, setPegawaiList] = useState<Pegawai[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,6 +31,58 @@ export default function AdminPegawaiPage() {
     noPerkerja: '',
     daerah: '',
   });
+
+  // Edit email/kata laluan (superadmin sahaja)
+  const [editTarget, setEditTarget] = useState<Pegawai | null>(null);
+  const [editForm, setEditForm] = useState({ email: '', password: '' });
+  const [editLoading, setEditLoading] = useState(false);
+  const [showEditPass, setShowEditPass] = useState(false);
+
+  const openEdit = (p: Pegawai) => {
+    setEditTarget(p);
+    setEditForm({ email: p.email, password: '' });
+    setShowEditPass(false);
+  };
+
+  const handleUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTarget) return;
+
+    const emailChanged = editForm.email.trim() && editForm.email.trim() !== editTarget.email;
+    const passwordChanged = editForm.password.trim().length > 0;
+
+    if (!emailChanged && !passwordChanged) {
+      toast.error('Tiada perubahan untuk disimpan.');
+      return;
+    }
+
+    setEditLoading(true);
+    try {
+      const res = await fetch('/api/admin/update-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: editTarget.uid,
+          email: emailChanged ? editForm.email.trim() : undefined,
+          password: passwordChanged ? editForm.password.trim() : undefined,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Gagal mengemas kini pengguna');
+      }
+
+      toast.success('Maklumat pegawai berjaya dikemas kini!');
+      setEditTarget(null);
+      setEditForm({ email: '', password: '' });
+    } catch (error: unknown) {
+      const msg = error instanceof Error ? error.message : 'Ralat tidak diketahui';
+      toast.error(msg);
+    } finally {
+      setEditLoading(false);
+    }
+  };
 
   // Redirect if not admin
   useEffect(() => {
@@ -216,13 +268,32 @@ export default function AdminPegawaiPage() {
                     {p.noPerkerja} &middot; {p.daerah}
                   </p>
                 </div>
-                <button
-                  onClick={() => handleDelete(p.uid, p.nama)}
-                  className="text-red-400 hover:text-red-600 text-sm"
-                >
-                  🗑️
-                </button>
+                <div className="flex items-center gap-2">
+                  {isSuperAdmin && (
+                    <button
+                      onClick={() => openEdit(p)}
+                      className="text-forest hover:text-moss text-sm"
+                      title="Kemas kini email & kata laluan"
+                    >
+                      ✏️
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleDelete(p.uid, p.nama)}
+                    className="text-red-400 hover:text-red-600 text-sm"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => openEdit(p)}
+                  className="mt-2 text-[10px] font-semibold text-forest underline underline-offset-2"
+                >
+                  Kemas Kini Email / Kata Laluan
+                </button>
+              )}
             </div>
           ))}
         </div>
@@ -239,6 +310,91 @@ export default function AdminPegawaiPage() {
       >
         📊 Lihat Dashboard Data
       </button>
+
+      {/* Modal: Kemas Kini Email & Kata Laluan (Superadmin sahaja) */}
+      {editTarget && isSuperAdmin && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={() => !editLoading && setEditTarget(null)}
+        >
+          <form
+            onClick={(e) => e.stopPropagation()}
+            onSubmit={handleUpdate}
+            className="bg-white rounded-2xl p-5 shadow-xl w-full max-w-sm space-y-3 border-t-4 border-forest"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="font-bold text-forest text-sm">Kemas Kini Akaun</h3>
+              <button
+                type="button"
+                onClick={() => setEditTarget(null)}
+                className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className="bg-forest/5 rounded-lg p-2.5">
+              <p className="text-xs font-semibold text-forest">{editTarget.nama}</p>
+              <p className="text-[10px] text-gray-500">{editTarget.noPerkerja} &middot; {editTarget.daerah}</p>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 mb-1 block">Email</label>
+              <input
+                type="email"
+                value={editForm.email}
+                onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm"
+                placeholder="email@fama.gov.my"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] font-semibold text-gray-500 mb-1 block">
+                Kata Laluan Baru
+              </label>
+              <div className="relative">
+                <input
+                  type={showEditPass ? 'text' : 'password'}
+                  value={editForm.password}
+                  onChange={(e) => setEditForm({ ...editForm, password: e.target.value })}
+                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm pr-9"
+                  placeholder="Biar kosong jika tidak mahu tukar"
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowEditPass(!showEditPass)}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs"
+                >
+                  {showEditPass ? '🙈' : '👁'}
+                </button>
+              </div>
+              <p className="text-[9px] text-gray-400 mt-1">
+                Minimum 6 aksara. Biar kosong untuk kekalkan kata laluan sedia ada.
+              </p>
+            </div>
+
+            <div className="flex gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setEditTarget(null)}
+                disabled={editLoading}
+                className="flex-1 border border-gray-300 text-gray-600 py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+              >
+                Batal
+              </button>
+              <button
+                type="submit"
+                disabled={editLoading}
+                className="flex-1 bg-forest text-white py-2.5 rounded-lg text-sm font-semibold disabled:opacity-50"
+              >
+                {editLoading ? 'Menyimpan...' : '💾 Simpan'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 }

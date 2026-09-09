@@ -42,6 +42,8 @@ export default function DashboardHQPage() {
   const [loading, setLoading] = useState(true);
   // Varieti yang sedang dilihat (hover/klik) untuk pop-out MT
   const [activeVarieti, setActiveVarieti] = useState<string | null>(null);
+  // Bulan yang sedang dilihat (hover/klik) untuk pop-out senarai negeri
+  const [activeBulan, setActiveBulan] = useState<string | null>(null);
 
   useEffect(() => {
     const q = query(collectionGroup(db, 'lawatan'));
@@ -101,16 +103,24 @@ export default function DashboardHQPage() {
 
   // Monthly forecast
   const monthlyForecast = useMemo(() => {
-    const map: Record<string, { kg: number; negeri: Set<string> }> = {};
+    const map: Record<string, { kg: number; negeri: Set<string>; negeriKg: Record<string, number> }> = {};
     lawatan.forEach(l => {
       if (!l.tarikhLawatan) return;
       const d = new Date(l.tarikhLawatan); d.setDate(d.getDate() + 30);
       const key = d.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
-      if (!map[key]) map[key] = { kg: 0, negeri: new Set() };
+      if (!map[key]) map[key] = { kg: 0, negeri: new Set(), negeriKg: {} };
+      const nama = l.negeri || l.pegawaiDaerah || 'Lain-lain';
       map[key].kg += l.totalKg || 0;
-      map[key].negeri.add(l.negeri || l.pegawaiDaerah || '');
+      map[key].negeri.add(nama);
+      map[key].negeriKg[nama] = (map[key].negeriKg[nama] || 0) + (l.totalKg || 0);
     });
-    return Object.entries(map).map(([bulan, d]) => ({ bulan, kg: d.kg, negeriCount: d.negeri.size }));
+    return Object.entries(map).map(([bulan, d]) => ({
+      bulan,
+      kg: d.kg,
+      negeriCount: d.negeri.size,
+      // Senarai negeri disusun mengikut sumbangan kg tertinggi
+      negeriList: Object.entries(d.negeriKg).sort((a, b) => b[1] - a[1]).map(([nama, kg]) => ({ nama, kg })),
+    }));
   }, [lawatan]);
   const maxMonthKg = Math.max(...monthlyForecast.map(m => m.kg), 1);
 
@@ -346,11 +356,40 @@ export default function DashboardHQPage() {
                       </div>
                       {/* Bar mendatar */}
                       <div className="flex items-center gap-2">
-                        <div className="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden">
-                          <div
-                            className={`h-full rounded-full transition-all duration-700 ${isPuncak ? 'bg-forest' : 'bg-forest/40'}`}
-                            style={{ width: `${width}%` }}
-                          />
+                        {/* Kawasan hover/klik pada bar — pop-out senarai negeri */}
+                        <div
+                          className="relative flex-1 py-1.5 cursor-pointer"
+                          onMouseEnter={() => setActiveBulan(m.bulan)}
+                          onMouseLeave={() => setActiveBulan(null)}
+                          onClick={() => setActiveBulan(prev => prev === m.bulan ? null : m.bulan)}
+                        >
+                          <div className="h-3 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                              className={`h-full rounded-full transition-all duration-700 ${isPuncak ? 'bg-forest' : 'bg-forest/40'}`}
+                              style={{ width: `${width}%` }}
+                            />
+                          </div>
+                          {/* Pop-out: negeri mana mewakili data bulan ini */}
+                          {activeBulan === m.bulan && (
+                            <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-30">
+                              <div className="bg-forest text-white rounded-lg shadow-xl px-3 py-2 min-w-[140px]">
+                                <p className="text-[9px] font-bold border-b border-white/20 pb-1 mb-1.5">
+                                  {m.bulan}
+                                </p>
+                                <div className="space-y-1">
+                                  {m.negeriList.map(n => (
+                                    <div key={n.nama} className="flex items-center justify-between gap-3">
+                                      <span className="text-[9px] text-white/90 whitespace-nowrap">{n.nama}</span>
+                                      <span className="text-[9px] font-bold text-gold whitespace-nowrap">
+                                        {(n.kg / 1000).toFixed(1)} MT
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="w-2 h-2 bg-forest rotate-45 absolute top-full left-1/2 -translate-x-1/2 -translate-y-1" />
+                            </div>
+                          )}
                         </div>
                         <span className="text-[8px] font-semibold text-gray-400 w-9 text-right">
                           {pct.toFixed(0)}%
