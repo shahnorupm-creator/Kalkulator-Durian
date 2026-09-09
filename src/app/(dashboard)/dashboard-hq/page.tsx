@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { NEGERI_FLAG_COLORS, NEGERI_FLAG } from '@/lib/constants';
+import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES } from '@/lib/constants';
 
 interface LawatanRecord {
   id: string;
@@ -23,6 +23,12 @@ interface LawatanRecord {
   fasaUtama: string;
 }
 
+interface VarietiEntry {
+  usia: string;
+  varieti: string;
+  bilangan: number;
+}
+
 interface KebunRecord {
   id: string;
   nama: string;
@@ -32,6 +38,7 @@ interface KebunRecord {
   kepadatan: number;
   pctMatang: number;
   jumlahPokok: number;
+  varietiData?: VarietiEntry[];
 }
 
 export default function DashboardHQPage() {
@@ -93,13 +100,28 @@ export default function DashboardHQPage() {
     return Object.entries(map).map(([negeri, d]) => ({ negeri, ...d })).sort((a, b) => b.ekar - a.ekar);
   }, [kebun, lawatan]);
 
-  // Varieti distribution
+  // Taburan varieti — dikira daripada profil kebun (varietiData).
+  // Anggaran hasil (kg) = bilangan pokok x hasil/pokok bagi varieti tersebut.
+  // Ini sumber data varieti sebenar yang diuruskan pengguna, jadi tiada lagi kategori "Lain".
   const varietiDist = useMemo(() => {
-    const map: Record<string, number> = {};
-    lawatan.forEach(l => { const v = l.varieti || 'Lain'; map[v] = (map[v] || 0) + (l.totalKg || 0); });
-    const total = Object.values(map).reduce((s, v) => s + v, 0) || 1;
-    return Object.entries(map).map(([name, kg]) => ({ name, kg, pct: (kg / total) * 100 })).sort((a, b) => b.kg - a.kg);
-  }, [lawatan]);
+    const map: Record<string, { kg: number; pokok: number }> = {};
+    kebun.forEach(k => {
+      (k.varietiData || []).forEach(v => {
+        const nama = (v.varieti && v.varieti.trim()) || '';
+        if (!nama || !(v.bilangan > 0)) return; // langkau entri kosong
+        // Padan hasil/pokok berdasarkan nama atau key varieti; jika tak dijumpai guna 120 kg
+        const ref = VARIETIES.find(x => x.name === nama || x.key === nama);
+        const hasilPerPokok = ref?.hasil ?? 120;
+        if (!map[nama]) map[nama] = { kg: 0, pokok: 0 };
+        map[nama].kg += v.bilangan * hasilPerPokok;
+        map[nama].pokok += v.bilangan;
+      });
+    });
+    const total = Object.values(map).reduce((s, v) => s + v.kg, 0) || 1;
+    return Object.entries(map)
+      .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, pct: (d.kg / total) * 100 }))
+      .sort((a, b) => b.kg - a.kg);
+  }, [kebun]);
 
   // Monthly forecast
   const monthlyForecast = useMemo(() => {
@@ -296,11 +318,12 @@ export default function DashboardHQPage() {
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${v.pct}%` }} />
                       </div>
-                      {/* Pop-out MT — muncul bila cursor hover / klik pada bar */}
+                      {/* Pop-out — muncul bila cursor hover / klik pada bar */}
                       {activeVarieti === v.name && (
                         <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-30">
-                          <div className="bg-forest text-white text-[9px] font-bold px-2 py-1 rounded-md shadow-lg whitespace-nowrap">
-                            {(v.kg / 1000).toFixed(2)} MT
+                          <div className="bg-forest text-white rounded-md shadow-lg px-2 py-1 whitespace-nowrap text-center">
+                            <span className="text-[10px] font-bold block">{(v.kg / 1000).toFixed(2)} MT</span>
+                            <span className="text-[8px] text-white/80 block">{v.pokok.toLocaleString()} pokok</span>
                           </div>
                           <div className="w-2 h-2 bg-forest rotate-45 absolute top-full left-1/2 -translate-x-1/2 -translate-y-1" />
                         </div>
