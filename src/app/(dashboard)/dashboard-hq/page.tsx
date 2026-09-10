@@ -25,6 +25,7 @@ interface LawatanRecord {
   kebunNama: string;
   fasa: string;
   fasaUtama: string;
+  varietiResults?: { key: string; name: string; pokok: number; kg: number }[];
   createdAt?: { seconds?: number } | null;
   updatedAt?: { seconds?: number } | null;
 }
@@ -121,36 +122,76 @@ export default function DashboardHQPage() {
     return Object.entries(map).map(([negeri, d]) => ({ negeri, ...d })).sort((a, b) => b.ekar - a.ekar);
   }, [kebun, latestLawatan]);
 
-  // Taburan varieti — dikira daripada profil kebun (varietiData).
-  // Anggaran hasil (kg) = bilangan pokok x hasil/pokok bagi varieti tersebut.
-  // Ini sumber data varieti sebenar yang diuruskan pengguna, jadi tiada lagi kategori "Lain".
+  // Taburan varieti daripada rekod pemantauan semasa yang sama dengan KPI.
+  // Rekod lama tanpa varietiResults diagihkan mengikut wajaran profil kebun,
+  // tetapi jumlah kg kekal tepat sama dengan totalKg lawatan semasa.
   const varietiDist = useMemo(() => {
-    // Format nama bebas kepada Capitalize Each Word
     const capitalizeWords = (str: string) =>
       str.replace(/\b[\p{L}']+/gu, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase());
 
+    const namaVarieti = (nama?: string, key?: string) => {
+      const raw = (nama || key || '').trim();
+      const ref = VARIETIES.find(
+        x => x.key === key || x.key === raw || x.name === raw || x.name.toLowerCase() === raw.toLowerCase()
+      );
+      return ref?.name || (raw ? capitalizeWords(raw) : 'Belum Diperincikan');
+    };
+
     const map: Record<string, { kg: number; pokok: number }> = {};
-    kebun.forEach(k => {
-      (k.varietiData || []).forEach(v => {
-        const raw = (v.varieti && v.varieti.trim()) || '';
-        if (!raw || !(v.bilangan > 0)) return; // langkau entri kosong
-        // Padan varieti rasmi berdasarkan key atau nama (tidak kira huruf besar/kecil)
-        const ref = VARIETIES.find(
-          x => x.key === raw || x.name === raw || x.name.toLowerCase() === raw.toLowerCase()
-        );
-        // Nama papar: guna nama penuh rasmi; jika varieti bebas, Capitalize Each Word
-        const nama = ref?.name || capitalizeWords(raw);
-        const hasilPerPokok = ref?.hasil ?? 150;
-        if (!map[nama]) map[nama] = { kg: 0, pokok: 0 };
-        map[nama].kg += v.bilangan * hasilPerPokok;
-        map[nama].pokok += v.bilangan;
-      });
+    const kebunById = new Map(kebun.map(k => [k.id, k]));
+    const tambah = (name: string, kg: number, pokok: number) => {
+      if (!map[name]) map[name] = { kg: 0, pokok: 0 };
+      map[name].kg += kg;
+      map[name].pokok += pokok;
+    };
+
+    latestLawatan.forEach(l => {
+      const jumlahKg = Math.max(0, Number(l.totalKg) || 0);
+      const pecahan = (l.varietiResults || []).filter(v => (Number(v.kg) || 0) > 0);
+      const jumlahPecahan = pecahan.reduce((sum, v) => sum + (Number(v.kg) || 0), 0);
+
+      if (jumlahPecahan > 0) {
+        // Skala kecil ini memastikan jumlah semua kategori sentiasa sama tepat dengan totalKg rekod.
+        const faktor = jumlahKg / jumlahPecahan;
+        pecahan.forEach(v => {
+          tambah(
+            namaVarieti(v.name, v.key),
+            (Number(v.kg) || 0) * faktor,
+            Math.max(0, Number(v.pokok) || 0)
+          );
+        });
+        return;
+      }
+
+      // Fallback rekod lama: agih totalKg mengikut potensi hasil varieti dalam profil kebun.
+      const farm = kebunById.get(l.kebunId);
+      const profil = (farm?.varietiData || [])
+        .map(v => {
+          const bilangan = Math.max(0, Number(v.bilangan) || 0);
+          const ref = VARIETIES.find(
+            x => x.key === v.varieti || x.name === v.varieti || x.name.toLowerCase() === (v.varieti || '').toLowerCase()
+          );
+          return {
+            name: namaVarieti(v.varieti, ref?.key),
+            pokok: bilangan,
+            wajaran: bilangan * (ref?.hasil ?? 150),
+          };
+        })
+        .filter(v => v.wajaran > 0);
+      const jumlahWajaran = profil.reduce((sum, v) => sum + v.wajaran, 0);
+
+      if (jumlahWajaran > 0) {
+        profil.forEach(v => tambah(v.name, jumlahKg * (v.wajaran / jumlahWajaran), v.pokok));
+      } else {
+        tambah(namaVarieti(l.varieti, l.varietiKey), jumlahKg, Math.max(0, Number(l.jumlahPokok) || 0));
+      }
     });
-    const total = Object.values(map).reduce((s, v) => s + v.kg, 0) || 1;
+
+    const total = Object.values(map).reduce((s, v) => s + v.kg, 0);
     return Object.entries(map)
-      .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, pct: (d.kg / total) * 100 }))
+      .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, pct: total > 0 ? (d.kg / total) * 100 : 0 }))
       .sort((a, b) => b.kg - a.kg);
-  }, [kebun]);
+  }, [kebun, latestLawatan]);
 
   // Monthly forecast
   const monthlyForecast = useMemo(() => {

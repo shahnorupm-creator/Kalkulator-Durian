@@ -374,6 +374,17 @@ export default function ProfilKebunPage() {
     if (filterDaerah !== 'Semua' && k.daerah !== filterDaerah) return false;
     if (search && !k.nama?.toLowerCase().includes(search.toLowerCase()) && !k.daerah?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
+  }).sort((a, b) => {
+    const compare = (left?: string, right?: string) =>
+      (left || '').localeCompare(right || '', 'ms', { sensitivity: 'base' });
+
+    // Rekod yang tiada negeri diletakkan paling bawah.
+    if (!a.negeri && b.negeri) return 1;
+    if (a.negeri && !b.negeri) return -1;
+
+    return compare(a.negeri, b.negeri)
+      || compare(a.daerah, b.daerah)
+      || compare(a.nama, b.nama);
   });
 
   const negeriWithData = [...new Set(kebunList.map(k => k.negeri).filter(Boolean))];
@@ -709,14 +720,15 @@ export default function ProfilKebunPage() {
           /* LIST VIEW — compact table */
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
             <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-forest/5 text-[9px] font-bold text-forest border-b border-gray-100">
-              <span className="col-span-3">Pekebun</span>
+              <span className="col-span-1 text-center">Bil.</span>
+              <span className="col-span-2">Pekebun</span>
               <span className="col-span-2">Daerah</span>
               <span className="col-span-1 text-center">Ekar</span>
               <span className="col-span-1 text-center">Pokok</span>
               <span className="col-span-3">Varieti</span>
               <span className="col-span-2 text-center">Status</span>
             </div>
-            {filtered.map(k => {
+            {filtered.map((k, index) => {
               const pokok = k.jumlahPokok || 0;
               const hasVarietiData = (k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)) || k.varieti5_9 || k.varieti10_15 || k.varieti16_19;
               const isComplete = pokok > 0 && hasVarietiData && !!k.alamat && !!k.mukim && !!k.latlong && !!k.noTelefon && k.noTelefon !== '-';
@@ -731,7 +743,10 @@ export default function ProfilKebunPage() {
               return (
                 <div key={k.id} onClick={() => handleEdit(k)}
                   className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-all">
-                  <div className="col-span-3 flex items-center gap-2 min-w-0">
+                  <span className="col-span-1 text-[9px] text-center font-semibold text-gray-500 tabular-nums">
+                    {index + 1}
+                  </span>
+                  <div className="col-span-2 flex items-center gap-2 min-w-0">
                     {k.negeri && NEGERI_FLAG[k.negeri] ? (
                       <img src={NEGERI_FLAG[k.negeri]} alt={k.negeri} className="w-5 h-3.5 object-contain rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                     ) : k.negeri && NEGERI_FLAG_COLORS[k.negeri] ? (
