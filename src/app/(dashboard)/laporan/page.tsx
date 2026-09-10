@@ -30,6 +30,26 @@ interface LawatanRecord {
   updatedAt?: { seconds?: number } | null;
 }
 
+interface KumpulanBulan {
+  tahun: number;
+  bulan: string[];
+}
+
+const NAMA_BULAN = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
+
+function kumpulkanBulanMengikutTahun(bulanMap: Map<string, number>): KumpulanBulan[] {
+  const kumpulan = new Map<number, string[]>();
+  Array.from(new Set(bulanMap.values())).sort((a, b) => a - b).forEach(sort => {
+    const tahun = Math.floor(sort / 12);
+    const bulanIndex = ((sort % 12) + 12) % 12;
+    const senarai = kumpulan.get(tahun) || [];
+    const namaBulan = NAMA_BULAN[bulanIndex];
+    if (!senarai.includes(namaBulan)) senarai.push(namaBulan);
+    kumpulan.set(tahun, senarai);
+  });
+  return Array.from(kumpulan.entries()).map(([tahun, bulan]) => ({ tahun, bulan }));
+}
+
 export default function LaporanPage() {
   const { user, profile, isSuperAdmin } = useAuth();
   const { t } = useLanguage();
@@ -184,9 +204,7 @@ export default function LaporanPage() {
     return Object.entries(map).map(([negeri, d]) => ({
       negeri, pekebun: d.pekebun.size, ekar: d.ekar, pokok: d.pokok, kg: d.kg, mt: d.kg / 1000,
       varietiKg: Object.entries(d.varietiKg).sort((a, b) => b[1].kg - a[1].kg),
-      bulanPengeluaran: d.bulan.size > 0
-        ? Array.from(d.bulan.entries()).sort((a, b) => a[1] - b[1]).map(([bulan]) => bulan).join(' / ')
-        : 'Belum direkodkan',
+      bulanPengeluaran: kumpulkanBulanMengikutTahun(d.bulan),
     })).sort((a, b) => b.mt - a.mt);
   })();
 
@@ -217,9 +235,7 @@ export default function LaporanPage() {
       });
       const negeriRows = Object.entries(negeriMap).map(([negeri, d]) => ({
         negeri, daerah: Array.from(d.daerah).sort().join(' / '), pekebun: d.pekebun, ekar: d.ekar, kg: d.kg, mt: d.kg / 1000,
-        bulan: d.bulan.size > 0
-          ? Array.from(d.bulan.entries()).sort((a, b) => a[1] - b[1]).map(([bulan]) => bulan).join(' / ')
-          : '-',
+        bulanKumpulan: kumpulkanBulanMengikutTahun(d.bulan),
       })).sort((a, b) => b.mt - a.mt);
 
       const rowH = 65;
@@ -293,12 +309,18 @@ export default function LaporanPage() {
         ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colXHQ[3], y + 28);
         ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 12px sans-serif';
         ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colXHQ[4], y + 28);
-        // Bulan Pengeluaran — stack vertically if multiple
-        ctx.fillStyle = '#6B7280'; ctx.font = '9px sans-serif'; ctx.textAlign = 'center';
-        const bulanParts = row.bulan.split(' / ');
-        bulanParts.forEach((b, bi) => {
-          ctx.fillText(b, colXHQ[5], y + 20 + (bi * 12));
-        });
+        // Bulan Pengeluaran — bulan sebaris, tahun sekali di bawah.
+        ctx.fillStyle = '#6B7280'; ctx.textAlign = 'center';
+        const kumpulan = row.bulanKumpulan[0];
+        if (kumpulan) {
+          ctx.font = '8px sans-serif';
+          ctx.fillText(kumpulan.bulan.join(' / '), colXHQ[5], y + 24, 165);
+          ctx.font = 'bold 9px sans-serif';
+          ctx.fillText(String(kumpulan.tahun), colXHQ[5], y + 40);
+        } else {
+          ctx.font = '9px sans-serif';
+          ctx.fillText('-', colXHQ[5], y + 28);
+        }
       });
 
       // Total row
@@ -341,9 +363,7 @@ export default function LaporanPage() {
     });
     const daerahRows = Object.entries(daerahMap).map(([daerah, d]) => ({
       daerah, pekebun: d.pekebun.size, ekar: d.ekar, kg: d.kg, mt: d.kg / 1000,
-      bulan: d.bulan.size > 0
-        ? Array.from(d.bulan.entries()).sort((a, b) => a[1] - b[1]).map(([bulan]) => bulan).join(' / ')
-        : '-',
+      bulanKumpulan: kumpulkanBulanMengikutTahun(d.bulan),
     })).sort((a, b) => b.mt - a.mt);
 
     const negeriName = isHQ ? (filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia') : userNegeri;
@@ -362,8 +382,9 @@ export default function LaporanPage() {
     const varietiReportRows = Object.entries(varietiKgMap)
       .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, mt: d.kg / 1000 }))
       .sort((a, b) => b.kg - a.kg);
-    const allBulan = daerahRows.filter(d => d.bulan !== '-').map(d => d.bulan).join(' / ');
-    const bulanNegeri = allBulan ? [...new Set(allBulan.split(' / '))].join(' / ') : '-';
+    const bulanNegeriMap = new Map<string, number>();
+    projectedLawatan.forEach(item => item.batches.forEach(batch => bulanNegeriMap.set(batch.bulan, batch.bulanSort)));
+    const bulanNegeriKumpulan = kumpulkanBulanMengikutTahun(bulanNegeriMap);
 
     const rowH = 34;
     const daerahStartY = 250;
@@ -424,8 +445,17 @@ export default function LaporanPage() {
       ctx.fillText(row.ekar.toFixed(1), colX[2], y + 21);
       ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colX[3], y + 21);
       ctx.font = 'bold 12px sans-serif'; ctx.fillStyle = '#1F4D36'; ctx.fillText(row.mt > 0 ? row.mt.toFixed(2) : '-', colX[4], y + 21);
-      ctx.font = '9px sans-serif'; ctx.fillStyle = '#6B7280';
-      ctx.fillText(row.bulan.length > 16 ? row.bulan.substring(0, 16) + '..' : row.bulan, colX[5], y + 21);
+      const kumpulan = row.bulanKumpulan[0];
+      ctx.textAlign = 'center'; ctx.fillStyle = '#6B7280';
+      if (kumpulan) {
+        ctx.font = '8px sans-serif';
+        ctx.fillText(kumpulan.bulan.join(' / '), colX[5], y + 14, 170);
+        ctx.font = 'bold 8px sans-serif';
+        ctx.fillText(String(kumpulan.tahun), colX[5], y + 27);
+      } else {
+        ctx.font = '9px sans-serif';
+        ctx.fillText('-', colX[5], y + 21);
+      }
     });
 
     // Daerah total row
@@ -473,12 +503,21 @@ export default function LaporanPage() {
       ctx.fillStyle = '#1F4D36'; ctx.fillText(`${(vTotalKg / 1000).toFixed(2)} Mt`, vColX[3], vTotalY + 23);
     }
 
-    // Bulan Pengeluaran banner
-    const bulanY = H - 55;
-    ctx.fillStyle = '#EFF6FF'; ctx.fillRect(50, bulanY, W - 100, 30);
-    ctx.strokeStyle = '#3B82F6'; ctx.lineWidth = 1; ctx.strokeRect(50, bulanY, W - 100, 30);
-    ctx.fillStyle = '#1E40AF'; ctx.font = 'bold 12px sans-serif'; ctx.textAlign = 'center';
-    ctx.fillText(`Jangkaan Bulan Pengeluaran: ${bulanNegeri}`, W / 2, bulanY + 20);
+    // Bulan Pengeluaran banner — bulan sebaris, tahun sekali di bawah.
+    const bulanY = H - 62;
+    ctx.fillStyle = '#EFF6FF'; ctx.fillRect(50, bulanY, W - 100, 38);
+    ctx.strokeStyle = '#3B82F6'; ctx.lineWidth = 1; ctx.strokeRect(50, bulanY, W - 100, 38);
+    ctx.fillStyle = '#1E40AF'; ctx.textAlign = 'center';
+    const kumpulanNegeri = bulanNegeriKumpulan[0];
+    if (kumpulanNegeri) {
+      ctx.font = 'bold 11px sans-serif';
+      ctx.fillText(`Jangkaan Bulan Pengeluaran: ${kumpulanNegeri.bulan.join(' / ')}`, W / 2, bulanY + 16, W - 140);
+      ctx.font = 'bold 10px sans-serif';
+      ctx.fillText(String(kumpulanNegeri.tahun), W / 2, bulanY + 31);
+    } else {
+      ctx.font = 'bold 12px sans-serif';
+      ctx.fillText('Jangkaan Bulan Pengeluaran: -', W / 2, bulanY + 24);
+    }
 
     // Footer
     ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
@@ -645,7 +684,18 @@ export default function LaporanPage() {
                   {/* Bulan Pengeluaran */}
                   <div className="bg-blue-50 rounded-lg px-2 py-1.5 text-center">
                     <p className="text-[8px] text-gray-500">Jangkaan Bulan Pengeluaran</p>
-                    <p className="text-[10px] font-bold text-blue-700">{n.bulanPengeluaran}</p>
+                    {n.bulanPengeluaran.length > 0 ? (
+                      <div className="mt-0.5 space-y-1">
+                        {n.bulanPengeluaran.map(kumpulan => (
+                          <div key={kumpulan.tahun}>
+                            <p className="text-[10px] font-bold text-blue-700">{kumpulan.bulan.join(' / ')}</p>
+                            <p className="text-[9px] font-semibold text-blue-500">{kumpulan.tahun}</p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[10px] font-bold text-blue-700">Belum direkodkan</p>
+                    )}
                   </div>
                 </div>
               </div>

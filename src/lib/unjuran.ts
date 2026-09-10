@@ -147,7 +147,12 @@ export function statusPemantauan(tarikhLawatan: string | undefined, tarikhSemasa
     return { status: 'masa_hadapan', hariSejakLawatan: hari, hariLewat: 0, label: 'Tarikh lawatan di masa hadapan' };
   }
   if (hari <= AMBANG_HAMPIR_PEMANTAUAN_HARI) {
-    return { status: 'semasa', hariSejakLawatan: hari, hariLewat: 0, label: `${hari} hari sejak pemantauan` };
+    const label = hari === 0
+      ? 'Pemantauan dibuat hari ini'
+      : hari === 1
+        ? 'Pemantauan dibuat semalam'
+        : `${hari} hari sejak pemantauan`;
+    return { status: 'semasa', hariSejakLawatan: hari, hariLewat: 0, label };
   }
   if (hari <= AMBANG_PEMANTAUAN_HARI) {
     return { status: 'hampir', hariSejakLawatan: hari, hariLewat: 0, label: `Pemantauan semula dalam ${AMBANG_PEMANTAUAN_HARI - hari} hari` };

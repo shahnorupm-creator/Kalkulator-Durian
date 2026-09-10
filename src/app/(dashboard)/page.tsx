@@ -437,6 +437,7 @@ export default function ProfilKebunPage() {
     .sort((a, b) => a.name.localeCompare(b.name, 'ms', { sensitivity: 'base' }));
   const showDaerahPicker = !loading && kebunList.length > 0
     && (filterNegeri !== 'Semua' || !canAccessAllNegeri);
+  const negeriDaerahAktif = filterNegeri !== 'Semua' ? filterNegeri : userNegeri;
 
   // Pulihkan penapis jika rekod realtime yang sedang dipilih telah dipadam atau dipindahkan.
   useEffect(() => {
@@ -785,8 +786,16 @@ export default function ProfilKebunPage() {
                 <p className="text-[10px] font-bold text-forest">Pilih Daerah</p>
                 <p className="text-[8px] text-gray-400">Daerah yang mempunyai rekod kebun sahaja</p>
               </div>
-              <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-gold border border-gold/20 whitespace-nowrap">
-                📍 {filterNegeri !== 'Semua' ? filterNegeri : userNegeri || 'Daerah Anda'}
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-gold border border-gold/20 whitespace-nowrap">
+                {negeriDaerahAktif && NEGERI_FLAG[negeriDaerahAktif] ? (
+                  <img src={NEGERI_FLAG[negeriDaerahAktif]} alt={`Bendera ${negeriDaerahAktif}`} className="h-3.5 w-5 rounded-sm border border-gray-200 object-contain bg-white" />
+                ) : negeriDaerahAktif && NEGERI_FLAG_COLORS[negeriDaerahAktif] ? (
+                  <span className="h-3.5 w-5 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
+                    <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[negeriDaerahAktif].top }} />
+                    <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[negeriDaerahAktif].bottom }} />
+                  </span>
+                ) : null}
+                <span>{negeriDaerahAktif || 'Daerah Anda'}</span>
               </span>
             </div>
 
@@ -1095,8 +1104,24 @@ export default function ProfilKebunPage() {
                     <div className="space-y-1.5">
                       {(() => {
                         const totalVarietiPokok = varietiSorted.reduce((s, [, t]) => s + t, 0);
-                        return varietiSorted.map(([vKey, total]) => {
-                          const pct = totalVarietiPokok > 0 ? ((total / totalVarietiPokok) * 100).toFixed(0) : '0';
+                        const unitPeratus = varietiSorted.map(([, total], index) => {
+                          const tepat = totalVarietiPokok > 0 ? (total / totalVarietiPokok) * 1000 : 0;
+                          const asas = Math.floor(tepat);
+                          return { index, unit: asas, baki: tepat - asas };
+                        });
+                        let unitBelumAgih = Math.max(0, 1000 - unitPeratus.reduce((sum, item) => sum + item.unit, 0));
+                        [...unitPeratus]
+                          .sort((a, b) => b.baki - a.baki || a.index - b.index)
+                          .forEach(item => {
+                            if (unitBelumAgih > 0) {
+                              unitPeratus[item.index].unit += 1;
+                              unitBelumAgih -= 1;
+                            }
+                          });
+
+                        return varietiSorted.map(([vKey, total], index) => {
+                          const pctValue = totalVarietiPokok > 0 ? unitPeratus[index].unit / 10 : 0;
+                          const pct = pctValue.toFixed(1);
                           return (
                             <div key={vKey} className="flex items-center gap-2">
                               <div className="flex-1">

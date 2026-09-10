@@ -62,14 +62,6 @@ const salinStages = (input?: Record<string, InputPeringkatLawatan>): Record<stri
 
 const fasaSah = (key?: string): boolean => !!key && STAGES.some(stage => stage.key === key);
 
-const fasaDaripadaStages = (input?: Record<string, InputPeringkatLawatan>): string => {
-  return STAGES.reduce((tertinggi, stage) => {
-    const pct = Number(input?.[stage.key]?.pct) || 0;
-    const pctTertinggi = Number(input?.[tertinggi]?.pct) || 0;
-    return pct > pctTertinggi ? stage.key : tertinggi;
-  }, '');
-};
-
 export default function KalkulatorPage() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin_negeri' || profile?.role === 'admin_hq';
@@ -312,20 +304,11 @@ export default function KalkulatorPage() {
       return;
     }
 
-    const rekodKebun = lawatanMap[selectedKebun];
-    if (rekodKebun) {
-      const fasaRekod = fasaSah(rekodKebun.fasaUtama)
-        ? rekodKebun.fasaUtama || ''
-        : fasaDaripadaStages(rekodKebun.stages);
-      setTarikhLawatan(rekodKebun.tarikhLawatan || '');
-      setFasaUtama(fasaRekod);
-      setStages(salinStages(rekodKebun.stages));
-    } else {
-      // Kebun baharu bermula kosong supaya data pekebun lain tidak terbawa.
-      setTarikhLawatan('');
-      setFasaUtama('');
-      setStages(buatStagesKosong());
-    }
+    // Borang ini sentiasa mencipta lawatan baharu. Rekod terakhir hanya dipaparkan
+    // sebagai rujukan read-only dan tidak boleh dipindahkan ke input baharu.
+    setTarikhLawatan('');
+    setFasaUtama('');
+    setStages(buatStagesKosong());
     setShowPopup(false);
     setStep(2);
   };
@@ -676,6 +659,53 @@ export default function KalkulatorPage() {
                 ))}
               </div>
             )}
+          </div>
+
+          {/* Rekod terakhir ialah rujukan sahaja; borang baharu di bawah kekal kosong. */}
+          <div className={`rounded-2xl border p-4 ${
+            unjuranKebunDipilih?.pemantauan.status === 'lewat'
+              || unjuranKebunDipilih?.pemantauan.status === 'tidak_sah'
+              || unjuranKebunDipilih?.pemantauan.status === 'masa_hadapan'
+              ? 'border-red-200 bg-red-50'
+              : unjuranKebunDipilih?.pemantauan.status === 'hampir'
+                ? 'border-amber-200 bg-amber-50'
+                : unjuranKebunDipilih
+                  ? 'border-green-200 bg-green-50'
+                  : 'border-gray-200 bg-gray-50'
+          }`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Rekod Lawatan Terakhir</p>
+                {unjuranKebunDipilih ? (
+                  <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
+                    <div>
+                      <p className="text-[8px] text-gray-500">Tarikh lawatan</p>
+                      <p className="text-xs font-bold text-gray-800">{formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}</p>
+                    </div>
+                    <div>
+                      <p className="text-[8px] text-gray-500">Fasa terakhir</p>
+                      <p className="text-xs font-bold text-gray-800">
+                        {unjuranKebunDipilih.rekod.fasaUtama
+                          ? fasaLabel(unjuranKebunDipilih.rekod.fasaUtama)
+                          : 'Tidak dinyatakan'}
+                      </p>
+                    </div>
+                    <div className="col-span-2">
+                      <p className="text-[8px] text-gray-500">Status pemantauan live</p>
+                      <p className="text-[10px] font-bold text-gray-800">{unjuranKebunDipilih.pemantauan.label}</p>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-2 text-xs font-semibold text-gray-600">Belum pernah dipantau</p>
+                )}
+              </div>
+              <span className="shrink-0 rounded-full border border-current/10 bg-white/70 px-2 py-1 text-[8px] font-bold text-gray-500">
+                RUJUKAN SAHAJA
+              </span>
+            </div>
+            <p className="mt-3 border-t border-black/5 pt-2 text-[9px] text-gray-600">
+              Borang di bawah ialah rekod pemantauan baharu. Tarikh dan fasa mesti diisi secara manual selepas lawatan sebenar.
+            </p>
           </div>
 
           {/* Tarikh & Fasa */}
