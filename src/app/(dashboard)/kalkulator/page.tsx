@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM } from '@/lib/constants';
+import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
 import { bandingLawatanSemasa } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
@@ -645,73 +645,86 @@ export default function KalkulatorPage() {
       {/* ═══════════════════ STEP 2: Tarikh + Fasa + Peringkat ═══════════════════ */}
       {step === 2 && kebun && (
         <div className="space-y-4">
-          {/* Selected kebun badge + varieti detail */}
-          <div className="bg-forest/5 rounded-xl p-3 space-y-2">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-forest">{kebun.nama}</p>
-                <p className="text-[9px] text-gray-500">{kebun.daerah}, {kebun.negeri}</p>
-              </div>
-              <button onClick={() => setStep(1)} className="text-[9px] text-forest underline">Tukar</button>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] bg-white text-forest px-2 py-0.5 rounded-full font-semibold">{kebun.saizKebun} ekar</span>
-              <span className="text-[9px] bg-white text-gold px-2 py-0.5 rounded-full font-semibold">{jumlahPokokKebun} pokok</span>
-            </div>
-            {varietiAggregate.length > 0 && (
-              <div className="space-y-0.5 pt-1 border-t border-forest/10">
-                {varietiAggregate.map(v => (
-                  <p key={v.varietiKey} className="text-[9px] text-gray-600">• {v.varietiName.split(' (')[0]} — <span className="font-semibold text-forest">{v.bilPokok}</span></p>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Rekod terakhir ialah rujukan sahaja; borang baharu di bawah kekal kosong. */}
-          <div className={`rounded-2xl border p-4 ${
+          {/* Kad bersepadu: identiti kebun + rekod lawatan terakhir (rujukan sahaja). */}
+          <div className={`rounded-2xl border overflow-hidden ${
             unjuranKebunDipilih?.pemantauan.status === 'lewat'
               || unjuranKebunDipilih?.pemantauan.status === 'tidak_sah'
               || unjuranKebunDipilih?.pemantauan.status === 'masa_hadapan'
-              ? 'border-red-200 bg-red-50'
+              ? 'border-red-200'
               : unjuranKebunDipilih?.pemantauan.status === 'hampir'
-                ? 'border-amber-200 bg-amber-50'
+                ? 'border-amber-200'
                 : unjuranKebunDipilih
-                  ? 'border-green-200 bg-green-50'
-                  : 'border-gray-200 bg-gray-50'
+                  ? 'border-green-200'
+                  : 'border-gray-200'
           }`}>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Rekod Lawatan Terakhir</p>
-                {unjuranKebunDipilih ? (
-                  <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
-                    <div>
-                      <p className="text-[8px] text-gray-500">Tarikh lawatan</p>
-                      <p className="text-xs font-bold text-gray-800">{formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}</p>
-                    </div>
-                    <div>
-                      <p className="text-[8px] text-gray-500">Fasa terakhir</p>
-                      <p className="text-xs font-bold text-gray-800">
-                        {unjuranKebunDipilih.rekod.fasaUtama
-                          ? fasaLabel(unjuranKebunDipilih.rekod.fasaUtama)
-                          : 'Tidak dinyatakan'}
-                      </p>
-                    </div>
-                    <div className="col-span-2">
-                      <p className="text-[8px] text-gray-500">Status pemantauan live</p>
-                      <p className="text-[10px] font-bold text-gray-800">{unjuranKebunDipilih.pemantauan.label}</p>
-                    </div>
-                  </div>
-                ) : (
-                  <p className="mt-2 text-xs font-semibold text-gray-600">Belum pernah dipantau</p>
-                )}
+            {/* Bahagian identiti kebun */}
+            <div className="bg-forest/5 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-bold text-forest">{formatNamaPaparan(kebun.nama)}</p>
+                  <p className="text-[9px] text-gray-500">{formatNamaPaparan(kebun.daerah)}, {formatNamaPaparan(kebun.negeri)}</p>
+                </div>
+                <button onClick={() => setStep(1)} className="text-[9px] text-forest underline">Tukar</button>
               </div>
-              <span className="shrink-0 rounded-full border border-current/10 bg-white/70 px-2 py-1 text-[8px] font-bold text-gray-500">
-                RUJUKAN SAHAJA
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-[9px] bg-white text-forest px-2 py-0.5 rounded-full font-semibold">{kebun.saizKebun} ekar</span>
+                <span className="text-[9px] bg-white text-gold px-2 py-0.5 rounded-full font-semibold">{jumlahPokokKebun} pokok</span>
+              </div>
+              {varietiAggregate.length > 0 && (
+                <div className="space-y-0.5 pt-1 border-t border-forest/10">
+                  {varietiAggregate.map(v => (
+                    <p key={v.varietiKey} className="text-[9px] text-gray-600">• {v.varietiName.split(' (')[0]} — <span className="font-semibold text-forest">{v.bilPokok}</span></p>
+                  ))}
+                </div>
+              )}
             </div>
-            <p className="mt-3 border-t border-black/5 pt-2 text-[9px] text-gray-600">
-              Borang di bawah ialah rekod pemantauan baharu. Tarikh dan fasa mesti diisi secara manual selepas lawatan sebenar.
-            </p>
+
+            {/* Bahagian rekod lawatan terakhir */}
+            <div className={`p-4 ${
+              unjuranKebunDipilih?.pemantauan.status === 'lewat'
+                || unjuranKebunDipilih?.pemantauan.status === 'tidak_sah'
+                || unjuranKebunDipilih?.pemantauan.status === 'masa_hadapan'
+                ? 'bg-red-50'
+                : unjuranKebunDipilih?.pemantauan.status === 'hampir'
+                  ? 'bg-amber-50'
+                  : unjuranKebunDipilih
+                    ? 'bg-green-50'
+                    : 'bg-gray-50'
+            }`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Rekod Lawatan Terakhir</p>
+                  {unjuranKebunDipilih ? (
+                    <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
+                      <div>
+                        <p className="text-[8px] text-gray-500">Tarikh lawatan</p>
+                        <p className="text-xs font-bold text-gray-800">{formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}</p>
+                      </div>
+                      <div>
+                        <p className="text-[8px] text-gray-500">Fasa terakhir</p>
+                        <p className="text-xs font-bold text-gray-800">
+                          {unjuranKebunDipilih.rekod.fasaUtama
+                            ? fasaLabel(unjuranKebunDipilih.rekod.fasaUtama)
+                            : 'Tidak dinyatakan'}
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-[8px] text-gray-500">Status pemantauan live</p>
+                        <p className="text-[10px] font-bold text-gray-800">{unjuranKebunDipilih.pemantauan.label}</p>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-xs font-semibold text-gray-600">Belum pernah dipantau</p>
+                  )}
+                </div>
+                <span className="shrink-0 rounded-full border border-current/10 bg-white/70 px-2 py-1 text-[8px] font-bold text-gray-500">
+                  RUJUKAN SAHAJA
+                </span>
+              </div>
+              <p className="mt-3 border-t border-black/5 pt-2 text-[9px] text-gray-600">
+                Borang di bawah ialah rekod pemantauan baharu. Tarikh dan fasa mesti diisi secara manual selepas lawatan sebenar.
+              </p>
+            </div>
           </div>
 
           {/* Tarikh & Fasa */}
