@@ -8,6 +8,8 @@ import { collectionGroup, collection, query, onSnapshot } from 'firebase/firesto
 import { db } from '@/lib/firebase';
 import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES, negeriDariDaerah } from '@/lib/constants';
 import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
+import { formatTarikhBM, InputPeringkatLawatan, unjurLawatan } from '@/lib/unjuran';
+import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
 
 interface LawatanRecord {
   id: string;
@@ -26,6 +28,7 @@ interface LawatanRecord {
   kebunNama: string;
   fasa: string;
   fasaUtama: string;
+  stages?: Record<string, InputPeringkatLawatan>;
   varietiResults?: { key: string; name: string; pokok: number; kg: number }[];
   createdAt?: { seconds?: number } | null;
   updatedAt?: { seconds?: number } | null;
@@ -54,6 +57,7 @@ export default function DashboardHQPage() {
   const router = useRouter();
   const canViewNationalDashboard = profile?.role === 'superadmin' || profile?.role === 'admin_hq';
   const { t } = useLanguage();
+  const tarikhSemasa = useTarikhSemasa();
   const [lawatan, setLawatan] = useState<LawatanRecord[]>([]);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,17 +110,24 @@ export default function DashboardHQPage() {
     return pilihLawatanSemasaPerKebun(lawatan, kebunSah);
   }, [lawatan, kebun]);
 
+  // Semua KPI dan visual menggunakan snapshot lawatan yang sama, diunjur pada tarikh Malaysia hari ini.
+  const projectedLawatan = useMemo(
+    () => latestLawatan.map(rekod => unjurLawatan(rekod, tarikhSemasa)),
+    [latestLawatan, tarikhSemasa]
+  );
+  const jumlahLewatPemantauan = projectedLawatan.filter(item => item.pemantauan.status === 'lewat').length;
+
   // KPI Stats
   const kpi = useMemo(() => {
     const totalKebun = kebun.length;
     const totalEkar = kebun.reduce((s, k) => s + (k.saizKebun || 0), 0);
     const totalPokok = kebun.reduce((s, k) => s + (k.jumlahPokok || 0), 0);
-    const totalKg = latestLawatan.reduce((s, l) => s + (l.totalKg || 0), 0);
+    const totalKg = projectedLawatan.reduce((s, item) => s + item.totalKg, 0);
     const totalMT = totalKg / 1000;
     const negeriAktif = new Set(kebun.map(k => k.negeri).filter(Boolean)).size;
     const totalLawatan = latestLawatan.length;
     return { totalKebun, totalEkar, totalPokok, totalKg, totalMT, negeriAktif, totalLawatan };
-  }, [kebun, latestLawatan]);
+  }, [kebun, projectedLawatan, latestLawatan.length]);
 
   // Top negeri by ekar
   const negeriRanking = useMemo(() => {
@@ -129,14 +140,14 @@ export default function DashboardHQPage() {
       map[n].ekar += k.saizKebun || 0;
       map[n].pokok += k.jumlahPokok || 0;
     });
-    latestLawatan.forEach(l => {
-      const farm = kebunById.get(l.kebunId);
+    projectedLawatan.forEach(item => {
+      const farm = kebunById.get(item.rekod.kebunId);
       if (!farm) return;
       const n = (farm.negeri && farm.negeri.trim()) || negeriDariDaerah(farm.daerah) || 'Negeri Tidak Direkod';
-      if (map[n]) map[n].kg += l.totalKg || 0;
+      if (map[n]) map[n].kg += item.totalKg;
     });
     return Object.entries(map).map(([negeri, d]) => ({ negeri, ...d })).sort((a, b) => b.ekar - a.ekar);
-  }, [kebun, latestLawatan]);
+  }, [kebun, projectedLawatan]);
 
   // Taburan varieti daripada rekod pemantauan semasa yang sama dengan KPI.
   // Rekod lama tanpa varietiResults diagihkan mengikut wajaran profil kebun,
@@ -161,21 +172,12 @@ export default function DashboardHQPage() {
       map[name].pokok += pokok;
     };
 
-    latestLawatan.forEach(l => {
-      const jumlahKg = Math.max(0, Number(l.totalKg) || 0);
-      const pecahan = (l.varietiResults || []).filter(v => (Number(v.kg) || 0) > 0);
-      const jumlahPecahan = pecahan.reduce((sum, v) => sum + (Number(v.kg) || 0), 0);
+    projectedLawatan.forEach(item => {
+      const l = item.rekod;
+      const jumlahKg = item.totalKg;
 
-      if (jumlahPecahan > 0) {
-        // Skala kecil ini memastikan jumlah semua kategori sentiasa sama tepat dengan totalKg rekod.
-        const faktor = jumlahKg / jumlahPecahan;
-        pecahan.forEach(v => {
-          tambah(
-            namaVarieti(v.name, v.key),
-            (Number(v.kg) || 0) * faktor,
-            Math.max(0, Number(v.pokok) || 0)
-          );
-        });
+      if (item.varieti.length > 0) {
+        item.varieti.forEach(v => tambah(v.name, v.kg, v.pokok));
         return;
       }
 
@@ -207,7 +209,7 @@ export default function DashboardHQPage() {
     return Object.entries(map)
       .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, pct: total > 0 ? (d.kg / total) * 100 : 0 }))
       .sort((a, b) => b.kg - a.kg);
-  }, [kebun, latestLawatan]);
+  }, [kebun, projectedLawatan]);
 
   // Monthly forecast
   const monthlyForecast = useMemo(() => {
@@ -234,17 +236,15 @@ export default function DashboardHQPage() {
     };
 
     const map: Record<string, { kg: number; negeri: Set<string>; negeriKg: Record<string, number>; sort: number }> = {};
-    latestLawatan.forEach(l => {
-      if (!l.tarikhLawatan) return;
-      const d = new Date(l.tarikhLawatan); d.setDate(d.getDate() + 30);
-      const key = d.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
-      // Nilai susunan berdasarkan tahun & bulan sebenar
-      const sortVal = d.getFullYear() * 12 + d.getMonth();
-      if (!map[key]) map[key] = { kg: 0, negeri: new Set(), negeriKg: {}, sort: sortVal };
-      const nama = resolveNegeri(l);
-      map[key].kg += l.totalKg || 0;
-      map[key].negeri.add(nama);
-      map[key].negeriKg[nama] = (map[key].negeriKg[nama] || 0) + (l.totalKg || 0);
+    projectedLawatan.forEach(item => {
+      const nama = resolveNegeri(item.rekod);
+      item.batches.forEach(batch => {
+        const key = batch.bulan;
+        if (!map[key]) map[key] = { kg: 0, negeri: new Set(), negeriKg: {}, sort: batch.bulanSort };
+        map[key].kg += batch.kg;
+        map[key].negeri.add(nama);
+        map[key].negeriKg[nama] = (map[key].negeriKg[nama] || 0) + batch.kg;
+      });
     });
     return Object.entries(map)
       .map(([bulan, d]) => ({
@@ -257,7 +257,7 @@ export default function DashboardHQPage() {
       }))
       // Susun bulan ikut turutan tarikh (awal ke akhir)
       .sort((a, b) => a.sort - b.sort);
-  }, [latestLawatan, kebun]);
+  }, [projectedLawatan, kebun]);
   const maxMonthKg = Math.max(...monthlyForecast.map(m => m.kg), 1);
 
   // Lambakan detection
@@ -304,7 +304,7 @@ export default function DashboardHQPage() {
     return senarai;
   }, [lambakanAlerts, varietiDist]);
 
-  const today = new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+  const today = formatTarikhBM(tarikhSemasa);
 
   if (authLoading || !canViewNationalDashboard) {
     return (
@@ -353,9 +353,18 @@ export default function DashboardHQPage() {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <p className="text-[9px] text-gray-400 font-medium">{t('dash.rekodLawatan')}</p>
           <p className="text-2xl font-bold text-forest mt-1">{kpi.totalLawatan}</p>
-          <p className="text-[9px] text-moss mt-0.5">{t('dash.entryDirekod')}</p>
+          <p className={`text-[9px] mt-0.5 ${jumlahLewatPemantauan > 0 ? 'text-red-600 font-semibold' : 'text-moss'}`}>
+            {jumlahLewatPemantauan > 0 ? `${jumlahLewatPemantauan} perlu pemantauan` : t('dash.entryDirekod')}
+          </p>
         </div>
       </div>
+
+      {jumlahLewatPemantauan > 0 && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3">
+          <p className="text-xs font-bold text-red-700">⚠️ {jumlahLewatPemantauan} kebun melebihi 30 hari tanpa pemantauan</p>
+          <p className="text-[10px] text-red-600 mt-0.5">Anggaran kekal berdasarkan lawatan terakhir. Pegawai perlu membuat lawatan dan mengemas kini maklumat semasa.</p>
+        </div>
+      )}
 
       {/* 1. Jadual Ringkasan Negeri */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">

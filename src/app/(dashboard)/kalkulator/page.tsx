@@ -7,6 +7,8 @@ import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where 
 import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM } from '@/lib/constants';
 import { bandingLawatanSemasa } from '@/lib/lawatan';
+import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
+import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
 import toast from 'react-hot-toast';
 
 interface VarietiEntry { usia: string; varieti: string; bilangan: number; }
@@ -43,6 +45,31 @@ const FASA_PRESETS: Record<string, Record<string, { pct: number; d: number }>> =
   tidak: { mataketam: { pct: 0, d: 0 }, berbunga: { pct: 0, d: 0 }, putik: { pct: 0, d: 0 }, kecil: { pct: 0, d: 0 }, besar: { pct: 0, d: 0 }, tidak: { pct: 100, d: 0 } },
 };
 
+const buatStagesKosong = (): Record<string, StageInput> => Object.fromEntries(
+  STAGES.map(stage => [stage.key, { pct: 0, d: 0 }])
+);
+
+const salinStages = (input?: Record<string, InputPeringkatLawatan>): Record<string, StageInput> => Object.fromEntries(
+  STAGES.map(stage => {
+    const pct = Number(input?.[stage.key]?.pct);
+    const d = Number(input?.[stage.key]?.d);
+    return [stage.key, {
+      pct: Number.isFinite(pct) ? Math.min(100, Math.max(0, pct)) : 0,
+      d: Number.isFinite(d) ? Math.max(0, d) : 0,
+    }];
+  })
+);
+
+const fasaSah = (key?: string): boolean => !!key && STAGES.some(stage => stage.key === key);
+
+const fasaDaripadaStages = (input?: Record<string, InputPeringkatLawatan>): string => {
+  return STAGES.reduce((tertinggi, stage) => {
+    const pct = Number(input?.[stage.key]?.pct) || 0;
+    const pctTertinggi = Number(input?.[tertinggi]?.pct) || 0;
+    return pct > pctTertinggi ? stage.key : tertinggi;
+  }, '');
+};
+
 export default function KalkulatorPage() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin_negeri' || profile?.role === 'admin_hq';
@@ -50,13 +77,14 @@ export default function KalkulatorPage() {
   const isStateAdmin = profile?.role === 'admin_negeri';
   const userNegeri = profile?.negeri?.trim() || '';
   const { t } = useLanguage();
+  const tarikhSemasa = useTarikhSemasa();
   const [kebunList, setKebunList] = useState<KebunRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedKebun, setSelectedKebun] = useState<string>('');
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [fasaUtama, setFasaUtama] = useState<string>('besar');
-  const [tarikhLawatan, setTarikhLawatan] = useState(new Date().toISOString().split('T')[0]);
-  const [stages, setStages] = useState<Record<string, StageInput>>(FASA_PRESETS['besar']);
+  const [fasaUtama, setFasaUtama] = useState<string>('');
+  const [tarikhLawatan, setTarikhLawatan] = useState('');
+  const [stages, setStages] = useState<Record<string, StageInput>>(buatStagesKosong);
   const [saving, setSaving] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -90,41 +118,44 @@ export default function KalkulatorPage() {
     return () => unsub();
   }, [user, profile, isNationalAdmin, isStateAdmin, userNegeri]);
 
-  // Track lawatan semasa per kebun untuk status badge
-  const [lawatanMap, setLawatanMap] = useState<Record<string, {
+  // Track lawatan semasa per kebun untuk status pemantauan live.
+  type LawatanRingkas = {
     id: string;
     kebunId: string;
     tarikhLawatan: string;
+    fasaUtama?: string;
     totalKg: number;
+    stages?: Record<string, InputPeringkatLawatan>;
+    varietiResults?: InputVarietiLawatan[];
     createdAt: number;
-  }>>({});
+  };
+  const [lawatanMap, setLawatanMap] = useState<Record<string, LawatanRingkas>>({});
+  const [lawatanDimuat, setLawatanDimuat] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const scopedIds = new Set(kebunList.map(k => k.id));
     setLawatanMap(prev => Object.fromEntries(
       Object.entries(prev).filter(([kebunId]) => scopedIds.has(kebunId))
     ));
+    setLawatanDimuat(new Set());
 
     if (kebunList.length === 0) return;
 
     const unsubs = kebunList.map(k => onSnapshot(
       query(collection(db, 'kebun', k.id, 'lawatan')),
       (snap) => {
-        let semasa: {
-          id: string;
-          kebunId: string;
-          tarikhLawatan: string;
-          totalKg: number;
-          createdAt: number;
-        } | undefined;
+        let semasa: LawatanRingkas | undefined;
 
         snap.docs.forEach(d => {
           const data = d.data();
-          const calon = {
+          const calon: LawatanRingkas = {
             id: d.id,
             kebunId: k.id,
             tarikhLawatan: data.tarikhLawatan || '',
-            totalKg: data.totalKg || 0,
+            fasaUtama: typeof data.fasaUtama === 'string' ? data.fasaUtama : '',
+            totalKg: Number(data.totalKg) || 0,
+            stages: data.stages,
+            varietiResults: data.varietiResults,
             createdAt: data.updatedAt?.seconds || data.createdAt?.seconds || 0,
           };
           if (!semasa || bandingLawatanSemasa(
@@ -139,11 +170,19 @@ export default function KalkulatorPage() {
           else delete next[k.id];
           return next;
         });
+        setLawatanDimuat(prev => new Set(prev).add(k.id));
       }
     ));
 
     return () => unsubs.forEach(unsub => unsub());
   }, [kebunList]);
+
+  const unjuranMap = useMemo(() => Object.fromEntries(
+    Object.entries(lawatanMap).map(([kebunId, rekod]) => [kebunId, unjurLawatan(rekod, tarikhSemasa)])
+  ), [lawatanMap, tarikhSemasa]);
+  const semuaLawatanDimuat = kebunList.every(k => lawatanDimuat.has(k.id));
+  const jumlahLewat = Object.values(unjuranMap).filter(item => item.pemantauan.status === 'lewat').length;
+  const unjuranKebunDipilih = selectedKebun ? unjuranMap[selectedKebun] : undefined;
 
   const sortedKebunList = useMemo(() => {
     const compare = (left?: string, right?: string) =>
@@ -204,13 +243,34 @@ export default function KalkulatorPage() {
 
   const grandTotalKg = varietiResults.reduce((s, v) => s + v.totalKg, 0);
 
+  const unjuranBorang = useMemo(() => unjurLawatan({
+    kebunId: kebun?.id || '',
+    tarikhLawatan,
+    totalKg: grandTotalKg,
+    stages,
+    varietiResults: varietiResults.map(v => ({
+      key: v.varietiKey,
+      name: v.varietiName,
+      pokok: v.bilPokok,
+      kg: v.totalKg,
+    })),
+  }, tarikhSemasa), [kebun?.id, tarikhLawatan, grandTotalKg, stages, varietiResults, tarikhSemasa]);
+
   const handleFasaChange = (newFasa: string) => {
+    if (!fasaSah(newFasa)) {
+      setFasaUtama('');
+      setStages(buatStagesKosong());
+      return;
+    }
     setFasaUtama(newFasa);
-    setStages(FASA_PRESETS[newFasa] || FASA_PRESETS['besar']);
+    setStages(salinStages(FASA_PRESETS[newFasa]));
   };
 
   const handleStageChange = (key: string, field: 'pct' | 'd', value: number) => {
-    setStages(prev => ({ ...prev, [key]: { ...prev[key], [field]: value } }));
+    const bersih = Number.isFinite(value)
+      ? field === 'pct' ? Math.min(100, Math.max(0, value)) : Math.max(0, value)
+      : 0;
+    setStages(prev => ({ ...prev, [key]: { ...(prev[key] || { pct: 0, d: 0 }), [field]: bersih } }));
   };
 
   const handleSelectKebun = (id: string) => {
@@ -219,12 +279,35 @@ export default function KalkulatorPage() {
   };
 
   const handleConfirmKebun = () => {
+    if (!selectedKebun || !lawatanDimuat.has(selectedKebun)) {
+      toast.error('Maklumat lawatan masih dimuatkan. Sila cuba sebentar lagi.');
+      return;
+    }
+
+    const rekodKebun = lawatanMap[selectedKebun];
+    if (rekodKebun) {
+      const fasaRekod = fasaSah(rekodKebun.fasaUtama)
+        ? rekodKebun.fasaUtama || ''
+        : fasaDaripadaStages(rekodKebun.stages);
+      setTarikhLawatan(rekodKebun.tarikhLawatan || '');
+      setFasaUtama(fasaRekod);
+      setStages(salinStages(rekodKebun.stages));
+    } else {
+      // Kebun baharu bermula kosong supaya data pekebun lain tidak terbawa.
+      setTarikhLawatan('');
+      setFasaUtama('');
+      setStages(buatStagesKosong());
+    }
     setShowPopup(false);
     setStep(2);
   };
 
   const handleSave = async () => {
     if (!user || !kebun) return;
+    if (!tarikhLawatan || !fasaSah(fasaUtama) || Math.abs(totalPct - 100) > 0.5) {
+      toast.error('Lengkapkan tarikh lawatan, fasa dan pecahan peringkat sebelum menyimpan.');
+      return;
+    }
     setSaving(true);
     try {
       await addDoc(collection(db, 'kebun', kebun.id, 'lawatan'), {
@@ -235,17 +318,26 @@ export default function KalkulatorPage() {
         pegawaiNama: profile?.nama || '', pegawaiDaerah: profile?.daerah || '', negeri: kebun.negeri || '',
         createdAt: serverTimestamp(),
       });
-      // Optimistic update — badge terus guna tarikh pemantauan semasa
-      setLawatanMap(prev => ({
-        ...prev,
-        [kebun.id]: {
+      // Optimistic update — hanya ganti badge jika lawatan ini benar-benar paling baharu.
+      setLawatanMap(prev => {
+        const calon: LawatanRingkas = {
           id: `optimistic-${Date.now()}`,
           kebunId: kebun.id,
           tarikhLawatan,
+          fasaUtama,
           totalKg: grandTotalKg,
+          stages,
+          varietiResults: varietiResults.map(v => ({ key: v.varietiKey, name: v.varietiName, pokok: v.bilPokok, kg: v.totalKg })),
           createdAt: Math.floor(Date.now() / 1000),
-        },
-      }));
+        };
+        const semasa = prev[kebun.id];
+        if (semasa && bandingLawatanSemasa(
+          { ...calon, createdAt: { seconds: calon.createdAt } },
+          { ...semasa, createdAt: { seconds: semasa.createdAt } }
+        ) <= 0) return prev;
+        return { ...prev, [kebun.id]: calon };
+      });
+      setLawatanDimuat(prev => new Set(prev).add(kebun.id));
       toast.success(t('calc.saved'));
     } catch (e) { console.error(e); toast.error(t('calc.saveFailed')); }
     setSaving(false);
@@ -286,6 +378,15 @@ export default function KalkulatorPage() {
       {/* ═══════════════════ STEP 1: Pilih Pekebun ═══════════════════ */}
       {step === 1 && (
         <div className="space-y-3">
+          {!loading && semuaLawatanDimuat && jumlahLewat > 0 && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
+              <span className="text-lg" aria-hidden="true">⚠️</span>
+              <div>
+                <p className="text-xs font-bold text-red-700">{jumlahLewat} kebun perlu pemantauan semula</p>
+                <p className="text-[10px] text-red-600 mt-0.5">Sila pergi membuat pemantauan dan kemas kini maklumat kebun. Sistem tidak mencipta rekod lawatan secara automatik.</p>
+              </div>
+            </div>
+          )}
           <div className="flex items-center justify-end">
             {/* Grid/List Toggle */}
             <div className="flex bg-gray-100 rounded-lg p-0.5">
@@ -341,7 +442,18 @@ export default function KalkulatorPage() {
                   const vMap: Record<string, number> = {};
                   entries.forEach(e => { vMap[e.varieti] = (vMap[e.varieti] || 0) + e.bilangan; });
                   const varietiNames = Object.entries(vMap).map(([vKey]) => VARIETIES.find(v => v.key === vKey)?.name.split(' (')[0] || vKey);
-                  const hasCalc = !!lawatanMap[k.id];
+                  const projection = unjuranMap[k.id];
+                  const status = projection?.pemantauan.status;
+                  const statusClass = status === 'lewat' || status === 'tidak_sah' || status === 'masa_hadapan'
+                    ? 'bg-red-100 text-red-700'
+                    : status === 'hampir'
+                      ? 'bg-amber-100 text-amber-700'
+                      : projection
+                        ? 'bg-green-100 text-green-700'
+                        : 'bg-gray-100 text-gray-500';
+                  const statusLabel = !lawatanDimuat.has(k.id)
+                    ? 'Memuatkan...'
+                    : projection?.pemantauan.label || 'Belum dipantau';
                   return (
                     <div key={k.id} onClick={() => handleSelectKebun(k.id)}
                       className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-all">
@@ -364,8 +476,8 @@ export default function KalkulatorPage() {
                       <span className="col-span-1 text-[9px] text-center font-semibold text-gold">{pokok}</span>
                       <span className="col-span-3 text-[8px] text-gray-500 truncate">{varietiNames.join(', ')}</span>
                       <span className="col-span-2 text-center">
-                        <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${hasCalc ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'}`}>
-                          {hasCalc ? '✓ Dikira' : 'Belum'}
+                        <span className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold ${statusClass}`}>
+                          {statusLabel}
                         </span>
                       </span>
                     </div>
@@ -385,6 +497,15 @@ export default function KalkulatorPage() {
                     ].filter(Boolean) as { varieti: string; bilangan: number }[];
                 const vMap: Record<string, number> = {};
                 entries.forEach(e => { vMap[e.varieti] = (vMap[e.varieti] || 0) + e.bilangan; });
+                const projection = unjuranMap[k.id];
+                const status = projection?.pemantauan.status;
+                const statusStyle = status === 'lewat' || status === 'tidak_sah' || status === 'masa_hadapan'
+                  ? 'bg-red-50 border-red-200 text-red-700'
+                  : status === 'hampir'
+                    ? 'bg-amber-50 border-amber-200 text-amber-700'
+                    : projection
+                      ? 'bg-green-50 border-green-200 text-green-700'
+                      : 'bg-gray-50 border-gray-200 text-gray-500';
 
                 return (
                   <div key={k.id} onClick={() => handleSelectKebun(k.id)}
@@ -412,18 +533,23 @@ export default function KalkulatorPage() {
                         ))}
                       </div>
                     )}
-                    {/* Anggaran status */}
-                    {lawatanMap[k.id] && (
-                      <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
-                        <p className="text-[9px] font-semibold text-green-700">✓ Anggaran Hasil Telah Dikira</p>
-                        <p className="text-[8px] text-green-600">
-                          Pemantauan semasa: {lawatanMap[k.id].tarikhLawatan
-                            ? new Date(`${lawatanMap[k.id].tarikhLawatan}T00:00:00`).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })
-                            : '-'}
-                        </p>
-                        <p className="text-[8px] text-green-500">
-                          Disimpan: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}, {formatMasaBM(new Date(lawatanMap[k.id].createdAt * 1000))}
-                        </p>
+                    {/* Status pemantauan live daripada rekod lawatan terakhir */}
+                    {lawatanDimuat.has(k.id) && (
+                      <div className={`mt-2 border rounded-lg px-2 py-1.5 ${statusStyle}`}>
+                        <p className="text-[9px] font-semibold">{projection?.pemantauan.label || 'Belum pernah dipantau'}</p>
+                        {projection && (
+                          <>
+                            <p className="text-[8px] opacity-80">Lawatan terakhir: {formatTarikhBM(projection.rekod.tarikhLawatan)}</p>
+                            {projection.pemantauan.status === 'lewat' && (
+                              <p className="text-[8px] font-bold mt-0.5">Sila buat pemantauan dan kemas kini maklumat.</p>
+                            )}
+                            {lawatanMap[k.id].createdAt > 0 && (
+                              <p className="text-[8px] opacity-70">
+                                Disimpan: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}, {formatMasaBM(new Date(lawatanMap[k.id].createdAt * 1000))}
+                              </p>
+                            )}
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
@@ -472,14 +598,17 @@ export default function KalkulatorPage() {
                 <label className="text-[10px] font-semibold text-gray-500">{t('calc.fasaUtama')}</label>
                 <select value={fasaUtama} onChange={(e) => handleFasaChange(e.target.value)}
                   className="w-full mt-1 px-3 py-2 border-2 border-forest/30 rounded-xl text-sm bg-forest/5 font-semibold text-forest focus:outline-none">
+                  <option value="" disabled>Sila pilih fasa...</option>
                   {STAGES.map(s => <option key={s.key} value={s.key}>{s.name}</option>)}
                 </select>
               </div>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-              <p className="text-[9px] text-amber-700">{STAGES.find(s => s.key === fasaUtama)?.nota}</p>
-            </div>
+            {fasaUtama && (
+              <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <p className="text-[9px] text-amber-700">{STAGES.find(s => s.key === fasaUtama)?.nota}</p>
+              </div>
+            )}
           </div>
 
           {/* Pecahan Peringkat — compact */}
@@ -517,12 +646,21 @@ export default function KalkulatorPage() {
 
           {/* Kira Button */}
           <button onClick={() => {
-  // Pegawai wajib isi semua field — tidak boleh tinggal kosong
+  if (!tarikhLawatan) {
+    toast.error('Sila pilih tarikh lawatan untuk pekebun ini.');
+    return;
+  }
+  if (!fasaSah(fasaUtama)) {
+    toast.error('Sila pilih fasa kejadian semasa pemantauan.');
+    return;
+  }
+  if (Math.abs(totalPct - 100) > 0.5) {
+    toast.error('Jumlah pecahan peringkat mesti 100%.');
+    return;
+  }
+  // Pegawai wajib isi hari bagi peringkat aktif.
   if (!isAdmin) {
-    const hasEmpty = Object.entries(stages).some(([key, val]) => {
-      if (key === 'tidak') return false; // tidak berbuah tak perlu hari
-      return val.pct > 0 && val.d <= 0;
-    });
+    const hasEmpty = Object.entries(stages).some(([key, val]) => key !== 'tidak' && val.pct > 0 && val.d <= 0);
     if (hasEmpty) {
       toast.error('Sila isi semua hari (D) untuk peringkat yang mempunyai peratusan.');
       return;
@@ -530,7 +668,7 @@ export default function KalkulatorPage() {
   }
   setStep(3);
 }}
-            disabled={Math.abs(totalPct - 100) > 0.5}
+            disabled={!tarikhLawatan || !fasaSah(fasaUtama) || Math.abs(totalPct - 100) > 0.5}
             className="w-full bg-gradient-forest text-white py-3.5 rounded-xl font-semibold shadow-lg active:scale-[0.98] disabled:opacity-50">
             {t('calc.calculate')}
           </button>
@@ -554,7 +692,7 @@ export default function KalkulatorPage() {
                   <p className="text-xs font-bold text-gold">{fasaLabel(fasaUtama)}</p>
                 </div>
               </div>
-              <p className="text-[9px] text-white/50 mt-1">📅 {new Date(tarikhLawatan).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <p className="text-[9px] text-white/50 mt-1">📅 {formatTarikhBM(tarikhLawatan)}</p>
             </div>
 
             {/* Varieti breakdown */}
@@ -571,6 +709,34 @@ export default function KalkulatorPage() {
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* Setiap peringkat aktif mempunyai tarikh sasaran sendiri: lawatan + (J - D). */}
+            <div className="border-t border-gray-100 px-5 py-4">
+              <div className="flex items-center justify-between mb-2.5">
+                <div>
+                  <p className="text-[10px] font-bold text-forest">Jangkaan Pengeluaran Mengikut Fasa</p>
+                  <p className="text-[8px] text-gray-400">Dikira berasingan daripada tarikh lawatan pekebun ini</p>
+                </div>
+              </div>
+              {unjuranBorang.batches.length > 0 ? (
+                <div className="space-y-2">
+                  {unjuranBorang.batches.map(batch => (
+                    <div key={batch.stageKey} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
+                      <div>
+                        <p className="text-[10px] font-bold text-blue-800">{batch.stageName} · {batch.pct.toFixed(0)}%</p>
+                        <p className="text-[8px] text-blue-600">J {STAGES.find(s => s.key === batch.stageKey)?.J} − D {batch.dAsal} = {Math.max(0, (STAGES.find(s => s.key === batch.stageKey)?.J || 0) - batch.dAsal)} hari</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-blue-800">{formatTarikhBM(batch.tarikhJangkaan)}</p>
+                        <p className="text-[8px] text-blue-600">{batch.bulan} · {batch.kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg bg-gray-50 px-3 py-2 text-[9px] text-gray-500">Tiada peringkat berbuah untuk dijadualkan.</p>
+              )}
             </div>
 
             {/* Grand Total */}
@@ -625,6 +791,19 @@ export default function KalkulatorPage() {
               </div>
             </div>
 
+            {unjuranKebunDipilih?.pemantauan.status === 'lewat' && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
+                <p className="text-xs font-bold text-red-700">⚠️ Pemantauan kebun sudah lewat {unjuranKebunDipilih.pemantauan.hariLewat} hari</p>
+                <p className="text-[9px] text-red-600 mt-1">Lawatan terakhir pada {formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}. Sila pergi membuat pemantauan dan masukkan maklumat semasa secara manual.</p>
+              </div>
+            )}
+            {!unjuranKebunDipilih && lawatanDimuat.has(kebun.id) && (
+              <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5">
+                <p className="text-xs font-bold text-amber-700">Belum pernah dipantau</p>
+                <p className="text-[9px] text-amber-600 mt-1">Sila buat lawatan kebun dan rekodkan pemantauan pertama.</p>
+              </div>
+            )}
+
             {/* Stats */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-forest/5 rounded-xl p-3 text-center">
@@ -655,8 +834,8 @@ export default function KalkulatorPage() {
               <button onClick={() => setShowPopup(false)} className="py-2.5 border border-gray-300 rounded-xl text-sm font-medium text-gray-600">
                 Batal
               </button>
-              <button onClick={handleConfirmKebun} className="py-2.5 bg-gradient-forest text-white rounded-xl text-sm font-bold shadow-md active:scale-[0.98]">
-                Teruskan →
+              <button onClick={handleConfirmKebun} disabled={!lawatanDimuat.has(kebun.id)} className="py-2.5 bg-gradient-forest text-white rounded-xl text-sm font-bold shadow-md active:scale-[0.98] disabled:cursor-wait disabled:opacity-50">
+                {lawatanDimuat.has(kebun.id) ? 'Teruskan →' : 'Memuatkan...'}
               </button>
             </div>
           </div>

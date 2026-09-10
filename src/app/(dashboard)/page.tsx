@@ -740,7 +740,10 @@ export default function ProfilKebunPage() {
               <button type="button" aria-pressed={filterNegeri === 'Semua'}
                 onClick={() => { setFilterNegeri('Semua'); setFilterDaerah('Semua'); }}
                 className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${filterNegeri === 'Semua' ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
-                <span className="flex h-7 w-10 items-center justify-center rounded-lg bg-gray-50 text-lg border border-gray-100">🇲🇾</span>
+                <span className="relative flex h-7 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/60 bg-white text-[9px] font-bold text-gray-400">
+                  MY
+                  <img src="/malaysia.jpg" alt="Bendera Malaysia" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                </span>
                 <span className="min-w-0">
                   <span className="block text-[10px] font-bold whitespace-nowrap">Semua Negeri</span>
                   <span className={`block text-[8px] ${filterNegeri === 'Semua' ? 'text-white/70' : 'text-gray-400'}`}>{kebunList.length} kebun</span>

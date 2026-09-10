@@ -5,8 +5,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, STAGES, SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
+import { NEGERI_FLAG_COLORS, NEGERI_FLAG, SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
 import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
+import { formatTarikhBM, InputPeringkatLawatan, unjurLawatan } from '@/lib/unjuran';
+import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
@@ -22,7 +24,7 @@ interface KebunRecord {
 interface LawatanRecord {
   id: string; kebunId: string; totalKg: number; tarikhLawatan: string;
   negeri: string; daerah?: string;
-  stages?: Record<string, { pct: number; d: number }>;
+  stages?: Record<string, InputPeringkatLawatan>;
   varietiResults?: { key: string; name: string; pokok: number; kg: number }[];
   createdAt?: { seconds?: number } | null;
   updatedAt?: { seconds?: number } | null;
@@ -31,6 +33,7 @@ interface LawatanRecord {
 export default function LaporanPage() {
   const { user, profile, isSuperAdmin } = useAuth();
   const { t } = useLanguage();
+  const tarikhSemasa = useTarikhSemasa();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
   const [lawatan, setLawatan] = useState<LawatanRecord[]>([]);
@@ -141,85 +144,49 @@ export default function LaporanPage() {
     lawatan,
     new Set(filteredById.keys())
   );
+  const projectedLawatan = latestLawatan.map(rekod => unjurLawatan(rekod, tarikhSemasa));
+  const jumlahLewatPemantauan = projectedLawatan.filter(item => item.pemantauan.status === 'lewat').length;
 
-  // Summary stats
+  // Summary stats — bilangan rekod kekal satu lawatan terakhir bagi setiap kebun.
   const totalPekebun = filtered.length;
   const totalEkar = filtered.reduce((s, k) => s + (k.saizKebun || 0), 0);
   const totalPokok = filtered.reduce((s, k) => s + (k.jumlahPokok || 0), 0);
-  const totalKg = latestLawatan.reduce((s, r) => s + (r.totalKg || 0), 0);
+  const totalKg = projectedLawatan.reduce((s, item) => s + item.totalKg, 0);
   const totalMT = totalKg / 1000;
-
-  // Varieti breakdown
-  const varietiDist = (() => {
-    const map: Record<string, number> = {};
-    filtered.forEach(k => {
-      const hasValid = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0);
-      if (hasValid) {
-        k.varietiData!.forEach(v => { if (v.varieti && v.bilangan > 0) map[v.varieti] = (map[v.varieti] || 0) + v.bilangan; });
-      } else {
-        if (k.varieti5_9 && (k.usia5_9 || 0) > 0) map[k.varieti5_9] = (map[k.varieti5_9] || 0) + k.usia5_9;
-        if (k.varieti10_15 && (k.usia10_15 || 0) > 0) map[k.varieti10_15] = (map[k.varieti10_15] || 0) + k.usia10_15;
-        if (k.varieti16_19 && (k.usia16_19 || 0) > 0) map[k.varieti16_19] = (map[k.varieti16_19] || 0) + k.usia16_19;
-        if (k.varieti20 && (k.usia20 || 0) > 0) map[k.varieti20] = (map[k.varieti20] || 0) + k.usia20;
-      }
-    });
-    return Object.entries(map).map(([key, count]) => ({
-      key, name: VARIETIES.find(v => v.key === key)?.name || key, count,
-    })).sort((a, b) => b.count - a.count);
-  })();
-  const totalVarietiPokok = varietiDist.reduce((s, v) => s + v.count, 0);
 
   // Negeri list with data
   const negeriWithData = [...new Set(accessibleKebun.map(k => k.negeri).filter(Boolean))].sort();
   const daerahOptions = filterNegeri !== 'Semua' ? (NEGERI_DAERAH[filterNegeri] || []) : [];
 
-  // Per-negeri breakdown for table
+  // Per-negeri breakdown menggunakan output helper yang sama dengan Dashboard dan infografik.
   const negeriBreakdown = (() => {
-    const map: Record<string, { pekebun: Set<string>; ekar: number; pokok: number; kg: number; varietiKg: Record<string, { kg: number; pokok: number }>; bulan: Set<number> }> = {};
+    const map: Record<string, { pekebun: Set<string>; ekar: number; pokok: number; kg: number; varietiKg: Record<string, { kg: number; pokok: number }>; bulan: Map<string, number> }> = {};
     filtered.forEach(k => {
       const n = k.negeri || 'Lain-lain';
-      if (!map[n]) map[n] = { pekebun: new Set(), ekar: 0, pokok: 0, kg: 0, varietiKg: {}, bulan: new Set() };
+      if (!map[n]) map[n] = { pekebun: new Set(), ekar: 0, pokok: 0, kg: 0, varietiKg: {}, bulan: new Map() };
       map[n].pekebun.add(k.id);
       map[n].ekar += k.saizKebun || 0;
       map[n].pokok += k.jumlahPokok || 0;
     });
-    latestLawatan.forEach(r => {
-      const farm = filteredById.get(r.kebunId);
+    projectedLawatan.forEach(item => {
+      const farm = filteredById.get(item.rekod.kebunId);
       if (!farm) return;
       const n = farm.negeri || 'Lain-lain';
       if (!map[n]) return;
-      map[n].kg += r.totalKg || 0;
-      // Pecahan varieti daripada rekod pemantauan semasa negeri tersebut
-      if (r.varietiResults) {
-        r.varietiResults.forEach(v => {
-          if (!map[n].varietiKg[v.name]) map[n].varietiKg[v.name] = { kg: 0, pokok: 0 };
-          map[n].varietiKg[v.name].kg += v.kg || 0;
-          map[n].varietiKg[v.name].pokok += v.pokok || 0;
-        });
-      }
-      // Harvest months from stages
-      if (r.tarikhLawatan && r.stages) {
-        const baseDate = new Date(`${r.tarikhLawatan}T00:00:00`);
-        if (!Number.isNaN(baseDate.getTime())) {
-          const STAGES_DATA = [
-            { key: 'mataketam', J: 120 }, { key: 'berbunga', J: 120 }, { key: 'putik', J: 90 },
-            { key: 'kecil', J: 60 }, { key: 'besar', J: 30 },
-          ];
-          STAGES_DATA.forEach(stage => {
-            const input = r.stages?.[stage.key];
-            if (!input || Number(input.pct) <= 0) return;
-            const harvestDate = new Date(baseDate);
-            harvestDate.setDate(harvestDate.getDate() + Math.max(0, stage.J - (Number(input.d) || 0)));
-            map[n].bulan.add(harvestDate.getMonth());
-          });
-        }
-      }
+      map[n].kg += item.totalKg;
+      item.varieti.forEach(v => {
+        if (!map[n].varietiKg[v.name]) map[n].varietiKg[v.name] = { kg: 0, pokok: 0 };
+        map[n].varietiKg[v.name].kg += v.kg;
+        map[n].varietiKg[v.name].pokok += v.pokok;
+      });
+      item.batches.forEach(batch => map[n].bulan.set(batch.bulan, batch.bulanSort));
     });
-    const BULAN = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
     return Object.entries(map).map(([negeri, d]) => ({
       negeri, pekebun: d.pekebun.size, ekar: d.ekar, pokok: d.pokok, kg: d.kg, mt: d.kg / 1000,
       varietiKg: Object.entries(d.varietiKg).sort((a, b) => b[1].kg - a[1].kg),
-      bulanPengeluaran: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN[m]).join(' / ') : 'Belum direkodkan',
+      bulanPengeluaran: d.bulan.size > 0
+        ? Array.from(d.bulan.entries()).sort((a, b) => a[1] - b[1]).map(([bulan]) => bulan).join(' / ')
+        : 'Belum direkodkan',
     })).sort((a, b) => b.mt - a.mt);
   })();
 
@@ -232,37 +199,27 @@ export default function LaporanPage() {
     // HQ "Semua Negeri" — show all negeri with daerah listing
     if (isHQ && filterNegeri === 'Semua') {
       // Compute per-negeri data with daerah
-      const negeriMap: Record<string, { daerah: Set<string>; pekebun: number; ekar: number; kg: number; bulan: Set<number> }> = {};
+      const negeriMap: Record<string, { daerah: Set<string>; pekebun: number; ekar: number; kg: number; bulan: Map<string, number> }> = {};
       filtered.forEach(k => {
         const n = k.negeri || 'Lain-lain';
-        if (!negeriMap[n]) negeriMap[n] = { daerah: new Set(), pekebun: 0, ekar: 0, kg: 0, bulan: new Set() };
+        if (!negeriMap[n]) negeriMap[n] = { daerah: new Set(), pekebun: 0, ekar: 0, kg: 0, bulan: new Map() };
         if (k.daerah) negeriMap[n].daerah.add(k.daerah);
         negeriMap[n].pekebun++;
         negeriMap[n].ekar += k.saizKebun || 0;
       });
-      latestLawatan.forEach(r => {
-        const farm = filteredById.get(r.kebunId);
+      projectedLawatan.forEach(item => {
+        const farm = filteredById.get(item.rekod.kebunId);
         if (!farm) return;
         const n = farm.negeri || 'Lain-lain';
         if (!negeriMap[n]) return;
-        negeriMap[n].kg += r.totalKg || 0;
-        if (r.tarikhLawatan && r.stages) {
-          const baseDate = new Date(`${r.tarikhLawatan}T00:00:00`);
-          if (!Number.isNaN(baseDate.getTime())) {
-            [{ key: 'mataketam', J: 120 }, { key: 'berbunga', J: 120 }, { key: 'putik', J: 90 }, { key: 'kecil', J: 60 }, { key: 'besar', J: 30 }].forEach(stage => {
-              const input = r.stages?.[stage.key];
-              if (!input || Number(input.pct) <= 0) return;
-              const hDate = new Date(baseDate);
-              hDate.setDate(hDate.getDate() + Math.max(0, stage.J - (Number(input.d) || 0)));
-              negeriMap[n].bulan.add(hDate.getMonth());
-            });
-          }
-        }
+        negeriMap[n].kg += item.totalKg;
+        item.batches.forEach(batch => negeriMap[n].bulan.set(batch.bulan, batch.bulanSort));
       });
-      const BULAN_FULL = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
       const negeriRows = Object.entries(negeriMap).map(([negeri, d]) => ({
         negeri, daerah: Array.from(d.daerah).sort().join(' / '), pekebun: d.pekebun, ekar: d.ekar, kg: d.kg, mt: d.kg / 1000,
-        bulan: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN_FULL[m]).join(' / ') : '-',
+        bulan: d.bulan.size > 0
+          ? Array.from(d.bulan.entries()).sort((a, b) => a[1] - b[1]).map(([bulan]) => bulan).join(' / ')
+          : '-',
       })).sort((a, b) => b.mt - a.mt);
 
       const rowH = 65;
@@ -281,7 +238,7 @@ export default function LaporanPage() {
       ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px sans-serif';
       ctx.fillText('SELURUH MALAYSIA', W / 2, 70);
       ctx.fillStyle = '#80CBC4'; ctx.font = '13px sans-serif';
-      ctx.fillText(`Dijana: ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })} | ${profile?.nama || 'FAMA'}`, W / 2, 95);
+      ctx.fillText(`Dijana: ${formatTarikhBM(tarikhSemasa)} | ${profile?.nama || 'FAMA'}`, W / 2, 95);
 
       // Summary stats
       const statsHQ = [
@@ -367,52 +324,40 @@ export default function LaporanPage() {
     }
 
     // Compute daerah breakdown for the infographic
-    const daerahMap: Record<string, { pekebun: Set<string>; ekar: number; kg: number; bulan: Set<number> }> = {};
+    const daerahMap: Record<string, { pekebun: Set<string>; ekar: number; kg: number; bulan: Map<string, number> }> = {};
     filtered.forEach(k => {
       const d = k.daerah || 'Lain-lain';
-      if (!daerahMap[d]) daerahMap[d] = { pekebun: new Set(), ekar: 0, kg: 0, bulan: new Set() };
+      if (!daerahMap[d]) daerahMap[d] = { pekebun: new Set(), ekar: 0, kg: 0, bulan: new Map() };
       daerahMap[d].pekebun.add(k.id);
       daerahMap[d].ekar += k.saizKebun || 0;
     });
-    latestLawatan.forEach(r => {
-      const farm = filteredById.get(r.kebunId);
+    projectedLawatan.forEach(item => {
+      const farm = filteredById.get(item.rekod.kebunId);
       if (!farm) return;
       const d = farm.daerah || 'Lain-lain';
       if (!daerahMap[d]) return;
-      daerahMap[d].kg += r.totalKg || 0;
-      if (r.tarikhLawatan && r.stages) {
-        const baseDate = new Date(`${r.tarikhLawatan}T00:00:00`);
-        if (!Number.isNaN(baseDate.getTime())) {
-          [{ key: 'mataketam', J: 120 }, { key: 'berbunga', J: 120 }, { key: 'putik', J: 90 }, { key: 'kecil', J: 60 }, { key: 'besar', J: 30 }].forEach(stage => {
-            const input = r.stages?.[stage.key];
-            if (!input || Number(input.pct) <= 0) return;
-            const hDate = new Date(baseDate);
-            hDate.setDate(hDate.getDate() + Math.max(0, stage.J - (Number(input.d) || 0)));
-            daerahMap[d].bulan.add(hDate.getMonth());
-          });
-        }
-      }
+      daerahMap[d].kg += item.totalKg;
+      item.batches.forEach(batch => daerahMap[d].bulan.set(batch.bulan, batch.bulanSort));
     });
-    const BULAN_SHORT = ['Januari', 'Februari', 'Mac', 'April', 'Mei', 'Jun', 'Julai', 'Ogos', 'September', 'Oktober', 'November', 'Disember'];
     const daerahRows = Object.entries(daerahMap).map(([daerah, d]) => ({
       daerah, pekebun: d.pekebun.size, ekar: d.ekar, kg: d.kg, mt: d.kg / 1000,
-      bulan: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN_SHORT[m]).join(' / ') : '-',
+      bulan: d.bulan.size > 0
+        ? Array.from(d.bulan.entries()).sort((a, b) => a[1] - b[1]).map(([bulan]) => bulan).join(' / ')
+        : '-',
     })).sort((a, b) => b.mt - a.mt);
 
     const negeriName = isHQ ? (filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh Malaysia') : userNegeri;
 
     // Varieti breakdown for this negeri (from saved kalkulator results)
     const varietiKgMap: Record<string, { kg: number; pokok: number }> = {};
-    latestLawatan.forEach(r => {
-      const farm = filteredById.get(r.kebunId);
+    projectedLawatan.forEach(item => {
+      const farm = filteredById.get(item.rekod.kebunId);
       if (!farm) return;
-      if (r.varietiResults) {
-        r.varietiResults.forEach(v => {
-          if (!varietiKgMap[v.name]) varietiKgMap[v.name] = { kg: 0, pokok: 0 };
-          varietiKgMap[v.name].kg += v.kg || 0;
-          varietiKgMap[v.name].pokok += v.pokok || 0;
-        });
-      }
+      item.varieti.forEach(v => {
+        if (!varietiKgMap[v.name]) varietiKgMap[v.name] = { kg: 0, pokok: 0 };
+        varietiKgMap[v.name].kg += v.kg;
+        varietiKgMap[v.name].pokok += v.pokok;
+      });
     });
     const varietiReportRows = Object.entries(varietiKgMap)
       .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, mt: d.kg / 1000 }))
@@ -440,7 +385,7 @@ export default function LaporanPage() {
     ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`NEGERI ${negeriName.toUpperCase()}`, W / 2, 82);
     ctx.fillStyle = '#80CBC4'; ctx.font = '13px sans-serif';
-    ctx.fillText(`Dijana: ${new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })} | ${profile?.nama || 'FAMA'}`, W / 2, 106);
+    ctx.fillText(`Dijana: ${formatTarikhBM(tarikhSemasa)} | ${profile?.nama || 'FAMA'}`, W / 2, 106);
 
     // Stats boxes
     const statsData = [
@@ -578,6 +523,13 @@ export default function LaporanPage() {
             {userNegeri
               ? `📍 Laporan dikunci kepada Negeri ${userNegeri} dan daerah di bawahnya.`
               : 'Negeri belum ditetapkan dalam profil Admin Negeri. Lengkapkan profil untuk menjana laporan.'}
+          </div>
+        )}
+
+        {jumlahLewatPemantauan > 0 && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
+            <p className="text-[10px] font-bold text-red-700">⚠️ {jumlahLewatPemantauan} kebun melebihi 30 hari tanpa pemantauan</p>
+            <p className="text-[9px] text-red-600 mt-0.5">Anggaran dan bulan pengeluaran ini masih berdasarkan lawatan terakhir. Sila kemas kini selepas pemantauan lapangan.</p>
           </div>
         )}
 

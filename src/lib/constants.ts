@@ -10,7 +10,7 @@ export const VARIETIES = [
 
 // Growth stages
 export const STAGES = [
-  { key: 'mataketam', name: 'Mata Ketam', tempohHari: 'Hari 1-30', J: 120, defD: 0, defPct: 0, nota: 'Dari mata ketam perlukan 150 hari untuk buah gugur' },
+  { key: 'mataketam', name: 'Mata Ketam', tempohHari: 'Hari 1-30', J: 150, defD: 0, defPct: 0, nota: 'Dari mata ketam perlukan 150 hari untuk buah gugur' },
   { key: 'berbunga', name: 'Berbunga', tempohHari: 'Hari 31-60', J: 120, defD: 9, defPct: 0, nota: 'Dari berbunga perlukan 120 hari untuk buah gugur' },
   { key: 'putik', name: 'Putik Buah', tempohHari: 'Hari 61-90', J: 90, defD: 40, defPct: 0, nota: 'Dari putik buah perlukan 90 hari untuk buah gugur' },
   { key: 'kecil', name: 'Buah Kecil', tempohHari: 'Hari 91-120', J: 60, defD: 40, defPct: 22, nota: 'Dari buah kecil perlukan 60 hari untuk buah gugur' },
