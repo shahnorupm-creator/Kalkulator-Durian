@@ -346,7 +346,7 @@ export default function DashboardHQPage() {
             <table className="w-full text-[10px]">
               <thead>
                 <tr className="border-b-2 border-forest/20">
-                  <th className="py-2 text-left font-bold text-forest">#</th>
+                  <th className="py-2 text-left font-bold text-forest">Bil.</th>
                   <th className="py-2 text-left font-bold text-forest">Negeri</th>
                   <th className="py-2 text-right font-bold text-forest">Kebun</th>
                   <th className="py-2 text-right font-bold text-forest">Ekar</th>

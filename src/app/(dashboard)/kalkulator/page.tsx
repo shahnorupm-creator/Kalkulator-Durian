@@ -113,6 +113,21 @@ export default function KalkulatorPage() {
     return () => unsub();
   }, []);
 
+  const sortedKebunList = useMemo(() => {
+    const compare = (left?: string, right?: string) =>
+      (left || '').localeCompare(right || '', 'ms', { sensitivity: 'base' });
+
+    return [...kebunList].sort((a, b) => {
+      // Rekod tanpa negeri diletakkan paling bawah.
+      if (!a.negeri && b.negeri) return 1;
+      if (a.negeri && !b.negeri) return -1;
+
+      return compare(a.negeri, b.negeri)
+        || compare(a.daerah, b.daerah)
+        || compare(a.nama, b.nama);
+    });
+  }, [kebunList]);
+
   const kebun = kebunList.find(k => k.id === selectedKebun);
 
   const jumlahPokokKebun = useMemo(() => {
@@ -223,8 +238,7 @@ export default function KalkulatorPage() {
       {/* ═══════════════════ STEP 1: Pilih Pekebun ═══════════════════ */}
       {step === 1 && (
         <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-semibold text-gray-500">1. {t('calc.selectKebun')}</p>
+          <div className="flex items-center justify-end">
             {/* Grid/List Toggle */}
             <div className="flex bg-gray-100 rounded-lg p-0.5">
               <div className="relative group">
@@ -259,14 +273,15 @@ export default function KalkulatorPage() {
             viewMode === 'list' ? (
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="grid grid-cols-12 gap-2 px-4 py-2 bg-forest/5 text-[9px] font-bold text-forest border-b border-gray-100">
-                  <span className="col-span-3">Pekebun</span>
+                  <span className="col-span-1 text-center">Bil.</span>
+                  <span className="col-span-2">Pekebun</span>
                   <span className="col-span-2">Daerah</span>
                   <span className="col-span-1 text-center">Ekar</span>
                   <span className="col-span-1 text-center">Pokok</span>
                   <span className="col-span-3">Varieti</span>
                   <span className="col-span-2 text-center">Status</span>
                 </div>
-                {kebunList.map(k => {
+                {sortedKebunList.map((k, index) => {
                   const pokok = (k.jumlahPokok || 0) > 0 ? k.jumlahPokok : Math.round(k.saizKebun * k.kepadatan * (k.pctMatang / 100));
                   const entries = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)
                     ? k.varietiData.filter(v => v.varieti && v.bilangan > 0)
@@ -282,7 +297,10 @@ export default function KalkulatorPage() {
                   return (
                     <div key={k.id} onClick={() => handleSelectKebun(k.id)}
                       className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-all">
-                      <div className="col-span-3 flex items-center gap-2 min-w-0">
+                      <span className="col-span-1 text-[9px] text-center font-semibold text-gray-500 tabular-nums">
+                        {index + 1}
+                      </span>
+                      <div className="col-span-2 flex items-center gap-2 min-w-0">
                         {k.negeri && NEGERI_FLAG[k.negeri] ? (
                           <img src={NEGERI_FLAG[k.negeri]} alt={k.negeri} className="w-5 h-3.5 object-contain rounded-sm flex-shrink-0" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
                         ) : k.negeri && NEGERI_FLAG_COLORS[k.negeri] ? (
@@ -308,7 +326,7 @@ export default function KalkulatorPage() {
               </div>
             ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {kebunList.map(k => {
+              {sortedKebunList.map(k => {
                 const pokok = (k.jumlahPokok || 0) > 0 ? k.jumlahPokok : Math.round(k.saizKebun * k.kepadatan * (k.pctMatang / 100));
                 const entries = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)
                   ? k.varietiData.filter(v => v.varieti && v.bilangan > 0)

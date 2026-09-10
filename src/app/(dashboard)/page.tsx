@@ -387,7 +387,46 @@ export default function ProfilKebunPage() {
       || compare(a.nama, b.nama);
   });
 
-  const negeriWithData = [...new Set(kebunList.map(k => k.negeri).filter(Boolean))];
+  const negeriCounts = kebunList.reduce<Record<string, number>>((counts, k) => {
+    const negeri = k.negeri?.trim();
+    if (negeri) counts[negeri] = (counts[negeri] || 0) + 1;
+    return counts;
+  }, {});
+  const negeriOptions = Object.entries(negeriCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ms', { sensitivity: 'base' }));
+
+  // Bagi pengguna seluruh negeri, daerah muncul selepas satu negeri dipilih.
+  // Pengguna terhad terus melihat daerah daripada rekod kebun yang boleh dicapai.
+  const scopedKebunForDaerah = filterNegeri !== 'Semua'
+    ? kebunList.filter(k => k.negeri === filterNegeri)
+    : canAccessAllNegeri ? [] : kebunList;
+  const daerahCounts = scopedKebunForDaerah.reduce<Record<string, number>>((counts, k) => {
+    const daerah = k.daerah?.trim();
+    if (daerah) counts[daerah] = (counts[daerah] || 0) + 1;
+    return counts;
+  }, {});
+  const daerahFilterOptions = Object.entries(daerahCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ms', { sensitivity: 'base' }));
+  const showDaerahPicker = !loading && kebunList.length > 0
+    && (filterNegeri !== 'Semua' || !canAccessAllNegeri);
+
+  // Pulihkan penapis jika rekod realtime yang sedang dipilih telah dipadam atau dipindahkan.
+  useEffect(() => {
+    if (loading) return;
+
+    if (filterNegeri !== 'Semua' && !kebunList.some(k => k.negeri === filterNegeri)) {
+      setFilterNegeri('Semua');
+      setFilterDaerah('Semua');
+      return;
+    }
+
+    const daerahMasihWujud = filterNegeri !== 'Semua'
+      ? kebunList.some(k => k.negeri === filterNegeri && k.daerah === filterDaerah)
+      : kebunList.some(k => k.daerah === filterDaerah);
+    if (filterDaerah !== 'Semua' && !daerahMasihWujud) setFilterDaerah('Semua');
+  }, [kebunList, loading, filterNegeri, filterDaerah]);
 
   return (
     <div className="space-y-4">
@@ -649,35 +688,89 @@ export default function ProfilKebunPage() {
 
       {/* Filter & Search */}
       <div className="space-y-2">
-        {canAccessAllNegeri && negeriWithData.length > 1 && (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {['Semua', ...negeriWithData].map(n => (
-              <button key={n} onClick={() => { setFilterNegeri(n); setFilterDaerah('Semua'); }}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${filterNegeri === n ? 'bg-forest text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
-                {n}
+        {canAccessAllNegeri && negeriOptions.length > 0 && (
+          <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm space-y-2.5">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[11px] font-bold text-forest">Pilih Negeri</p>
+                <p className="text-[9px] text-gray-400">Klik bendera untuk melihat pilihan daerah</p>
+              </div>
+              <span className="rounded-full bg-forest/10 px-2 py-1 text-[9px] font-semibold text-forest whitespace-nowrap">
+                {filterNegeri === 'Semua' ? 'Seluruh Malaysia' : filterNegeri}
+              </span>
+            </div>
+
+            <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+              <button type="button" aria-pressed={filterNegeri === 'Semua'}
+                onClick={() => { setFilterNegeri('Semua'); setFilterDaerah('Semua'); }}
+                className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${filterNegeri === 'Semua' ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
+                <span className="flex h-7 w-10 items-center justify-center rounded-lg bg-gray-50 text-lg border border-gray-100">🇲🇾</span>
+                <span className="min-w-0">
+                  <span className="block text-[10px] font-bold whitespace-nowrap">Semua Negeri</span>
+                  <span className={`block text-[8px] ${filterNegeri === 'Semua' ? 'text-white/70' : 'text-gray-400'}`}>{kebunList.length} kebun</span>
+                </span>
               </button>
-            ))}
+
+              {negeriOptions.map(({ name, count }) => {
+                const active = filterNegeri === name;
+                return (
+                  <button key={name} type="button" aria-pressed={active}
+                    onClick={() => { setFilterNegeri(name); setFilterDaerah('Semua'); }}
+                    className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${active ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
+                    {NEGERI_FLAG[name] ? (
+                      <img src={NEGERI_FLAG[name]} alt={`Bendera ${name}`} className="h-7 w-10 rounded-lg border border-gray-200/60 object-contain bg-white flex-shrink-0" />
+                    ) : NEGERI_FLAG_COLORS[name] ? (
+                      <span className="h-7 w-10 rounded-lg border border-gray-200/60 overflow-hidden flex-shrink-0">
+                        <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[name].top }} />
+                        <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[name].bottom }} />
+                      </span>
+                    ) : (
+                      <span className="flex h-7 w-10 items-center justify-center rounded-lg bg-gray-100 text-[9px] font-bold">{name.slice(0, 2).toUpperCase()}</span>
+                    )}
+                    <span className="min-w-0">
+                      <span className="block text-[10px] font-bold whitespace-nowrap">{name}</span>
+                      <span className={`block text-[8px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{count} kebun</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* Daerah filter */}
-        {(() => {
-          const scopedKebun = filterNegeri !== 'Semua' ? kebunList.filter(k => k.negeri === filterNegeri) : kebunList;
-          const daerahWithData = [...new Set(scopedKebun.map(k => k.daerah).filter(Boolean))].sort();
-          if (daerahWithData.length > 1) {
-            return (
-              <div className="flex gap-2 overflow-x-auto pb-1">
-                {['Semua', ...daerahWithData].map(d => (
-                  <button key={d} onClick={() => setFilterDaerah(d)}
-                    className={`px-3 py-1.5 rounded-full text-[10px] font-medium whitespace-nowrap transition-all ${filterDaerah === d ? 'bg-gold text-black' : 'bg-white text-gray-600 border border-gray-200'}`}>
-                    {d}
+        {/* Daerah hanya muncul selepas negeri dipilih */}
+        {showDaerahPicker && (
+          <div className="rounded-2xl border border-gold/20 bg-gold/5 p-3 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-bold text-forest">Pilih Daerah</p>
+                <p className="text-[8px] text-gray-400">Daerah yang mempunyai rekod kebun sahaja</p>
+              </div>
+              <span className="rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-gold border border-gold/20 whitespace-nowrap">
+                📍 {filterNegeri !== 'Semua' ? filterNegeri : userNegeri || 'Daerah Anda'}
+              </span>
+            </div>
+
+            {daerahFilterOptions.length > 0 ? (
+              <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+                <button type="button" aria-pressed={filterDaerah === 'Semua'} onClick={() => setFilterDaerah('Semua')}
+                  className={`flex-none rounded-xl border px-3 py-2 text-[9px] font-semibold whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 ${filterDaerah === 'Semua' ? 'border-gold bg-gold text-black shadow-sm ring-2 ring-gold/10' : 'border-gray-200 bg-white text-gray-600 hover:border-gold/50'}`}>
+                  Semua Daerah <span className="ml-1 opacity-70">{scopedKebunForDaerah.length}</span>
+                </button>
+                {daerahFilterOptions.map(({ name, count }) => (
+                  <button key={name} type="button" aria-pressed={filterDaerah === name} onClick={() => setFilterDaerah(name)}
+                    className={`flex-none rounded-xl border px-3 py-2 text-[9px] font-semibold whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 ${filterDaerah === name ? 'border-gold bg-gold text-black shadow-sm ring-2 ring-gold/10' : 'border-gray-200 bg-white text-gray-600 hover:border-gold/50 hover:bg-gold/5'}`}>
+                    {name} <span className="ml-1 opacity-70">{count}</span>
                   </button>
                 ))}
               </div>
-            );
-          }
-          return null;
-        })()}
+            ) : (
+              <p className="rounded-xl border border-dashed border-gold/30 bg-white px-3 py-2 text-[9px] text-gray-500">
+                Tiada daerah direkodkan untuk pilihan ini.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="flex gap-2 items-center">
           <input placeholder={t('kebun.search')} value={search} onChange={(e) => setSearch(e.target.value)}
