@@ -88,6 +88,7 @@ export default function KalkulatorPage() {
   const [saving, setSaving] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [filterNegeri, setFilterNegeri] = useState('Semua');
 
   useEffect(() => {
     if (!user || !profile) {
@@ -184,20 +185,47 @@ export default function KalkulatorPage() {
   const jumlahLewat = Object.values(unjuranMap).filter(item => item.pemantauan.status === 'lewat').length;
   const unjuranKebunDipilih = selectedKebun ? unjuranMap[selectedKebun] : undefined;
 
+  const negeriOptions = useMemo(() => {
+    const counts = kebunList.reduce<Record<string, number>>((hasil, item) => {
+      const negeri = item.negeri?.trim();
+      if (negeri) hasil[negeri] = (hasil[negeri] || 0) + 1;
+      return hasil;
+    }, {});
+    return Object.entries(counts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name, 'ms', { sensitivity: 'base' }));
+  }, [kebunList]);
+
+  useEffect(() => {
+    if (isStateAdmin) {
+      if (userNegeri && filterNegeri !== userNegeri) setFilterNegeri(userNegeri);
+      return;
+    }
+    if (!isNationalAdmin) {
+      if (filterNegeri !== 'Semua') setFilterNegeri('Semua');
+      return;
+    }
+    if (filterNegeri !== 'Semua' && !kebunList.some(k => k.negeri?.trim() === filterNegeri)) {
+      setFilterNegeri('Semua');
+    }
+  }, [isNationalAdmin, isStateAdmin, userNegeri, filterNegeri, kebunList]);
+
   const sortedKebunList = useMemo(() => {
     const compare = (left?: string, right?: string) =>
       (left || '').localeCompare(right || '', 'ms', { sensitivity: 'base' });
 
-    return [...kebunList].sort((a, b) => {
-      // Rekod tanpa negeri diletakkan paling bawah.
-      if (!a.negeri && b.negeri) return 1;
-      if (a.negeri && !b.negeri) return -1;
+    return kebunList
+      .filter(k => filterNegeri === 'Semua' || k.negeri?.trim() === filterNegeri)
+      .sort((a, b) => {
+        // Rekod tanpa negeri diletakkan paling bawah.
+        if (!a.negeri && b.negeri) return 1;
+        if (a.negeri && !b.negeri) return -1;
 
-      return compare(a.negeri, b.negeri)
-        || compare(a.daerah, b.daerah)
-        || compare(a.nama, b.nama);
-    });
-  }, [kebunList]);
+        return compare(a.negeri, b.negeri)
+          || compare(a.daerah, b.daerah)
+          || compare(a.nama, b.nama);
+      });
+  }, [kebunList, filterNegeri]);
 
   useEffect(() => {
     if (selectedKebun && !kebunList.some(k => k.id === selectedKebun)) {
@@ -387,6 +415,65 @@ export default function KalkulatorPage() {
               </div>
             </div>
           )}
+
+          {!loading && (isNationalAdmin || (isStateAdmin && !!userNegeri)) && negeriOptions.length > 0 && (
+            <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm space-y-2.5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[11px] font-bold text-forest">Pilih Negeri</p>
+                  <p className="text-[9px] text-gray-400">
+                    {isNationalAdmin ? 'Klik bendera untuk melihat pekebun mengikut negeri' : 'Paparan dikunci mengikut negeri profil anda'}
+                  </p>
+                </div>
+                <span className="rounded-full bg-forest/10 px-2 py-1 text-[9px] font-semibold text-forest whitespace-nowrap">
+                  {filterNegeri === 'Semua' ? 'Seluruh Malaysia' : filterNegeri}
+                </span>
+              </div>
+
+              <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+                {isNationalAdmin && (
+                  <button type="button" aria-pressed={filterNegeri === 'Semua'} onClick={() => setFilterNegeri('Semua')}
+                    className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${filterNegeri === 'Semua' ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
+                    <span className="relative flex h-7 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/60 bg-white text-[9px] font-bold text-gray-400">
+                      MY
+                      <img src="/malaysia.jpg" alt="Bendera Malaysia" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-[10px] font-bold whitespace-nowrap">Semua Negeri</span>
+                      <span className={`block text-[8px] ${filterNegeri === 'Semua' ? 'text-white/70' : 'text-gray-400'}`}>{kebunList.length} kebun</span>
+                    </span>
+                  </button>
+                )}
+
+                {negeriOptions
+                  .filter(({ name }) => isNationalAdmin || name === userNegeri)
+                  .map(({ name, count }) => {
+                    const active = filterNegeri === name;
+                    return (
+                      <button key={name} type="button" aria-pressed={active} disabled={isStateAdmin}
+                        onClick={() => setFilterNegeri(name)}
+                        className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${active ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'} ${isStateAdmin ? 'cursor-default' : ''}`}>
+                        {NEGERI_FLAG[name] ? (
+                          <img src={NEGERI_FLAG[name]} alt={`Bendera ${name}`} className="h-7 w-10 rounded-lg border border-gray-200/60 object-contain bg-white flex-shrink-0" />
+                        ) : NEGERI_FLAG_COLORS[name] ? (
+                          <span className="h-7 w-10 rounded-lg border border-gray-200/60 overflow-hidden flex-shrink-0">
+                            <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[name].top }} />
+                            <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[name].bottom }} />
+                          </span>
+                        ) : (
+                          <span className="flex h-7 w-10 items-center justify-center rounded-lg bg-gray-100 text-[9px] font-bold">{name.slice(0, 2).toUpperCase()}</span>
+                        )}
+                        <span className="min-w-0">
+                          <span className="block text-[10px] font-bold whitespace-nowrap">{name}</span>
+                          <span className={`block text-[8px] ${active ? 'text-white/70' : 'text-gray-400'}`}>{count} kebun</span>
+                        </span>
+                      </button>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-end">
             {/* Grid/List Toggle */}
             <div className="flex bg-gray-100 rounded-lg p-0.5">
@@ -417,6 +504,11 @@ export default function KalkulatorPage() {
             <div className="text-center py-8 bg-white rounded-2xl border border-gray-100">
               <span className="text-3xl">🌱</span>
               <p className="text-sm text-gray-500 mt-2">{t('calc.noKebunRegistered')}</p>
+            </div>
+          ) : sortedKebunList.length === 0 ? (
+            <div className="text-center py-8 bg-white rounded-2xl border border-gray-100">
+              <span className="text-3xl">📍</span>
+              <p className="text-sm text-gray-500 mt-2">Tiada kebun direkodkan untuk negeri ini.</p>
             </div>
           ) : (
             viewMode === 'list' ? (
