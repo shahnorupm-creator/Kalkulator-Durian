@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useAuth, ALL_ROLES, ROLE_LABELS, ROLE_COLORS } from '@/contexts/AuthContext';
 import type { UserRole } from '@/contexts/AuthContext';
-import { collection, query, onSnapshot, doc, updateDoc, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
-import { SENARAI_NEGERI } from '@/lib/constants';
+import { SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -87,9 +87,11 @@ export default function AdminPage() {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     });
 
-  // Bina header dengan ID token pemanggil untuk pengesahan di sisi server
+  // Bina header dengan ID token pemanggil untuk pengesahan di sisi server.
+  // Guna getIdToken(true) untuk paksa refresh — token cache boleh tamat tempoh (~1 jam)
+  // dan menyebabkan ralat "Token pengesahan tidak sah atau telah tamat tempoh".
   const authHeaders = async (): Promise<Record<string, string>> => {
-    const token = await auth.currentUser?.getIdToken();
+    const token = await auth.currentUser?.getIdToken(true);
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -129,22 +131,41 @@ export default function AdminPage() {
     setFormLoading(false);
   };
 
-  const handleUpdateRole = async (uid: string, newRole: UserRole) => {
+  // Semua kemas kini medan users mesti melalui API server (Admin SDK) kerana
+  // Firestore rules menetapkan `allow write: if false` bagi koleksi users.
+  const patchUser = async (uid: string, payload: Record<string, string>): Promise<boolean> => {
     try {
-      await updateDoc(doc(db, 'users', uid), { role: newRole });
+      const res = await fetch('/api/admin/update-user', {
+        method: 'POST',
+        headers: await authHeaders(),
+        body: JSON.stringify({ uid, ...payload }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal mengemas kini.');
+      return true;
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Gagal kemaskini.');
+      return false;
+    }
+  };
+
+  const handleUpdateRole = async (uid: string, newRole: UserRole) => {
+    if (await patchUser(uid, { role: newRole })) {
       toast.success('Role dikemas kini!');
       setEditingUser(null);
-    } catch (e) {
-      toast.error('Gagal kemaskini.');
     }
   };
 
   const handleUpdateNegeri = async (uid: string, negeri: string) => {
-    try {
-      await updateDoc(doc(db, 'users', uid), { negeri });
+    if (await patchUser(uid, { negeri })) {
       toast.success('Negeri dikemas kini!');
-    } catch (e) {
-      toast.error('Gagal kemaskini.');
+    }
+  };
+
+  // Admin negeri (dan superadmin) menetapkan daerah seliaan pegawai.
+  const handleUpdateDaerah = async (uid: string, daerah: string) => {
+    if (await patchUser(uid, { daerah })) {
+      toast.success('Daerah seliaan dikemas kini!');
     }
   };
 
@@ -389,6 +410,15 @@ export default function AdminPage() {
                           <option value="">Negeri</option>
                           <option value="Ibupejabat">Ibupejabat</option>
                           {SENARAI_NEGERI.map(n => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      )}
+
+                      {/* Daerah seliaan — superadmin untuk semua, admin negeri untuk pegawai dalam negerinya */}
+                      {(isSuperAdmin || (isAdminNegeri && u.negeri === adminNegeri && u.role !== 'superadmin' && u.role !== 'admin_negeri')) && (
+                        <select value={u.daerah || ''} onChange={(e) => handleUpdateDaerah(u.uid, e.target.value)}
+                          className="text-[9px] px-2 py-0.5 border border-gray-200 rounded-lg bg-gray-50">
+                          <option value="">Daerah</option>
+                          {(NEGERI_DAERAH[u.negeri] || []).map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                       )}
                     </div>

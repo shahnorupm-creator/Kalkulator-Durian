@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Locale, LOCALE_SHORT } from '@/lib/i18n';
-import { formatMasaBMWithSeconds } from '@/lib/constants';
+import { formatMasaBMWithSeconds, formatNamaPaparan } from '@/lib/constants';
 import Navbar from '@/components/Navbar';
 import OfflineIndicator from '@/components/OfflineIndicator';
 import PendingSyncBadge from '@/components/PendingSyncBadge';
@@ -119,7 +119,7 @@ function DesktopSidebar() {
             <span className="text-sm">👤</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-forest truncate">{profile?.nama || '-'}</p>
+            <p className="text-xs font-semibold text-forest truncate">{formatNamaPaparan(profile?.nama) || '-'}</p>
             <p className="text-[9px] text-gray-400 truncate">{profile?.negeri || profile?.daerah || '-'} &bull; {ROLE_LABELS[profile?.role || 'pegawai']}</p>
           </div>
         </div>

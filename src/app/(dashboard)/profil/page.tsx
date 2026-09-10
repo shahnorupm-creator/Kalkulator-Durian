@@ -91,7 +91,7 @@ export default function ProfilPage() {
           <span className="text-2xl">👤</span>
         </div>
         <div className="relative z-10 flex-1 min-w-0">
-          <h3 className="text-lg font-bold truncate">{profile?.nama || '-'}</h3>
+          <h3 className="text-lg font-bold truncate">{capitalizeWords(profile?.nama || '') || '-'}</h3>
           <p className="text-white/70 text-xs">{getRoleLabel(profile?.role || 'pegawai')}</p>
           <p className="text-white/50 text-[10px] mt-0.5">{profile?.email}</p>
         </div>
@@ -153,7 +153,7 @@ export default function ProfilPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
               <div>
                 <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">Nama Penuh</p>
-                <p className="text-sm font-bold text-gray-800 mt-0.5">{profile?.nama || '-'}</p>
+                <p className="text-sm font-bold text-gray-800 mt-0.5">{capitalizeWords(profile?.nama || '') || '-'}</p>
               </div>
               <div>
                 <p className="text-[9px] font-semibold text-gray-400 uppercase tracking-wider">No. Pekerja</p>

@@ -847,7 +847,12 @@ export default function KalkulatorPage() {
                     <div key={batch.stageKey} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
                       <div>
                         <p className="text-[10px] font-bold text-blue-800">{batch.stageName} · {batch.pct.toFixed(0)}%</p>
-                        <p className="text-[8px] text-blue-600">J {STAGES.find(s => s.key === batch.stageKey)?.J} − D {batch.dAsal} = {Math.max(0, (STAGES.find(s => s.key === batch.stageKey)?.J || 0) - batch.dAsal)} hari</p>
+                        <p className="text-[8px] text-blue-600">
+                          J {STAGES.find(s => s.key === batch.stageKey)?.J} − D {batch.dLive ?? batch.dAsal} = baki {batch.bakiHari ?? Math.max(0, (STAGES.find(s => s.key === batch.stageKey)?.J || 0) - batch.dAsal)} hari
+                        </p>
+                        {batch.dLive !== null && batch.dLive !== batch.dAsal && (
+                          <p className="text-[7px] text-amber-600">D asal {batch.dAsal} + {(batch.dLive - batch.dAsal)} hari sejak lawatan</p>
+                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-blue-800">{formatTarikhBM(batch.tarikhJangkaan)}</p>

@@ -16,6 +16,15 @@ interface Pegawai {
   role: string;
 }
 
+// Auto-format: Capitalize Each Word (kekalkan akronim)
+const ACRONYMS = ['FAMA', 'IOI', 'HQ', 'GPS', 'MARDI', 'MPOB', 'RISDA', 'FELDA', 'FELCRA', 'JPM', 'KPM'];
+const capitalizeWords = (str: string) =>
+  str.replace(/\b[\p{L}']+/gu, (word) => {
+    const upper = word.toUpperCase();
+    if (ACRONYMS.includes(upper)) return upper;
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+
 export default function AdminPegawaiPage() {
   const { profile, isAnyAdmin, isSuperAdmin } = useAuth();
   const router = useRouter();
@@ -44,9 +53,11 @@ export default function AdminPegawaiPage() {
     setShowEditPass(false);
   };
 
-  // Bina header dengan ID token pemanggil untuk pengesahan di sisi server
+  // Bina header dengan ID token pemanggil untuk pengesahan di sisi server.
+  // Guna getIdToken(true) untuk paksa refresh — token cache boleh tamat tempoh (~1 jam)
+  // dan menyebabkan ralat "Token pengesahan tidak sah atau telah tamat tempoh".
   const authHeaders = async (): Promise<Record<string, string>> => {
-    const token = await auth.currentUser?.getIdToken();
+    const token = await auth.currentUser?.getIdToken(true);
     return {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -217,7 +228,7 @@ export default function AdminPegawaiPage() {
             type="text"
             placeholder="Nama Penuh *"
             value={form.nama}
-            onChange={(e) => setForm({ ...form, nama: e.target.value })}
+            onChange={(e) => setForm({ ...form, nama: capitalizeWords(e.target.value) })}
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm"
             required
           />
@@ -233,7 +244,7 @@ export default function AdminPegawaiPage() {
             type="text"
             placeholder="Daerah *"
             value={form.daerah}
-            onChange={(e) => setForm({ ...form, daerah: e.target.value })}
+            onChange={(e) => setForm({ ...form, daerah: capitalizeWords(e.target.value) })}
             className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm"
             required
           />
@@ -271,7 +282,7 @@ export default function AdminPegawaiPage() {
             >
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="font-semibold text-forest">{p.nama}</h3>
+                  <h3 className="font-semibold text-forest">{capitalizeWords(p.nama || '')}</h3>
                   <p className="text-xs text-gray-500">{p.email}</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {p.noPerkerja} &middot; {p.daerah}

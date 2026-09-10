@@ -57,6 +57,18 @@ export function negeriDariDaerah(daerah?: string): string {
   return '';
 }
 
+// Normalisasi paparan nama: "HUDA" atau "huda" -> "Huda", kekalkan akronim.
+// Identiti user tetap ditentukan oleh email/UID log masuk; ini hanya untuk paparan.
+const NAMA_ACRONYMS = ['FAMA', 'IOI', 'HQ', 'GPS', 'MARDI', 'MPOB', 'RISDA', 'FELDA', 'FELCRA', 'JPM', 'KPM'];
+export function formatNamaPaparan(nama?: string): string {
+  if (!nama || !nama.trim()) return '';
+  return nama.replace(/\b[\p{L}']+/gu, (word) => {
+    const upper = word.toUpperCase();
+    if (NAMA_ACRONYMS.includes(upper)) return upper;
+    return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+  });
+}
+
 // Bendera negeri Malaysia — using inline SVG color blocks (no external dependency, always works)
 // Bendera negeri Malaysia — local static SVG files in /public/flags/
 export const NEGERI_FLAG: Record<string, string> = {
