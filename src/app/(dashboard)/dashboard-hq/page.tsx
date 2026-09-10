@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES, negeriDariDaerah } from '@/lib/constants';
+import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
 
 interface LawatanRecord {
   id: string;
@@ -24,6 +25,8 @@ interface LawatanRecord {
   kebunNama: string;
   fasa: string;
   fasaUtama: string;
+  createdAt?: { seconds?: number } | null;
+  updatedAt?: { seconds?: number } | null;
 }
 
 interface VarietiEntry {
@@ -58,7 +61,14 @@ export default function DashboardHQPage() {
   useEffect(() => {
     const q = query(collectionGroup(db, 'lawatan'));
     const unsub = onSnapshot(q, (snap) => {
-      setLawatan(snap.docs.map(d => ({ id: d.id, ...d.data() } as LawatanRecord)));
+      setLawatan(snap.docs.map(d => {
+        const data = d.data();
+        return {
+          ...data,
+          id: d.id,
+          kebunId: data.kebunId || d.ref.parent.parent?.id || '',
+        } as LawatanRecord;
+      }));
       setLoading(false);
     });
     return () => unsub();
@@ -72,21 +82,29 @@ export default function DashboardHQPage() {
     return () => unsub();
   }, []);
 
+  // Satu rekod pemantauan semasa bagi setiap kebun:
+  // tarikh lawatan paling baharu, kemudian masa simpan/kemas kini paling baharu.
+  const latestLawatan = useMemo(() => {
+    const kebunSah = new Set(kebun.map(k => k.id));
+    return pilihLawatanSemasaPerKebun(lawatan, kebunSah);
+  }, [lawatan, kebun]);
+
   // KPI Stats
   const kpi = useMemo(() => {
     const totalKebun = kebun.length;
     const totalEkar = kebun.reduce((s, k) => s + (k.saizKebun || 0), 0);
     const totalPokok = kebun.reduce((s, k) => s + (k.jumlahPokok || 0), 0);
-    const totalKg = lawatan.reduce((s, l) => s + (l.totalKg || 0), 0);
+    const totalKg = latestLawatan.reduce((s, l) => s + (l.totalKg || 0), 0);
     const totalMT = totalKg / 1000;
     const negeriAktif = new Set(kebun.map(k => k.negeri).filter(Boolean)).size;
-    const totalLawatan = lawatan.length;
+    const totalLawatan = latestLawatan.length;
     return { totalKebun, totalEkar, totalPokok, totalKg, totalMT, negeriAktif, totalLawatan };
-  }, [kebun, lawatan]);
+  }, [kebun, latestLawatan]);
 
   // Top negeri by ekar
   const negeriRanking = useMemo(() => {
     const map: Record<string, { kebun: number; ekar: number; pokok: number; kg: number }> = {};
+    const kebunById = new Map(kebun.map(k => [k.id, k]));
     kebun.forEach(k => {
       const n = (k.negeri && k.negeri.trim()) || negeriDariDaerah(k.daerah) || 'Negeri Tidak Direkod';
       if (!map[n]) map[n] = { kebun: 0, ekar: 0, pokok: 0, kg: 0 };
@@ -94,14 +112,14 @@ export default function DashboardHQPage() {
       map[n].ekar += k.saizKebun || 0;
       map[n].pokok += k.jumlahPokok || 0;
     });
-    lawatan.forEach(l => {
-      const n = l.negeri || l.pegawaiDaerah || '';
-      Object.keys(map).forEach(key => {
-        if (key === n || n.includes(key)) map[key].kg += l.totalKg || 0;
-      });
+    latestLawatan.forEach(l => {
+      const farm = kebunById.get(l.kebunId);
+      if (!farm) return;
+      const n = (farm.negeri && farm.negeri.trim()) || negeriDariDaerah(farm.daerah) || 'Negeri Tidak Direkod';
+      if (map[n]) map[n].kg += l.totalKg || 0;
     });
     return Object.entries(map).map(([negeri, d]) => ({ negeri, ...d })).sort((a, b) => b.ekar - a.ekar);
-  }, [kebun, lawatan]);
+  }, [kebun, latestLawatan]);
 
   // Taburan varieti — dikira daripada profil kebun (varietiData).
   // Anggaran hasil (kg) = bilangan pokok x hasil/pokok bagi varieti tersebut.
@@ -159,7 +177,7 @@ export default function DashboardHQPage() {
     };
 
     const map: Record<string, { kg: number; negeri: Set<string>; negeriKg: Record<string, number>; sort: number }> = {};
-    lawatan.forEach(l => {
+    latestLawatan.forEach(l => {
       if (!l.tarikhLawatan) return;
       const d = new Date(l.tarikhLawatan); d.setDate(d.getDate() + 30);
       const key = d.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
@@ -182,7 +200,7 @@ export default function DashboardHQPage() {
       }))
       // Susun bulan ikut turutan tarikh (awal ke akhir)
       .sort((a, b) => a.sort - b.sort);
-  }, [lawatan, kebun]);
+  }, [latestLawatan, kebun]);
   const maxMonthKg = Math.max(...monthlyForecast.map(m => m.kg), 1);
 
   // Lambakan detection
@@ -537,7 +555,7 @@ export default function DashboardHQPage() {
         </div>
       )}
 
-      {lambakanAlerts.length === 0 && lawatan.length > 0 && (
+      {lambakanAlerts.length === 0 && latestLawatan.length > 0 && (
         <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
           <span>🟢</span>
           <div>

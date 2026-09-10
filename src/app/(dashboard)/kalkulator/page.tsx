@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, collectionGroup, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM } from '@/lib/constants';
+import { bandingLawatanSemasa } from '@/lib/lawatan';
 import toast from 'react-hot-toast';
 
 interface VarietiEntry { usia: string; varieti: string; bilangan: number; }
@@ -70,19 +71,41 @@ export default function KalkulatorPage() {
     return () => unsub();
   }, [user, profile]);
 
-  // Track latest lawatan per kebun for status badge
-  const [lawatanMap, setLawatanMap] = useState<Record<string, { totalKg: number; createdAt: number }>>({});
+  // Track lawatan semasa per kebun untuk status badge
+  const [lawatanMap, setLawatanMap] = useState<Record<string, {
+    id: string;
+    kebunId: string;
+    tarikhLawatan: string;
+    totalKg: number;
+    createdAt: number;
+  }>>({});
 
   useEffect(() => {
     const unsub = onSnapshot(query(collectionGroup(db, 'lawatan')), (snap) => {
-      const map: Record<string, { totalKg: number; createdAt: number }> = {};
+      const map: Record<string, {
+        id: string;
+        kebunId: string;
+        tarikhLawatan: string;
+        totalKg: number;
+        createdAt: number;
+      }> = {};
       snap.docs.forEach(d => {
         const data = d.data();
         const kebunId = data.kebunId || d.ref.parent.parent?.id || '';
         if (!kebunId) return;
-        const time = data.createdAt?.seconds || 0;
-        if (!map[kebunId] || time > map[kebunId].createdAt) {
-          map[kebunId] = { totalKg: data.totalKg || 0, createdAt: time };
+        const calon = {
+          id: d.id,
+          kebunId,
+          tarikhLawatan: data.tarikhLawatan || '',
+          totalKg: data.totalKg || 0,
+          createdAt: data.updatedAt?.seconds || data.createdAt?.seconds || 0,
+        };
+        const semasa = map[kebunId];
+        if (!semasa || bandingLawatanSemasa(
+          { ...calon, createdAt: { seconds: calon.createdAt } },
+          { ...semasa, createdAt: { seconds: semasa.createdAt } }
+        ) > 0) {
+          map[kebunId] = calon;
         }
       });
       setLawatanMap(map);
@@ -157,8 +180,17 @@ export default function KalkulatorPage() {
         pegawaiNama: profile?.nama || '', pegawaiDaerah: profile?.daerah || '', negeri: kebun.negeri || '',
         createdAt: serverTimestamp(),
       });
-      // Optimistic update — badge terus update tanpa tunggu Firestore listener
-      setLawatanMap(prev => ({ ...prev, [kebun.id]: { totalKg: grandTotalKg, createdAt: Math.floor(Date.now() / 1000) } }));
+      // Optimistic update — badge terus guna tarikh pemantauan semasa
+      setLawatanMap(prev => ({
+        ...prev,
+        [kebun.id]: {
+          id: `optimistic-${Date.now()}`,
+          kebunId: kebun.id,
+          tarikhLawatan,
+          totalKg: grandTotalKg,
+          createdAt: Math.floor(Date.now() / 1000),
+        },
+      }));
       toast.success(t('calc.saved'));
     } catch (e) { console.error(e); toast.error(t('calc.saveFailed')); }
     setSaving(false);
@@ -318,7 +350,14 @@ export default function KalkulatorPage() {
                     {lawatanMap[k.id] && (
                       <div className="mt-2 bg-green-50 border border-green-200 rounded-lg px-2 py-1.5">
                         <p className="text-[9px] font-semibold text-green-700">✓ Anggaran Hasil Telah Dikira</p>
-                        <p className="text-[8px] text-green-600">Kemaskini: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}, {formatMasaBM(new Date(lawatanMap[k.id].createdAt * 1000))}</p>
+                        <p className="text-[8px] text-green-600">
+                          Pemantauan semasa: {lawatanMap[k.id].tarikhLawatan
+                            ? new Date(`${lawatanMap[k.id].tarikhLawatan}T00:00:00`).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })
+                            : '-'}
+                        </p>
+                        <p className="text-[8px] text-green-500">
+                          Disimpan: {new Date(lawatanMap[k.id].createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' })}, {formatMasaBM(new Date(lawatanMap[k.id].createdAt * 1000))}
+                        </p>
                       </div>
                     )}
                   </div>

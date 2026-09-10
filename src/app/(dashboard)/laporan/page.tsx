@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, STAGES, SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
+import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
@@ -23,7 +24,8 @@ interface LawatanRecord {
   negeri: string; daerah?: string;
   stages?: Record<string, { pct: number; d: number }>;
   varietiResults?: { key: string; name: string; pokok: number; kg: number }[];
-  createdAt?: { seconds: number } | null;
+  createdAt?: { seconds?: number } | null;
+  updatedAt?: { seconds?: number } | null;
 }
 
 export default function LaporanPage() {
@@ -71,18 +73,12 @@ export default function LaporanPage() {
   });
   const filteredById = new Map(filtered.map(k => [k.id, k]));
 
-  // Latest lawatan per kebun
-  const latestLawatan = (() => {
-    const map = new Map<string, LawatanRecord>();
-    lawatan.forEach(r => {
-      if (!r.kebunId || !filteredById.has(r.kebunId)) return;
-      const cur = map.get(r.kebunId);
-      const rTime = r.createdAt?.seconds || Date.parse(r.tarikhLawatan || '') / 1000 || 0;
-      const cTime = cur?.createdAt?.seconds || Date.parse(cur?.tarikhLawatan || '') / 1000 || 0;
-      if (!cur || rTime >= cTime) map.set(r.kebunId, r);
-    });
-    return Array.from(map.values());
-  })();
+  // Lawatan semasa bagi setiap kebun: tarikh pemantauan paling baharu,
+  // kemudian masa simpan/kemas kini paling baharu jika tarikhnya sama.
+  const latestLawatan = pilihLawatanSemasaPerKebun(
+    lawatan,
+    new Set(filteredById.keys())
+  );
 
   // Summary stats
   const totalPekebun = filtered.length;
@@ -117,7 +113,7 @@ export default function LaporanPage() {
 
   // Per-negeri breakdown for table
   const negeriBreakdown = (() => {
-    const map: Record<string, { pekebun: Set<string>; ekar: number; pokok: number; kg: number; varietiKg: Record<string, number>; bulan: Set<number> }> = {};
+    const map: Record<string, { pekebun: Set<string>; ekar: number; pokok: number; kg: number; varietiKg: Record<string, { kg: number; pokok: number }>; bulan: Set<number> }> = {};
     filtered.forEach(k => {
       const n = k.negeri || 'Lain-lain';
       if (!map[n]) map[n] = { pekebun: new Set(), ekar: 0, pokok: 0, kg: 0, varietiKg: {}, bulan: new Set() };
@@ -131,10 +127,12 @@ export default function LaporanPage() {
       const n = farm.negeri || 'Lain-lain';
       if (!map[n]) return;
       map[n].kg += r.totalKg || 0;
-      // Aggregate varieti from saved kalkulator results
+      // Pecahan varieti daripada rekod pemantauan semasa negeri tersebut
       if (r.varietiResults) {
         r.varietiResults.forEach(v => {
-          map[n].varietiKg[v.name] = (map[n].varietiKg[v.name] || 0) + (v.kg || 0);
+          if (!map[n].varietiKg[v.name]) map[n].varietiKg[v.name] = { kg: 0, pokok: 0 };
+          map[n].varietiKg[v.name].kg += v.kg || 0;
+          map[n].varietiKg[v.name].pokok += v.pokok || 0;
         });
       }
       // Harvest months from stages
@@ -158,7 +156,7 @@ export default function LaporanPage() {
     const BULAN = ['Jan', 'Feb', 'Mac', 'Apr', 'Mei', 'Jun', 'Jul', 'Ogos', 'Sep', 'Okt', 'Nov', 'Dis'];
     return Object.entries(map).map(([negeri, d]) => ({
       negeri, pekebun: d.pekebun.size, ekar: d.ekar, pokok: d.pokok, kg: d.kg, mt: d.kg / 1000,
-      varietiKg: Object.entries(d.varietiKg).sort((a, b) => b[1] - a[1]),
+      varietiKg: Object.entries(d.varietiKg).sort((a, b) => b[1].kg - a[1].kg),
       bulanPengeluaran: d.bulan.size > 0 ? Array.from(d.bulan).sort((a, b) => a - b).map(m => BULAN[m]).join(' / ') : 'Belum direkodkan',
     })).sort((a, b) => b.mt - a.mt);
   })();
@@ -603,14 +601,13 @@ export default function LaporanPage() {
                         <span className="text-[8px] font-bold text-forest text-right">Metrik Tan (Mt)</span>
                       </div>
                       {/* Table rows */}
-                      {n.varietiKg.slice(0, 6).map(([name, kg], i) => {
-                        const varietiPokok = varietiDist.find(v => v.name === name || v.name.split(' (')[0] === name.split(' (')[0])?.count || 0;
+                      {n.varietiKg.slice(0, 6).map(([name, data], i) => {
                         return (
                           <div key={name} className={`grid grid-cols-4 px-3 py-1.5 ${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                             <span className="text-[9px] text-gray-800 font-medium truncate">{name.split(' (')[0]}</span>
-                            <span className="text-[9px] font-semibold text-forest text-right">{varietiPokok > 0 ? varietiPokok.toLocaleString() : '-'}</span>
-                            <span className="text-[9px] font-bold text-gray-700 text-right">{kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
-                            <span className="text-[9px] font-bold text-gold text-right">{(kg / 1000).toFixed(2)} Mt</span>
+                            <span className="text-[9px] font-semibold text-forest text-right">{data.pokok > 0 ? data.pokok.toLocaleString() : '-'}</span>
+                            <span className="text-[9px] font-bold text-gray-700 text-right">{data.kg.toLocaleString(undefined, { maximumFractionDigits: 0 })} kg</span>
+                            <span className="text-[9px] font-bold text-gold text-right">{(data.kg / 1000).toFixed(2)} Mt</span>
                           </div>
                         );
                       })}
