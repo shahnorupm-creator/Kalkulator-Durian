@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
@@ -49,7 +50,9 @@ interface KebunRecord {
 }
 
 export default function DashboardHQPage() {
-  const { profile } = useAuth();
+  const { profile, loading: authLoading } = useAuth();
+  const router = useRouter();
+  const canViewNationalDashboard = profile?.role === 'superadmin' || profile?.role === 'admin_hq';
   const { t } = useLanguage();
   const [lawatan, setLawatan] = useState<LawatanRecord[]>([]);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
@@ -60,6 +63,15 @@ export default function DashboardHQPage() {
   const [activeBulan, setActiveBulan] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!authLoading && !canViewNationalDashboard) router.replace('/');
+  }, [authLoading, canViewNationalDashboard, router]);
+
+  useEffect(() => {
+    if (!canViewNationalDashboard) {
+      setLawatan([]);
+      setLoading(false);
+      return;
+    }
     const q = query(collectionGroup(db, 'lawatan'));
     const unsub = onSnapshot(q, (snap) => {
       setLawatan(snap.docs.map(d => {
@@ -73,15 +85,19 @@ export default function DashboardHQPage() {
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [canViewNationalDashboard]);
 
   useEffect(() => {
+    if (!canViewNationalDashboard) {
+      setKebun([]);
+      return;
+    }
     const q = query(collection(db, 'kebun'));
     const unsub = onSnapshot(q, (snap) => {
       setKebun(snap.docs.map(d => ({ id: d.id, ...d.data() } as KebunRecord)));
     });
     return () => unsub();
-  }, []);
+  }, [canViewNationalDashboard]);
 
   // Satu rekod pemantauan semasa bagi setiap kebun:
   // tarikh lawatan paling baharu, kemudian masa simpan/kemas kini paling baharu.
@@ -289,6 +305,14 @@ export default function DashboardHQPage() {
   }, [lambakanAlerts, varietiDist]);
 
   const today = new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
+
+  if (authLoading || !canViewNationalDashboard) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center">
+        <p className="text-sm text-gray-400">Menyemak akses Dashboard HQ...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">

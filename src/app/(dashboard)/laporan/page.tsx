@@ -3,14 +3,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
+import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, STAGES, SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
 import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
-  id: string; nama: string; negeri: string; daerah: string;
+  id: string; nama: string; negeri: string; daerah: string; assignedTo?: string;
   saizKebun: number; jumlahPokok: number;
   varietiData?: { usia: string; varieti: string; bilangan: number }[];
   varieti5_9: string; usia5_9: number;
@@ -29,7 +29,7 @@ interface LawatanRecord {
 }
 
 export default function LaporanPage() {
-  const { profile, isSuperAdmin } = useAuth();
+  const { user, profile, isSuperAdmin } = useAuth();
   const { t } = useLanguage();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
@@ -42,28 +42,90 @@ export default function LaporanPage() {
 
   const isHQ = isSuperAdmin || profile?.role === 'admin_hq';
   const isAdminNegeri = profile?.role === 'admin_negeri';
-  const userNegeri = profile?.negeri || '';
+  const userNegeri = profile?.negeri?.trim() || '';
 
   useEffect(() => {
-    const unsub = onSnapshot(query(collection(db, 'kebun')), (snap) => {
+    if (!user || !profile) {
+      setKebun([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setKebun([]);
+    let q;
+    if (isHQ) {
+      q = query(collection(db, 'kebun'));
+    } else if (isAdminNegeri) {
+      if (!userNegeri) {
+        setLoading(false);
+        return;
+      }
+      q = query(collection(db, 'kebun'), where('negeri', '==', userNegeri));
+    } else {
+      q = query(collection(db, 'kebun'), where('assignedTo', '==', user.uid));
+    }
+
+    const unsub = onSnapshot(q, (snap) => {
       setKebun(snap.docs.map(d => ({ id: d.id, ...d.data() } as KebunRecord)));
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [user, profile, isHQ, isAdminNegeri, userNegeri]);
+
+  // Baca lawatan hanya daripada subkoleksi kebun yang berada dalam skop pengguna.
+  useEffect(() => {
+    setLawatan([]);
+    if (kebun.length === 0) return;
+
+    const rekodMengikutKebun = new Map<string, LawatanRecord[]>();
+    let active = true;
+    const publish = () => {
+      if (active) setLawatan(Array.from(rekodMengikutKebun.values()).flat());
+    };
+
+    const unsubs = kebun.map(k => onSnapshot(
+      query(collection(db, 'kebun', k.id, 'lawatan')),
+      (snap) => {
+        rekodMengikutKebun.set(k.id, snap.docs.map(d => {
+          const data = d.data() as Omit<LawatanRecord, 'id' | 'kebunId'> & { kebunId?: string };
+          return { ...data, id: d.id, kebunId: k.id } as LawatanRecord;
+        }));
+        publish();
+      }
+    ));
+
+    return () => {
+      active = false;
+      unsubs.forEach(unsub => unsub());
+    };
+  }, [kebun]);
+
+  // Pertahanan tambahan walaupun query Firestore sudah diskop mengikut peranan.
+  const accessibleKebun = isHQ
+    ? kebun
+    : isAdminNegeri
+      ? kebun.filter(k => k.negeri === userNegeri)
+      : kebun.filter(k => k.assignedTo === user?.uid);
 
   useEffect(() => {
-    const unsub = onSnapshot(query(collectionGroup(db, 'lawatan')), (snap) => {
-      setLawatan(snap.docs.map(d => {
-        const data = d.data() as Omit<LawatanRecord, 'id' | 'kebunId'> & { kebunId?: string };
-        return { ...data, id: d.id, kebunId: data.kebunId || d.ref.parent.parent?.id || '' } as LawatanRecord;
-      }));
-    });
-    return () => unsub();
-  }, []);
-
-  // Scope access
-  const accessibleKebun = isHQ ? kebun : kebun.filter(k => k.negeri === userNegeri);
+    if (!isHQ && filterNegeri !== 'Semua') {
+      setFilterNegeri('Semua');
+      setFilterDaerah('Semua');
+      return;
+    }
+    if (isHQ && filterNegeri !== 'Semua' && !accessibleKebun.some(k => k.negeri === filterNegeri)) {
+      setFilterNegeri('Semua');
+      setFilterDaerah('Semua');
+      return;
+    }
+    const daerahScope = filterNegeri === 'Semua'
+      ? accessibleKebun
+      : accessibleKebun.filter(k => k.negeri === filterNegeri);
+    if (filterDaerah !== 'Semua' && !daerahScope.some(k => k.daerah === filterDaerah)) {
+      setFilterDaerah('Semua');
+    }
+  }, [kebun, isHQ, filterNegeri, filterDaerah, userNegeri, user?.uid]);
 
   // Apply filters
   const filtered = accessibleKebun.filter(k => {
@@ -505,11 +567,19 @@ export default function LaporanPage() {
               {filterDaerah !== 'Semua' && ` • ${filterDaerah}`}
             </p>
           </div>
-          <button onClick={generateReport}
-            className="bg-gradient-gold text-black px-3 py-2 rounded-xl text-[10px] font-bold shadow-md active:scale-[0.98]">
+          <button onClick={generateReport} disabled={isAdminNegeri && !userNegeri}
+            className="bg-gradient-gold text-black px-3 py-2 rounded-xl text-[10px] font-bold shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
             📥 Jana Infografik
           </button>
         </div>
+
+        {isAdminNegeri && (
+          <div className={`rounded-xl border px-3 py-2 text-[10px] ${userNegeri ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+            {userNegeri
+              ? `📍 Laporan dikunci kepada Negeri ${userNegeri} dan daerah di bawahnya.`
+              : 'Negeri belum ditetapkan dalam profil Admin Negeri. Lengkapkan profil untuk menjana laporan.'}
+          </div>
+        )}
 
         {/* Filters — HQ/superadmin can filter negeri */}
         {(isHQ || isAdminNegeri || userNegeri) && (

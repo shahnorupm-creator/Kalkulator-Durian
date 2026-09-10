@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { collection, collectionGroup, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM } from '@/lib/constants';
 import { bandingLawatanSemasa } from '@/lib/lawatan';
@@ -46,6 +46,9 @@ const FASA_PRESETS: Record<string, Record<string, { pct: number; d: number }>> =
 export default function KalkulatorPage() {
   const { user, profile } = useAuth();
   const isAdmin = profile?.role === 'superadmin' || profile?.role === 'admin_negeri' || profile?.role === 'admin_hq';
+  const isNationalAdmin = profile?.role === 'superadmin' || profile?.role === 'admin_hq';
+  const isStateAdmin = profile?.role === 'admin_negeri';
+  const userNegeri = profile?.negeri?.trim() || '';
   const { t } = useLanguage();
   const [kebunList, setKebunList] = useState<KebunRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,17 +62,33 @@ export default function KalkulatorPage() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   useEffect(() => {
-    if (!user) return;
-    const isAdminUser = profile?.role === 'superadmin' || profile?.role === 'admin_negeri' || profile?.role === 'admin_hq';
-    const q = isAdminUser
-      ? query(collection(db, 'kebun'), orderBy('nama'))
-      : query(collection(db, 'kebun'), where('assignedTo', '==', user.uid), orderBy('nama'));
+    if (!user || !profile) {
+      setKebunList([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setKebunList([]);
+    let q;
+    if (isNationalAdmin) {
+      q = query(collection(db, 'kebun'), orderBy('nama'));
+    } else if (isStateAdmin) {
+      if (!userNegeri) {
+        setLoading(false);
+        return;
+      }
+      q = query(collection(db, 'kebun'), where('negeri', '==', userNegeri));
+    } else {
+      q = query(collection(db, 'kebun'), where('assignedTo', '==', user.uid), orderBy('nama'));
+    }
+
     const unsub = onSnapshot(q, (snap) => {
       setKebunList(snap.docs.map(d => ({ id: d.id, ...d.data() } as KebunRecord)));
       setLoading(false);
     });
     return () => unsub();
-  }, [user, profile]);
+  }, [user, profile, isNationalAdmin, isStateAdmin, userNegeri]);
 
   // Track lawatan semasa per kebun untuk status badge
   const [lawatanMap, setLawatanMap] = useState<Record<string, {
@@ -81,37 +100,50 @@ export default function KalkulatorPage() {
   }>>({});
 
   useEffect(() => {
-    const unsub = onSnapshot(query(collectionGroup(db, 'lawatan')), (snap) => {
-      const map: Record<string, {
-        id: string;
-        kebunId: string;
-        tarikhLawatan: string;
-        totalKg: number;
-        createdAt: number;
-      }> = {};
-      snap.docs.forEach(d => {
-        const data = d.data();
-        const kebunId = data.kebunId || d.ref.parent.parent?.id || '';
-        if (!kebunId) return;
-        const calon = {
-          id: d.id,
-          kebunId,
-          tarikhLawatan: data.tarikhLawatan || '',
-          totalKg: data.totalKg || 0,
-          createdAt: data.updatedAt?.seconds || data.createdAt?.seconds || 0,
-        };
-        const semasa = map[kebunId];
-        if (!semasa || bandingLawatanSemasa(
-          { ...calon, createdAt: { seconds: calon.createdAt } },
-          { ...semasa, createdAt: { seconds: semasa.createdAt } }
-        ) > 0) {
-          map[kebunId] = calon;
-        }
-      });
-      setLawatanMap(map);
-    });
-    return () => unsub();
-  }, []);
+    const scopedIds = new Set(kebunList.map(k => k.id));
+    setLawatanMap(prev => Object.fromEntries(
+      Object.entries(prev).filter(([kebunId]) => scopedIds.has(kebunId))
+    ));
+
+    if (kebunList.length === 0) return;
+
+    const unsubs = kebunList.map(k => onSnapshot(
+      query(collection(db, 'kebun', k.id, 'lawatan')),
+      (snap) => {
+        let semasa: {
+          id: string;
+          kebunId: string;
+          tarikhLawatan: string;
+          totalKg: number;
+          createdAt: number;
+        } | undefined;
+
+        snap.docs.forEach(d => {
+          const data = d.data();
+          const calon = {
+            id: d.id,
+            kebunId: k.id,
+            tarikhLawatan: data.tarikhLawatan || '',
+            totalKg: data.totalKg || 0,
+            createdAt: data.updatedAt?.seconds || data.createdAt?.seconds || 0,
+          };
+          if (!semasa || bandingLawatanSemasa(
+            { ...calon, createdAt: { seconds: calon.createdAt } },
+            { ...semasa, createdAt: { seconds: semasa.createdAt } }
+          ) > 0) semasa = calon;
+        });
+
+        setLawatanMap(prev => {
+          const next = { ...prev };
+          if (semasa) next[k.id] = semasa;
+          else delete next[k.id];
+          return next;
+        });
+      }
+    ));
+
+    return () => unsubs.forEach(unsub => unsub());
+  }, [kebunList]);
 
   const sortedKebunList = useMemo(() => {
     const compare = (left?: string, right?: string) =>
@@ -127,6 +159,14 @@ export default function KalkulatorPage() {
         || compare(a.nama, b.nama);
     });
   }, [kebunList]);
+
+  useEffect(() => {
+    if (selectedKebun && !kebunList.some(k => k.id === selectedKebun)) {
+      setSelectedKebun('');
+      setShowPopup(false);
+      setStep(1);
+    }
+  }, [selectedKebun, kebunList]);
 
   const kebun = kebunList.find(k => k.id === selectedKebun);
 
@@ -234,6 +274,14 @@ export default function KalkulatorPage() {
           <div key={s} className={`flex-1 h-1.5 rounded-full transition-all ${s <= step ? 'bg-forest' : 'bg-gray-200'}`} />
         ))}
       </div>
+
+      {isStateAdmin && (
+        <div className={`rounded-xl border px-4 py-2.5 text-xs ${userNegeri ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
+          {userNegeri
+            ? `📍 Skop Admin Negeri: ${userNegeri} dan semua daerah di bawahnya.`
+            : 'Negeri belum ditetapkan dalam profil Admin Negeri. Lengkapkan profil untuk melihat kebun.'}
+        </div>
+      )}
 
       {/* ═══════════════════ STEP 1: Pilih Pekebun ═══════════════════ */}
       {step === 1 && (

@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { collectionGroup, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 
 interface LawatanRecord {
   id: string;
+  key: string;
   tarikhLawatan: string;
   varieti: string;
   jumlahPokok: number;
@@ -19,7 +20,8 @@ interface LawatanRecord {
 }
 
 export default function AdminDashboardPage() {
-  const { profile, isAnyAdmin } = useAuth();
+  const { profile, isAnyAdmin, isSuperAdmin, isAdminNegeri, loading: authLoading } = useAuth();
+  const userNegeri = profile?.negeri?.trim() || '';
   const router = useRouter();
   const [records, setRecords] = useState<LawatanRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,24 +29,73 @@ export default function AdminDashboardPage() {
   const [filterPegawai, setFilterPegawai] = useState('');
 
   useEffect(() => {
-    if (profile && !isAnyAdmin) {
-      router.push('/');
-    }
-  }, [profile, isAnyAdmin, router]);
+    if (!authLoading && profile && !isAnyAdmin) router.replace('/');
+  }, [authLoading, profile, isAnyAdmin, router]);
 
   useEffect(() => {
-    const q = query(collectionGroup(db, 'lawatan'), orderBy('tarikhLawatan', 'desc'));
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const list: LawatanRecord[] = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as LawatanRecord[];
-      setRecords(list);
+    if (authLoading) return;
+    if (!isAnyAdmin || (isAdminNegeri && !userNegeri)) {
+      setRecords([]);
       setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setRecords([]);
+    const kebunQuery = isSuperAdmin
+      ? query(collection(db, 'kebun'))
+      : query(collection(db, 'kebun'), where('negeri', '==', userNegeri));
+
+    let lawatanUnsubs: (() => void)[] = [];
+    const unsubscribeKebun = onSnapshot(kebunQuery, (kebunSnap) => {
+      lawatanUnsubs.forEach(unsub => unsub());
+      lawatanUnsubs = [];
+      const recordsByKebun = new Map<string, LawatanRecord[]>();
+
+      if (kebunSnap.empty) {
+        setRecords([]);
+        setLoading(false);
+        return;
+      }
+
+      const publish = () => {
+        const rows = Array.from(recordsByKebun.values()).flat()
+          .sort((a, b) => (b.tarikhLawatan || '').localeCompare(a.tarikhLawatan || ''));
+        setRecords(rows);
+        setLoading(false);
+      };
+
+      lawatanUnsubs = kebunSnap.docs.map(kebunDoc => onSnapshot(
+        query(collection(db, 'kebun', kebunDoc.id, 'lawatan')),
+        (snapshot) => {
+          recordsByKebun.set(kebunDoc.id, snapshot.docs.map(lawatanDoc => {
+            const data = lawatanDoc.data();
+            const varieti = Array.isArray(data.varietiResults)
+              ? data.varietiResults.map((v: { name?: string }) => v.name).filter(Boolean).join(', ')
+              : data.varieti || '-';
+            return {
+              id: lawatanDoc.id,
+              key: lawatanDoc.ref.path,
+              tarikhLawatan: data.tarikhLawatan || '',
+              varieti,
+              jumlahPokok: data.jumlahPokok || 0,
+              totalKg: data.totalKg || 0,
+              totalTan: data.totalTan || 0,
+              pegawaiNama: data.pegawaiNama || '',
+              pegawaiDaerah: data.pegawaiDaerah || data.daerah || '',
+              saizKebun: data.saizKebun || 0,
+            } as LawatanRecord;
+          }));
+          publish();
+        }
+      ));
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      unsubscribeKebun();
+      lawatanUnsubs.forEach(unsub => unsub());
+    };
+  }, [authLoading, isAnyAdmin, isSuperAdmin, isAdminNegeri, userNegeri]);
 
   const filtered = records.filter((r) => {
     if (filterDaerah && !r.pegawaiDaerah?.toLowerCase().includes(filterDaerah.toLowerCase())) {
@@ -150,7 +201,7 @@ export default function AdminDashboardPage() {
       ) : (
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
           {filtered.map((r) => (
-            <div key={r.id} className="bg-white rounded-xl p-3 shadow-sm text-xs">
+            <div key={r.key} className="bg-white rounded-xl p-3 shadow-sm text-xs">
               <div className="flex justify-between">
                 <div>
                   <p className="font-semibold text-forest">{r.pegawaiNama}</p>

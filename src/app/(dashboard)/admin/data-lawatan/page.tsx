@@ -30,7 +30,7 @@ interface KebunLite {
 }
 
 export default function DataLawatanPage() {
-  const { profile, isSuperAdmin } = useAuth();
+  const { profile, isSuperAdmin, loading: authLoading } = useAuth();
   const router = useRouter();
   const [lawatan, setLawatan] = useState<LawatanRow[]>([]);
   const [kebun, setKebun] = useState<KebunLite[]>([]);
@@ -40,10 +40,15 @@ export default function DataLawatanPage() {
 
   // Hanya superadmin
   useEffect(() => {
-    if (profile && !isSuperAdmin) router.push('/');
-  }, [profile, isSuperAdmin, router]);
+    if (!authLoading && profile && !isSuperAdmin) router.replace('/');
+  }, [authLoading, profile, isSuperAdmin, router]);
 
   useEffect(() => {
+    if (authLoading || !isSuperAdmin) {
+      setLawatan([]);
+      if (!authLoading) setLoading(false);
+      return;
+    }
     const unsub = onSnapshot(query(collectionGroup(db, 'lawatan')), (snap) => {
       const rows: LawatanRow[] = snap.docs.map(d => {
         const data = d.data();
@@ -65,14 +70,18 @@ export default function DataLawatanPage() {
       setLoading(false);
     });
     return () => unsub();
-  }, []);
+  }, [authLoading, isSuperAdmin]);
 
   useEffect(() => {
+    if (authLoading || !isSuperAdmin) {
+      setKebun([]);
+      return;
+    }
     const unsub = onSnapshot(query(collection(db, 'kebun')), (snap) => {
       setKebun(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<KebunLite, 'id'>) })));
     });
     return () => unsub();
-  }, []);
+  }, [authLoading, isSuperAdmin]);
 
   // Peta kebun ikut id & nama untuk pemulihan negeri
   const { kebunById, kebunByNama } = useMemo(() => {

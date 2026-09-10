@@ -45,7 +45,7 @@ export const APP_PAGES = [
 export const DEFAULT_PAGE_ACCESS: Record<string, UserRole[]> = {
   profil_kebun: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   kalkulator: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
-  dashboard_hq: ['superadmin', 'admin_negeri', 'admin_hq'],
+  dashboard_hq: ['superadmin', 'admin_hq'],
   laporan: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   profil: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   admin: ['superadmin', 'admin_negeri'],
@@ -161,6 +161,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const hasPageAccess = (pageKey: string): boolean => {
     if (!profile) return false;
     if (isSuperAdmin) return true; // Super admin access all
+    // Dashboard HQ ialah analitik nasional dan tidak boleh dibuka oleh Admin Negeri.
+    if (pageKey === 'dashboard_hq') return profile.role === 'admin_hq';
     const allowedRoles = pageAccess[pageKey] || [];
     return allowedRoles.includes(profile.role);
   };

@@ -58,7 +58,7 @@ const USIA_BRACKETS = [
 ] as const;
 
 export default function ProfilKebunPage() {
-  const { user, profile, isSuperAdmin, isAnyAdmin, signOut } = useAuth();
+  const { user, profile, isSuperAdmin, isAdminNegeri, isAnyAdmin, signOut } = useAuth();
   const { t } = useLanguage();
   const [kebunList, setKebunList] = useState<KebunRecord[]>([]);
   const [pegawaiList, setPegawaiList] = useState<PegawaiOption[]>([]);
@@ -74,8 +74,8 @@ export default function ProfilKebunPage() {
   const [gettingLocation, setGettingLocation] = useState(false);
   const [locationAccuracy, setLocationAccuracy] = useState<number | null>(null);
 
-  const userNegeri = profile?.negeri || '';
-  const canAccessAllNegeri = isSuperAdmin || profile?.role === 'admin_hq' || profile?.role === 'admin_negeri';
+  const userNegeri = profile?.negeri?.trim() || '';
+  const canAccessAllNegeri = isSuperAdmin || profile?.role === 'admin_hq';
 
   const [form, setForm] = useState({
     negeri: '',
@@ -113,8 +113,10 @@ export default function ProfilKebunPage() {
   };
 
   useEffect(() => {
-    if (!canAccessAllNegeri && userNegeri) {
-      setForm(prev => ({ ...prev, negeri: userNegeri }));
+    if (!canAccessAllNegeri) {
+      setForm(prev => prev.negeri === userNegeri
+        ? prev
+        : { ...prev, negeri: userNegeri, daerah: '' });
     }
   }, [canAccessAllNegeri, userNegeri]);
 
@@ -124,28 +126,52 @@ export default function ProfilKebunPage() {
   const jumlahPokokFromUsia = varietiData.reduce((sum, item) => sum + (item.bilangan || 0), 0);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !profile) {
+      setKebunList([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setKebunList([]);
     let q;
     if (canAccessAllNegeri) {
       q = query(collection(db, 'kebun'), orderBy('nama'));
+    } else if (isAdminNegeri) {
+      if (!userNegeri) {
+        setLoading(false);
+        return;
+      }
+      q = query(collection(db, 'kebun'), where('negeri', '==', userNegeri));
     } else {
       q = query(collection(db, 'kebun'), where('assignedTo', '==', user.uid), orderBy('nama'));
     }
+
     const unsub = onSnapshot(q, (snap) => {
       setKebunList(snap.docs.map(d => ({ id: d.id, ...d.data() } as KebunRecord)));
       setLoading(false);
     });
     return () => unsub();
-  }, [user, canAccessAllNegeri]);
+  }, [user, profile, canAccessAllNegeri, isAdminNegeri, userNegeri]);
 
   useEffect(() => {
-    if (!isSuperAdmin && !isAnyAdmin) return;
-    const q = query(collection(db, 'users'));
+    if (!isSuperAdmin && !isAdminNegeri) {
+      setPegawaiList([]);
+      return;
+    }
+    if (isAdminNegeri && !userNegeri) {
+      setPegawaiList([]);
+      return;
+    }
+
+    const q = isSuperAdmin
+      ? query(collection(db, 'users'))
+      : query(collection(db, 'users'), where('negeri', '==', userNegeri));
     const unsub = onSnapshot(q, (snap) => {
       setPegawaiList(snap.docs.map(d => ({ uid: d.id, nama: d.data().nama || '-', negeri: d.data().negeri || '' })));
     });
     return () => unsub();
-  }, [isSuperAdmin, isAnyAdmin]);
+  }, [isSuperAdmin, isAdminNegeri, userNegeri]);
 
   // Auto-format: Capitalize Each Word
   const ACRONYMS = ['FAMA', 'IOI', 'HQ', 'GPS', 'MARDI', 'MPOB', 'RISDA', 'FELDA', 'FELCRA', 'JPM', 'KPM'];
@@ -263,7 +289,7 @@ export default function ProfilKebunPage() {
 
       const data = {
         nama: form.nama.trim(),
-        negeri: form.negeri,
+        negeri: canAccessAllNegeri ? form.negeri : userNegeri,
         daerah: form.daerah,
         mukim: form.mukim.trim(),
         alamat: form.alamat.trim(),
@@ -449,7 +475,17 @@ export default function ProfilKebunPage() {
       {!canAccessAllNegeri && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center gap-2">
           <span className="text-sm">📍</span>
-          <p className="text-xs text-blue-700">{t('kebun.assignedInfo')}</p>
+          <p className="text-xs text-blue-700">
+            {isAdminNegeri
+              ? `Paparan dikunci kepada Negeri ${userNegeri || 'yang ditetapkan dalam profil'} dan daerah di bawahnya.`
+              : t('kebun.assignedInfo')}
+          </p>
+        </div>
+      )}
+
+      {isAdminNegeri && !userNegeri && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-xs text-amber-700">
+          Negeri belum ditetapkan dalam profil Admin Negeri. Lengkapkan profil sebelum mengurus data kebun.
         </div>
       )}
 
