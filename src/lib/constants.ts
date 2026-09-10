@@ -37,6 +37,26 @@ export const NEGERI_DAERAH: Record<string, string[]> = {
 
 export const SENARAI_NEGERI = Object.keys(NEGERI_DAERAH);
 
+// Padan nama daerah kepada negeri (untuk pulihkan negeri bagi rekod lama yang tiada medan negeri).
+// Turut cuba padanan separa: jika teks mengandungi nama daerah atau nama negeri yang dikenali.
+export function negeriDariDaerah(daerah?: string): string {
+  if (!daerah || !daerah.trim()) return '';
+  const cari = daerah.trim().toLowerCase();
+  // 1) Padanan tepat nama daerah
+  for (const [negeri, senaraiDaerah] of Object.entries(NEGERI_DAERAH)) {
+    if (senaraiDaerah.some(d => d.toLowerCase() === cari)) return negeri;
+  }
+  // 2) Teks mengandungi nama daerah (contoh "Kulim, Kedah")
+  for (const [negeri, senaraiDaerah] of Object.entries(NEGERI_DAERAH)) {
+    if (senaraiDaerah.some(d => cari.includes(d.toLowerCase()))) return negeri;
+  }
+  // 3) Teks mengandungi nama negeri secara langsung
+  for (const negeri of Object.keys(NEGERI_DAERAH)) {
+    if (cari.includes(negeri.toLowerCase())) return negeri;
+  }
+  return '';
+}
+
 // Bendera negeri Malaysia — using inline SVG color blocks (no external dependency, always works)
 // Bendera negeri Malaysia — local static SVG files in /public/flags/
 export const NEGERI_FLAG: Record<string, string> = {

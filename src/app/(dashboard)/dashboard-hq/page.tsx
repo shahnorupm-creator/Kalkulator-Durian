@@ -5,17 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES, NEGERI_DAERAH } from '@/lib/constants';
-
-// Padan nama daerah kepada negeri (untuk pulihkan negeri bagi rekod lama yang tiada medan negeri)
-function negeriDariDaerah(daerah?: string): string {
-  if (!daerah || !daerah.trim()) return '';
-  const cari = daerah.trim().toLowerCase();
-  for (const [negeri, senaraiDaerah] of Object.entries(NEGERI_DAERAH)) {
-    if (senaraiDaerah.some(d => d.toLowerCase() === cari)) return negeri;
-  }
-  return '';
-}
+import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES, negeriDariDaerah } from '@/lib/constants';
 
 interface LawatanRecord {
   id: string;
@@ -31,6 +21,7 @@ interface LawatanRecord {
   negeri: string;
   daerah: string;
   kebunId: string;
+  kebunNama: string;
   fasa: string;
   fasaUtama: string;
 }
@@ -145,13 +136,20 @@ export default function DashboardHQPage() {
 
   // Monthly forecast
   const monthlyForecast = useMemo(() => {
-    // Peta kebun untuk pulihkan negeri daripada profil kebun terkini (berdasarkan kebunId)
+    // Peta kebun untuk pulihkan negeri daripada profil kebun terkini
     const kebunMap: Record<string, KebunRecord> = {};
-    kebun.forEach(k => { kebunMap[k.id] = k; });
+    const kebunByNama: Record<string, KebunRecord> = {};
+    kebun.forEach(k => {
+      kebunMap[k.id] = k;
+      if (k.nama) kebunByNama[k.nama.trim().toLowerCase()] = k;
+    });
 
-    // Pulihkan negeri bagi satu rekod lawatan daripada pelbagai sumber
+    // Pulihkan negeri bagi satu rekod lawatan daripada pelbagai sumber (berlapis)
     const resolveNegeri = (l: LawatanRecord): string => {
-      const dariKebun = l.kebunId ? kebunMap[l.kebunId] : undefined;
+      // 1) Padan profil kebun ikut kebunId, atau ikut nama kebun jika id tak padan
+      const dariKebun = (l.kebunId && kebunMap[l.kebunId])
+        || (l.kebunNama && kebunByNama[l.kebunNama.trim().toLowerCase()])
+        || undefined;
       return (l.negeri && l.negeri.trim())
         || (dariKebun?.negeri && dariKebun.negeri.trim())
         || negeriDariDaerah(l.daerah)

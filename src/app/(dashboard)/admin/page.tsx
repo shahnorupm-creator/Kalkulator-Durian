@@ -246,6 +246,23 @@ export default function AdminPage() {
         </Link>
       )}
 
+      {/* Super Admin — Pembersihan Data Lawatan */}
+      {isSuperAdmin && (
+        <Link href="/admin/data-lawatan"
+          className="block bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 hover:bg-amber-100 transition-all">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🧹</span>
+              <div>
+                <p className="text-sm font-bold text-amber-700">Pembersihan Data Lawatan</p>
+                <p className="text-[9px] text-amber-600">Betulkan rekod &quot;Negeri Tidak Direkod&quot; dalam dashboard</p>
+              </div>
+            </div>
+            <span className="text-amber-400">→</span>
+          </div>
+        </Link>
+      )}
+
       {/* Role Info */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <h4 className="text-xs font-bold text-gray-600 mb-2">Hierarki Role:</h4>
