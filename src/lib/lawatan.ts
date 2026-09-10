@@ -19,17 +19,19 @@ function kemasKiniMs(rekod: LawatanSemasaBase): number {
 
 /**
  * Banding dua rekod lawatan.
- * Keutamaan: tarikh pemantauan paling baharu, kemudian masa kemas kini/simpan paling baharu.
+ * Keutamaan: rekod yang PALING BAHARU DISIMPAN dianggap rekod lawatan terakhir,
+ * kemudian tarikh pemantauan sebagai pemutus seri. Ini kerana pemantauan terakhir
+ * yang dimasukkan pegawai ialah maklumat terkini, walaupun tarikh lawatannya lebih awal.
  */
 export function bandingLawatanSemasa(
   a: LawatanSemasaBase,
   b: LawatanSemasaBase
 ): number {
-  const bezaTarikh = tarikhLawatanMs(a.tarikhLawatan) - tarikhLawatanMs(b.tarikhLawatan);
-  if (bezaTarikh !== 0) return bezaTarikh;
-
   const bezaKemasKini = kemasKiniMs(a) - kemasKiniMs(b);
   if (bezaKemasKini !== 0) return bezaKemasKini;
+
+  const bezaTarikh = tarikhLawatanMs(a.tarikhLawatan) - tarikhLawatanMs(b.tarikhLawatan);
+  if (bezaTarikh !== 0) return bezaTarikh;
 
   // Pemutus seri deterministik jika timestamp sama.
   return (a.id || '').localeCompare(b.id || '');

@@ -350,6 +350,12 @@ export default function KalkulatorPage() {
       });
       setLawatanDimuat(prev => new Set(prev).add(kebun.id));
       toast.success(t('calc.saved'));
+      // Kosongkan borang dan kembali ke Step 2 supaya panel "Rekod Lawatan Terakhir"
+      // memaparkan rekod yang baru sahaja disimpan sebagai rujukan.
+      setTarikhLawatan('');
+      setFasaUtama('');
+      setStages(buatStagesKosong());
+      setStep(2);
     } catch (e) { console.error(e); toast.error(t('calc.saveFailed')); }
     setSaving(false);
   };

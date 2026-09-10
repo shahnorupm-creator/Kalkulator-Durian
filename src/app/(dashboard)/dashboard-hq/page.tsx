@@ -351,10 +351,12 @@ export default function DashboardHQPage() {
           <p className="text-[9px] text-moss mt-0.5">{t('dash.metrikTan')}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">{t('dash.rekodLawatan')}</p>
-          <p className="text-2xl font-bold text-forest mt-1">{kpi.totalLawatan}</p>
-          <p className={`text-[9px] mt-0.5 ${jumlahLewatPemantauan > 0 ? 'text-red-600 font-semibold' : 'text-moss'}`}>
-            {jumlahLewatPemantauan > 0 ? `${jumlahLewatPemantauan} perlu pemantauan` : t('dash.entryDirekod')}
+          <p className="text-[9px] text-gray-400 font-medium">Kategori Varieti</p>
+          <p className="text-2xl font-bold text-forest mt-1">{varietiDist.length}</p>
+          <p className="text-[9px] text-moss mt-0.5 truncate">
+            {varietiDist.length > 0
+              ? `Tertinggi: ${varietiDist[0].name.split(' (')[0]}`
+              : 'Belum ada data'}
           </p>
         </div>
       </div>

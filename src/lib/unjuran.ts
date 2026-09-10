@@ -158,7 +158,12 @@ export function statusPemantauan(tarikhLawatan: string | undefined, tarikhSemasa
     return { status: 'hampir', hariSejakLawatan: hari, hariLewat: 0, label: `Pemantauan semula dalam ${AMBANG_PEMANTAUAN_HARI - hari} hari` };
   }
   const hariLewat = hari - AMBANG_PEMANTAUAN_HARI;
-  return { status: 'lewat', hariSejakLawatan: hari, hariLewat, label: `Lewat pemantauan ${hariLewat} hari` };
+  return {
+    status: 'lewat',
+    hariSejakLawatan: hari,
+    hariLewat,
+    label: `Lewat pemantauan ${hariLewat} hari. Sila lakukan pemantauan ke lapangan dan dapatkan maklumat terkini.`,
+  };
 }
 
 function namaVarieti(key?: string, name?: string): { key: string; name: string } {
