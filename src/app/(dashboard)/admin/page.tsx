@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth, ALL_ROLES, ROLE_LABELS, ROLE_COLORS } from '@/contexts/AuthContext';
 import type { UserRole } from '@/contexts/AuthContext';
 import { collection, query, onSnapshot, doc, updateDoc, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { SENARAI_NEGERI } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -87,6 +87,15 @@ export default function AdminPage() {
       return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
     });
 
+  // Bina header dengan ID token pemanggil untuk pengesahan di sisi server
+  const authHeaders = async (): Promise<Record<string, string>> => {
+    const token = await auth.currentUser?.getIdToken();
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.email || !form.password || !form.nama) {
@@ -98,7 +107,7 @@ export default function AdminPage() {
       const negeriToAssign = isNegeriScoped ? adminNegeri : form.negeri;
       const res = await fetch('/api/admin/create-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({
           email: form.email,
           password: form.password,
@@ -161,7 +170,7 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/update-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({
           uid: settingsTarget.uid,
           email: emailChanged ? settingsForm.email.trim() : undefined,
@@ -185,13 +194,14 @@ export default function AdminPage() {
     try {
       const res = await fetch('/api/admin/delete-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({ uid }),
       });
-      if (!res.ok) throw new Error('Gagal');
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Gagal');
       toast.success('Pengguna dipadam.');
     } catch (e) {
-      toast.error('Gagal memadam.');
+      toast.error(e instanceof Error ? e.message : 'Gagal memadam.');
     }
   };
 

@@ -1,10 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { adminAuth, adminDb } from '@/lib/firebase-admin';
+import { requireRole, AuthError } from '@/lib/admin-auth';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: NextRequest) {
   try {
+    // Hanya superadmin boleh kemas kini email/kata laluan pengguna
+    await requireRole(request, ['superadmin']);
+
     const { uid, email, password } = await request.json();
 
     if (!uid) {
@@ -52,6 +56,9 @@ export async function POST(request: NextRequest) {
       message: 'Maklumat pengguna berjaya dikemas kini.',
     });
   } catch (error: unknown) {
+    if (error instanceof AuthError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
     console.error('Error updating user:', error);
     let message = error instanceof Error ? error.message : 'Ralat dalaman pelayan.';
 

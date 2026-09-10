@@ -5,7 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collectionGroup, collection, query, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES } from '@/lib/constants';
+import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES, NEGERI_DAERAH } from '@/lib/constants';
+
+// Padan nama daerah kepada negeri (untuk pulihkan negeri bagi rekod lama yang tiada medan negeri)
+function negeriDariDaerah(daerah?: string): string {
+  if (!daerah || !daerah.trim()) return '';
+  const cari = daerah.trim().toLowerCase();
+  for (const [negeri, senaraiDaerah] of Object.entries(NEGERI_DAERAH)) {
+    if (senaraiDaerah.some(d => d.toLowerCase() === cari)) return negeri;
+  }
+  return '';
+}
 
 interface LawatanRecord {
   id: string;
@@ -19,6 +29,8 @@ interface LawatanRecord {
   pegawaiNama: string;
   pegawaiDaerah: string;
   negeri: string;
+  daerah: string;
+  kebunId: string;
   fasa: string;
   fasaUtama: string;
 }
@@ -85,7 +97,7 @@ export default function DashboardHQPage() {
   const negeriRanking = useMemo(() => {
     const map: Record<string, { kebun: number; ekar: number; pokok: number; kg: number }> = {};
     kebun.forEach(k => {
-      const n = k.negeri || 'Lain-lain';
+      const n = (k.negeri && k.negeri.trim()) || negeriDariDaerah(k.daerah) || 'Negeri Tidak Direkod';
       if (!map[n]) map[n] = { kebun: 0, ekar: 0, pokok: 0, kg: 0 };
       map[n].kebun += 1;
       map[n].ekar += k.saizKebun || 0;
@@ -119,7 +131,7 @@ export default function DashboardHQPage() {
         );
         // Nama papar: guna nama penuh rasmi; jika varieti bebas, Capitalize Each Word
         const nama = ref?.name || capitalizeWords(raw);
-        const hasilPerPokok = ref?.hasil ?? 120;
+        const hasilPerPokok = ref?.hasil ?? 150;
         if (!map[nama]) map[nama] = { kg: 0, pokok: 0 };
         map[nama].kg += v.bilangan * hasilPerPokok;
         map[nama].pokok += v.bilangan;
@@ -133,25 +145,46 @@ export default function DashboardHQPage() {
 
   // Monthly forecast
   const monthlyForecast = useMemo(() => {
-    const map: Record<string, { kg: number; negeri: Set<string>; negeriKg: Record<string, number> }> = {};
+    // Peta kebun untuk pulihkan negeri daripada profil kebun terkini (berdasarkan kebunId)
+    const kebunMap: Record<string, KebunRecord> = {};
+    kebun.forEach(k => { kebunMap[k.id] = k; });
+
+    // Pulihkan negeri bagi satu rekod lawatan daripada pelbagai sumber
+    const resolveNegeri = (l: LawatanRecord): string => {
+      const dariKebun = l.kebunId ? kebunMap[l.kebunId] : undefined;
+      return (l.negeri && l.negeri.trim())
+        || (dariKebun?.negeri && dariKebun.negeri.trim())
+        || negeriDariDaerah(l.daerah)
+        || negeriDariDaerah(dariKebun?.daerah)
+        || negeriDariDaerah(l.pegawaiDaerah)
+        || 'Negeri Tidak Direkod';
+    };
+
+    const map: Record<string, { kg: number; negeri: Set<string>; negeriKg: Record<string, number>; sort: number }> = {};
     lawatan.forEach(l => {
       if (!l.tarikhLawatan) return;
       const d = new Date(l.tarikhLawatan); d.setDate(d.getDate() + 30);
       const key = d.toLocaleDateString('ms-MY', { month: 'long', year: 'numeric' });
-      if (!map[key]) map[key] = { kg: 0, negeri: new Set(), negeriKg: {} };
-      const nama = l.negeri || l.pegawaiDaerah || 'Lain-lain';
+      // Nilai susunan berdasarkan tahun & bulan sebenar
+      const sortVal = d.getFullYear() * 12 + d.getMonth();
+      if (!map[key]) map[key] = { kg: 0, negeri: new Set(), negeriKg: {}, sort: sortVal };
+      const nama = resolveNegeri(l);
       map[key].kg += l.totalKg || 0;
       map[key].negeri.add(nama);
       map[key].negeriKg[nama] = (map[key].negeriKg[nama] || 0) + (l.totalKg || 0);
     });
-    return Object.entries(map).map(([bulan, d]) => ({
-      bulan,
-      kg: d.kg,
-      negeriCount: d.negeri.size,
-      // Senarai negeri disusun mengikut sumbangan kg tertinggi
-      negeriList: Object.entries(d.negeriKg).sort((a, b) => b[1] - a[1]).map(([nama, kg]) => ({ nama, kg })),
-    }));
-  }, [lawatan]);
+    return Object.entries(map)
+      .map(([bulan, d]) => ({
+        bulan,
+        kg: d.kg,
+        sort: d.sort,
+        negeriCount: d.negeri.size,
+        // Senarai negeri disusun mengikut sumbangan kg tertinggi
+        negeriList: Object.entries(d.negeriKg).sort((a, b) => b[1] - a[1]).map(([nama, kg]) => ({ nama, kg })),
+      }))
+      // Susun bulan ikut turutan tarikh (awal ke akhir)
+      .sort((a, b) => a.sort - b.sort);
+  }, [lawatan, kebun]);
   const maxMonthKg = Math.max(...monthlyForecast.map(m => m.kg), 1);
 
   // Lambakan detection
@@ -163,6 +196,40 @@ export default function DashboardHQPage() {
         level: m.kg >= 10000 || m.negeriCount >= 5 ? 'KRITIKAL' : m.kg >= 5000 || m.negeriCount >= 4 ? 'TINGGI' : 'SEDERHANA',
       }));
   }, [monthlyForecast]);
+
+  // Enjin cadangan intervensi FAMA — berasaskan data sebenar (tahap risiko, MT, negeri, varieti).
+  // Menghasilkan cadangan berpadanan: padanan perniagaan/pemborong, pembelian intervensi,
+  // pemprosesan, program jualan terus, eksport, dan koordinasi logistik.
+  const cadanganIntervensi = useMemo(() => {
+    if (lambakanAlerts.length === 0) return [];
+
+    const puncak = lambakanAlerts.reduce((a, b) => (b.kg > a.kg ? b : a), lambakanAlerts[0]);
+    const level = puncak.level;
+    const puncakMT = puncak.kg / 1000;
+    const negeriUtama = puncak.negeriList[0]?.nama || '';
+    const varietiUtama = varietiDist[0]?.name || '';
+    const senarai: { ikon: string; teks: string }[] = [];
+
+    if (level === 'KRITIKAL') {
+      // Lambakan besar & merentas banyak negeri — perlu pelbagai saluran serentak
+      senarai.push({ ikon: '🏭', teks: 'Aktifkan Pembelian Intervensi & alihkan lebihan hasil ke fasiliti pemprosesan (puri, beku, pes durian) untuk lanjutkan jangka hayat produk.' });
+      senarai.push({ ikon: '🤝', teks: `Laksanakan padanan perniagaan segera dengan pemborong besar${negeriUtama ? ` bagi menyerap hasil dari ${negeriUtama}` : ''}.` });
+      senarai.push({ ikon: '🌏', teks: `Hubungi pembeli eksport untuk ${varietiUtama || 'varieti premium'} bagi kurangkan tekanan pasaran tempatan.` });
+      senarai.push({ ikon: '🚚', teks: 'Koordinasi logistik antara negeri & pusat pengumpulan supaya agihan lebih sekata.' });
+    } else if (level === 'TINGGI') {
+      senarai.push({ ikon: '🤝', teks: `Utamakan padanan perniagaan melalui pemborong${negeriUtama ? ` di ${negeriUtama}` : ''} sebelum lebihan meningkat.` });
+      senarai.push({ ikon: '🛒', teks: 'Anjurkan Program Jualan Terus (pasar tani/jualan komuniti) untuk menyerap hasil di peringkat tempatan.' });
+      senarai.push({ ikon: '🏭', teks: 'Sediakan pilihan pemprosesan sebagai penampan jika permintaan segar tidak mencukupi.' });
+    } else {
+      // SEDERHANA — masih boleh diurus melalui saluran biasa
+      senarai.push({ ikon: '🛒', teks: 'Galakkan Program Jualan Terus dan promosi tempatan untuk mengekalkan aliran jualan.' });
+      senarai.push({ ikon: '📊', teks: 'Pantau unjuran mingguan; sedia laksanakan padanan pemborong jika hasil meningkat.' });
+    }
+
+    // Nota kuantiti untuk konteks keputusan
+    senarai.push({ ikon: '📦', teks: `Anggaran ${puncakMT.toFixed(0)} MT dijangka pada ${puncak.bulan} — rancang kapasiti serapan awal.` });
+    return senarai;
+  }, [lambakanAlerts, varietiDist]);
 
   const today = new Date().toLocaleDateString('ms-MY', { day: 'numeric', month: 'long', year: 'numeric' });
 
@@ -209,96 +276,67 @@ export default function DashboardHQPage() {
         </div>
       </div>
 
-      {/* Lambakan Alert */}
-      {lambakanAlerts.length > 0 && (
-        <div className={`rounded-xl p-4 border ${
-          lambakanAlerts[0].level === 'KRITIKAL' ? 'bg-red-50 border-red-200' :
-          lambakanAlerts[0].level === 'TINGGI' ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'
-        }`}>
-          <div className="flex items-start gap-3">
-            <span className="text-2xl mt-0.5">
-              {lambakanAlerts[0].level === 'KRITIKAL' ? '🔴' : lambakanAlerts[0].level === 'TINGGI' ? '🟠' : '🟡'}
-            </span>
-            <div className="flex-1">
-              <p className={`text-sm font-bold ${
-                lambakanAlerts[0].level === 'KRITIKAL' ? 'text-red-700' :
-                lambakanAlerts[0].level === 'TINGGI' ? 'text-orange-700' : 'text-amber-700'
-              }`}>
-                Amaran Lambakan: Risiko {lambakanAlerts[0].level}
-              </p>
-              <div className="mt-2 space-y-1">
-                {lambakanAlerts.map((a, i) => (
-                  <p key={i} className="text-[10px] text-gray-700">
-                    <span className="font-semibold">{a.bulan}</span> — {(a.kg/1000).toFixed(2)} MT dari {a.negeriCount} negeri
-                  </p>
+      {/* 1. Jadual Ringkasan Negeri */}
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-bold text-forest">{t('dash.jadualNegeri')}</h3>
+          <span className="text-[9px] text-gray-400">{negeriRanking.length} negeri</span>
+        </div>
+        {negeriRanking.length === 0 ? (
+          <p className="text-xs text-gray-400 text-center py-4">Belum ada data</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-[10px]">
+              <thead>
+                <tr className="border-b-2 border-forest/20">
+                  <th className="py-2 text-left font-bold text-forest">#</th>
+                  <th className="py-2 text-left font-bold text-forest">Negeri</th>
+                  <th className="py-2 text-right font-bold text-forest">Kebun</th>
+                  <th className="py-2 text-right font-bold text-forest">Ekar</th>
+                  <th className="py-2 text-right font-bold text-forest">Pokok</th>
+                  <th className="py-2 text-right font-bold text-forest">Hasil (MT)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {negeriRanking.map((n, i) => (
+                  <tr key={n.negeri} className={`border-b border-gray-100 ${i === 0 ? 'bg-gold/5' : ''}`}>
+                    <td className="py-2 font-semibold text-gray-400">{i + 1}</td>
+                    <td className="py-2 font-medium">
+                      <span className="flex items-center gap-1.5">
+                        {NEGERI_FLAG[n.negeri] ? (
+                          <img src={NEGERI_FLAG[n.negeri]} alt="" className="w-5 h-3.5 object-contain rounded-sm flex-shrink-0" />
+                        ) : NEGERI_FLAG_COLORS[n.negeri] ? (
+                          <span className="inline-block w-5 h-3.5 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
+                            <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].top }} />
+                            <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].bottom }} />
+                          </span>
+                        ) : null}
+                        {n.negeri}
+                      </span>
+                    </td>
+                    <td className="py-2 text-right">{n.kebun}</td>
+                    <td className="py-2 text-right">{n.ekar.toFixed(1)}</td>
+                    <td className="py-2 text-right">{n.pokok.toLocaleString()}</td>
+                    <td className="py-2 text-right font-bold text-forest">{(n.kg / 1000).toFixed(3)}</td>
+                  </tr>
                 ))}
-              </div>
-              <p className="text-[9px] text-gray-500 mt-2">
-                💡 Cadangan: {lambakanAlerts[0].level === 'KRITIKAL'
-                  ? 'Sediakan logistik segera, aktifkan pusat pengumpulan & hubungi pembeli eksport.'
-                  : 'Pantau perkembangan & koordinasi logistik dengan HQ.'}
-              </p>
-            </div>
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-forest/20 font-bold">
+                  <td className="py-2" colSpan={2}>JUMLAH</td>
+                  <td className="py-2 text-right">{kpi.totalKebun}</td>
+                  <td className="py-2 text-right">{kpi.totalEkar.toFixed(1)}</td>
+                  <td className="py-2 text-right">{kpi.totalPokok.toLocaleString()}</td>
+                  <td className="py-2 text-right text-forest">{kpi.totalMT.toFixed(3)}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
-      {lambakanAlerts.length === 0 && lawatan.length > 0 && (
-        <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
-          <span>🟢</span>
-          <p className="text-[10px] text-green-700 font-medium">{t('dash.lambakanSafe')}</p>
-        </div>
-      )}
-
-      {/* Two Column Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-        {/* Negeri Ranking */}
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-forest">{t('dash.negeriRanking')}</h3>
-            <span className="text-[9px] text-gray-400">{negeriRanking.length} negeri</span>
-          </div>
-          {negeriRanking.length === 0 ? (
-            <p className="text-xs text-gray-400 text-center py-6">Belum ada data</p>
-          ) : (
-            <div className="space-y-2">
-              {negeriRanking.slice(0, 8).map((n, i) => {
-                const maxEkar = Math.max(...negeriRanking.map(x => x.ekar), 1);
-                return (
-                  <div key={n.negeri} className="flex items-center gap-2">
-                    <span className={`text-[9px] w-4 text-center font-bold ${i < 3 ? 'text-gold' : 'text-gray-400'}`}>
-                      {i + 1}
-                    </span>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-[10px] font-medium text-gray-700 flex items-center gap-1.5">
-                          {NEGERI_FLAG[n.negeri] ? (
-                            <img src={NEGERI_FLAG[n.negeri]} alt="" className="w-5 h-3.5 object-contain rounded-sm flex-shrink-0" />
-                          ) : NEGERI_FLAG_COLORS[n.negeri] ? (
-                            <span className="inline-block w-4 h-3 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
-                              <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].top }} />
-                              <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].bottom }} />
-                            </span>
-                          ) : null}
-                          {n.negeri}
-                        </span>
-                        <span className="text-[9px] text-forest font-bold">{n.ekar.toFixed(1)} ekar</span>
-                      </div>
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${i === 0 ? 'bg-forest' : i === 1 ? 'bg-moss' : 'bg-forest/40'}`}
-                          style={{ width: `${(n.ekar / maxEkar) * 100}%` }} />
-                      </div>
-                    </div>
-                    <span className="text-[8px] text-gray-400 w-12 text-right">{n.kebun} kebun</span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Varieti Distribution */}
+      {/* 2. Kategori Varieti */}
+      <div className="grid grid-cols-1 gap-4">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-forest">{t('dash.varietiDist')}</h3>
@@ -345,7 +383,7 @@ export default function DashboardHQPage() {
         </div>
       </div>
 
-      {/* Monthly Forecast Chart */}
+      {/* 3. Jangkaan Pengeluaran Bulanan */}
       <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-forest">{t('dash.monthlyForecast')}</h3>
@@ -440,86 +478,76 @@ export default function DashboardHQPage() {
         )}
       </div>
 
-      {/* Data Table */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-forest">{t('dash.jadualNegeri')}</h3>
-        </div>
-        {negeriRanking.length === 0 ? (
-          <p className="text-xs text-gray-400 text-center py-4">Belum ada data</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-[10px]">
-              <thead>
-                <tr className="border-b-2 border-forest/20">
-                  <th className="py-2 text-left font-bold text-forest">#</th>
-                  <th className="py-2 text-left font-bold text-forest">Negeri</th>
-                  <th className="py-2 text-right font-bold text-forest">Kebun</th>
-                  <th className="py-2 text-right font-bold text-forest">Ekar</th>
-                  <th className="py-2 text-right font-bold text-forest">Pokok</th>
-                  <th className="py-2 text-right font-bold text-forest">Hasil (MT)</th>
-                </tr>
-              </thead>
-              <tbody>
-                {negeriRanking.map((n, i) => (
-                  <tr key={n.negeri} className={`border-b border-gray-100 ${i === 0 ? 'bg-gold/5' : ''}`}>
-                    <td className="py-2 font-semibold text-gray-400">{i + 1}</td>
-                    <td className="py-2 font-medium">
-                      <span className="flex items-center gap-1.5">
-                        {NEGERI_FLAG[n.negeri] ? (
-                          <img src={NEGERI_FLAG[n.negeri]} alt="" className="w-5 h-3.5 object-contain rounded-sm flex-shrink-0" />
-                        ) : NEGERI_FLAG_COLORS[n.negeri] ? (
-                          <span className="inline-block w-5 h-3.5 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
-                            <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].top }} />
-                            <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.negeri].bottom }} />
-                          </span>
-                        ) : null}
-                        {i === 0 ? '👑 ' : ''}{n.negeri}
-                      </span>
-                    </td>
-                    <td className="py-2 text-right">{n.kebun}</td>
-                    <td className="py-2 text-right">{n.ekar.toFixed(1)}</td>
-                    <td className="py-2 text-right">{n.pokok.toLocaleString()}</td>
-                    <td className="py-2 text-right font-bold text-forest">{(n.kg / 1000).toFixed(3)}</td>
-                  </tr>
+      {/* 4. Status Pengeluaran: Risiko Lambakan */}
+      {lambakanAlerts.length > 0 && (
+        <div className={`rounded-xl p-4 border ${
+          lambakanAlerts[0].level === 'KRITIKAL' ? 'bg-red-50 border-red-200' :
+          lambakanAlerts[0].level === 'TINGGI' ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'
+        }`}>
+          <div className="flex items-start gap-3">
+            <span className="text-2xl mt-0.5">
+              {lambakanAlerts[0].level === 'KRITIKAL' ? '🔴' : lambakanAlerts[0].level === 'TINGGI' ? '🟠' : '🟡'}
+            </span>
+            <div className="flex-1">
+              <p className={`text-sm font-bold ${
+                lambakanAlerts[0].level === 'KRITIKAL' ? 'text-red-700' :
+                lambakanAlerts[0].level === 'TINGGI' ? 'text-orange-700' : 'text-amber-700'
+              }`}>
+                Status Pengeluaran: Risiko Lambakan
+              </p>
+              <div className="mt-2 space-y-2">
+                {lambakanAlerts.map((a, i) => (
+                  <div key={i} className="text-[10px] text-gray-700">
+                    <p>
+                      <span className="font-semibold">{a.bulan}</span> — {(a.kg/1000).toFixed(2)} MT ({a.negeriCount} negeri)
+                    </p>
+                    {/* Perincian negeri yang berlaku lambakan — dengan bendera negeri */}
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {a.negeriList.map((n) => (
+                        <span key={n.nama} className="inline-flex items-center gap-1.5 text-[9px] bg-white border border-gray-200 rounded-full pl-1 pr-2 py-0.5 shadow-sm">
+                          {NEGERI_FLAG[n.nama] ? (
+                            <img src={NEGERI_FLAG[n.nama]} alt="" className="w-4 h-3 object-contain rounded-sm flex-shrink-0" />
+                          ) : NEGERI_FLAG_COLORS[n.nama] ? (
+                            <span className="inline-block w-4 h-3 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
+                              <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.nama].top }} />
+                              <span className="block w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[n.nama].bottom }} />
+                            </span>
+                          ) : (
+                            <span className="inline-block w-4 h-3 rounded-sm bg-gray-200 flex-shrink-0" />
+                          )}
+                          <span className="text-gray-600">{n.nama}</span>
+                          <span className="font-semibold text-forest">{(n.kg / 1000).toFixed(2)} MT</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t-2 border-forest/20 font-bold">
-                  <td className="py-2" colSpan={2}>JUMLAH</td>
-                  <td className="py-2 text-right">{kpi.totalKebun}</td>
-                  <td className="py-2 text-right">{kpi.totalEkar.toFixed(1)}</td>
-                  <td className="py-2 text-right">{kpi.totalPokok.toLocaleString()}</td>
-                  <td className="py-2 text-right text-forest">{kpi.totalMT.toFixed(3)}</td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Executive Summary Footer */}
-      <div className="bg-gradient-forest rounded-xl p-5 text-white">
-        <h3 className="text-sm font-bold mb-3">{t('dash.ringkasanEksekutif')}</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="bg-white/10 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{kpi.totalMT.toFixed(1)}</p>
-            <p className="text-[8px] text-white/50 mt-0.5">METRIK TAN</p>
-          </div>
-          <div className="bg-white/10 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{negeriRanking[0]?.negeri?.slice(0, 6) || '-'}</p>
-            <p className="text-[8px] text-white/50 mt-0.5">NEGERI #1</p>
-          </div>
-          <div className="bg-white/10 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{kpi.totalPokok.toLocaleString()}</p>
-            <p className="text-[8px] text-white/50 mt-0.5">POKOK</p>
-          </div>
-          <div className="bg-white/10 rounded-lg p-3 text-center">
-            <p className="text-2xl font-bold">{lambakanAlerts.length > 0 ? lambakanAlerts[0].level.slice(0, 4) : 'OK'}</p>
-            <p className="text-[8px] text-white/50 mt-0.5">RISIKO</p>
+              </div>
+              <div className="mt-3 border-t border-gray-200/60 pt-2">
+                <p className="text-[10px] font-bold text-gray-600 mb-1.5">💡 Cadangan Intervensi FAMA</p>
+                <div className="space-y-1.5">
+                  {cadanganIntervensi.map((c, i) => (
+                    <div key={i} className="flex items-start gap-1.5">
+                      <span className="text-[11px] leading-tight">{c.ikon}</span>
+                      <p className="text-[9px] text-gray-600 leading-snug flex-1">{c.teks}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </div>
+      )}
+
+      {lambakanAlerts.length === 0 && lawatan.length > 0 && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-2">
+          <span>🟢</span>
+          <div>
+            <p className="text-[10px] font-bold text-green-700">Status Pengeluaran: Terkawal</p>
+            <p className="text-[9px] text-green-600">{t('dash.lambakanSafe')}</p>
+          </div>
+        </div>
+      )}
 
       {loading && (
         <div className="text-center py-8">

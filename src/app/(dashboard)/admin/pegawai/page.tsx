@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
@@ -44,6 +44,15 @@ export default function AdminPegawaiPage() {
     setShowEditPass(false);
   };
 
+  // Bina header dengan ID token pemanggil untuk pengesahan di sisi server
+  const authHeaders = async (): Promise<Record<string, string>> => {
+    const token = await auth.currentUser?.getIdToken();
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    };
+  };
+
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editTarget) return;
@@ -60,7 +69,7 @@ export default function AdminPegawaiPage() {
     try {
       const res = await fetch('/api/admin/update-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({
           uid: editTarget.uid,
           email: emailChanged ? editForm.email.trim() : undefined,
@@ -113,7 +122,7 @@ export default function AdminPegawaiPage() {
     try {
       const res = await fetch('/api/admin/create-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify(form),
       });
 
@@ -142,7 +151,7 @@ export default function AdminPegawaiPage() {
     try {
       const res = await fetch('/api/admin/delete-user', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await authHeaders(),
         body: JSON.stringify({ uid }),
       });
 
