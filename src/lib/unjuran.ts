@@ -162,7 +162,7 @@ export function statusPemantauan(tarikhLawatan: string | undefined, tarikhSemasa
     status: 'lewat',
     hariSejakLawatan: hari,
     hariLewat,
-    label: `Lewat pemantauan ${hariLewat} hari. Sila lakukan pemantauan ke lapangan dan dapatkan maklumat terkini.`,
+    label: `Sudah ${hari} hari sejak pemantauan terakhir (${hariLewat} hari melebihi tempoh ${AMBANG_PEMANTAUAN_HARI} hari). Sila lakukan pemantauan ke lapangan dan dapatkan maklumat terkini.`,
   };
 }
 

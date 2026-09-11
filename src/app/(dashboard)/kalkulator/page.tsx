@@ -7,7 +7,7 @@ import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where 
 import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
 import { bandingLawatanSemasa } from '@/lib/lawatan';
-import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
+import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan, AMBANG_PEMANTAUAN_HARI } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
 import toast from 'react-hot-toast';
 
@@ -939,7 +939,7 @@ export default function KalkulatorPage() {
 
             {unjuranKebunDipilih?.pemantauan.status === 'lewat' && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
-                <p className="text-xs font-bold text-red-700">⚠️ Pemantauan kebun sudah lewat {unjuranKebunDipilih.pemantauan.hariLewat} hari</p>
+                <p className="text-xs font-bold text-red-700">⚠️ Sudah {unjuranKebunDipilih.pemantauan.hariSejakLawatan} hari tanpa pemantauan ({unjuranKebunDipilih.pemantauan.hariLewat} hari melebihi tempoh {AMBANG_PEMANTAUAN_HARI} hari)</p>
                 <p className="text-[9px] text-red-600 mt-1">Lawatan terakhir pada {formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}. Sila pergi membuat pemantauan dan masukkan maklumat semasa secara manual.</p>
               </div>
             )}

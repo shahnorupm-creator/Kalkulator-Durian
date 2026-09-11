@@ -61,8 +61,6 @@ export default function DashboardHQPage() {
   const [lawatan, setLawatan] = useState<LawatanRecord[]>([]);
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
   const [loading, setLoading] = useState(true);
-  // Varieti yang sedang dilihat (hover/klik) untuk pop-out MT
-  const [activeVarieti, setActiveVarieti] = useState<string | null>(null);
   // Bulan yang sedang dilihat (hover/klik) untuk pop-out senarai negeri
   const [activeBulan, setActiveBulan] = useState<string | null>(null);
 
@@ -434,6 +432,16 @@ export default function DashboardHQPage() {
             <h3 className="text-sm font-bold text-forest">{t('dash.varietiDist')}</h3>
             <span className="text-[9px] text-gray-400">{varietiDist.length} varieti</span>
           </div>
+          {/* Poster rujukan varieti durian FAMA */}
+          <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-amber-50/40">
+            <img
+              src="/list durian.png"
+              alt="Senarai varieti durian FAMA"
+              className="mx-auto block w-full max-w-md object-contain"
+              loading="lazy"
+            />
+          </div>
+
           {varietiDist.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-6">Belum ada data</p>
           ) : (
@@ -446,27 +454,12 @@ export default function DashboardHQPage() {
                     <div className={`w-2.5 h-2.5 rounded-full ${dotColors[i % dotColors.length]}`} />
                     <span className="text-[10px] text-gray-700 flex-1 truncate">{v.name}</span>
                     <span className="text-[9px] font-bold text-gray-600 w-10 text-right">{v.pct.toFixed(1)}%</span>
-                    {/* Kawasan hover/klik — lebih besar (py-2) supaya senang dicapai */}
-                    <div
-                      className="relative w-16 py-2 cursor-pointer"
-                      onMouseEnter={() => setActiveVarieti(v.name)}
-                      onMouseLeave={() => setActiveVarieti(null)}
-                      onClick={() => setActiveVarieti(prev => prev === v.name ? null : v.name)}
-                    >
+                    <div className="w-16">
                       <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                         <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${v.pct}%` }} />
                       </div>
-                      {/* Pop-out — muncul bila cursor hover / klik pada bar */}
-                      {activeVarieti === v.name && (
-                        <div className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1 z-30">
-                          <div className="bg-forest text-white rounded-md shadow-lg px-2 py-1 whitespace-nowrap text-center">
-                            <span className="text-[10px] font-bold block">{(v.kg / 1000).toFixed(2)} MT</span>
-                            <span className="text-[8px] text-white/80 block">{v.pokok.toLocaleString()} pokok</span>
-                          </div>
-                          <div className="w-2 h-2 bg-forest rotate-45 absolute top-full left-1/2 -translate-x-1/2 -translate-y-1" />
-                        </div>
-                      )}
                     </div>
+                    <span className="w-16 text-right text-[8px] text-gray-500">{(v.kg / 1000).toFixed(2)} MT</span>
                   </div>
                 );
               })}
