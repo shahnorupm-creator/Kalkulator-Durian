@@ -81,6 +81,7 @@ export default function KalkulatorPage() {
   const [showPopup, setShowPopup] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [filterNegeri, setFilterNegeri] = useState('Semua');
+  const [filterDaerah, setFilterDaerah] = useState('Semua');
 
   useEffect(() => {
     if (!user || !profile) {
@@ -208,6 +209,7 @@ export default function KalkulatorPage() {
 
     return kebunList
       .filter(k => filterNegeri === 'Semua' || k.negeri?.trim() === filterNegeri)
+      .filter(k => filterDaerah === 'Semua' || k.daerah?.trim() === filterDaerah)
       .sort((a, b) => {
         // Rekod tanpa negeri diletakkan paling bawah.
         if (!a.negeri && b.negeri) return 1;
@@ -217,7 +219,25 @@ export default function KalkulatorPage() {
           || compare(a.daerah, b.daerah)
           || compare(a.nama, b.nama);
       });
-  }, [kebunList, filterNegeri]);
+  }, [kebunList, filterNegeri, filterDaerah]);
+
+  // Listing daerah — sama corak dengan tab Kebun.
+  // Bagi pengguna seluruh negeri, daerah muncul selepas satu negeri dipilih.
+  // Admin negeri / pegawai terus melihat daerah daripada kebun dalam skop mereka.
+  const scopedKebunForDaerah = filterNegeri !== 'Semua'
+    ? kebunList.filter(k => k.negeri?.trim() === filterNegeri)
+    : isNationalAdmin ? [] : kebunList;
+  const daerahFilterOptions = Object.entries(
+    scopedKebunForDaerah.reduce<Record<string, number>>((counts, k) => {
+      const daerah = k.daerah?.trim();
+      if (daerah) counts[daerah] = (counts[daerah] || 0) + 1;
+      return counts;
+    }, {})
+  )
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => a.name.localeCompare(b.name, 'ms', { sensitivity: 'base' }));
+  const showDaerahPicker = !loading && kebunList.length > 0 && (filterNegeri !== 'Semua' || !isNationalAdmin);
+  const negeriDaerahAktif = filterNegeri !== 'Semua' ? filterNegeri : userNegeri;
 
   useEffect(() => {
     if (selectedKebun && !kebunList.some(k => k.id === selectedKebun)) {
@@ -226,6 +246,13 @@ export default function KalkulatorPage() {
       setStep(1);
     }
   }, [selectedKebun, kebunList]);
+
+  // Pulihkan penapis daerah jika daerah dipilih tiada lagi dalam skop semasa.
+  useEffect(() => {
+    if (filterDaerah === 'Semua') return;
+    const masihWujud = scopedKebunForDaerah.some(k => k.daerah?.trim() === filterDaerah);
+    if (!masihWujud) setFilterDaerah('Semua');
+  }, [filterDaerah, scopedKebunForDaerah]);
 
   const kebun = kebunList.find(k => k.id === selectedKebun);
 
@@ -421,7 +448,7 @@ export default function KalkulatorPage() {
 
               <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
                 {isNationalAdmin && (
-                  <button type="button" aria-pressed={filterNegeri === 'Semua'} onClick={() => setFilterNegeri('Semua')}
+                  <button type="button" aria-pressed={filterNegeri === 'Semua'} onClick={() => { setFilterNegeri('Semua'); setFilterDaerah('Semua'); }}
                     className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${filterNegeri === 'Semua' ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
                     <span className="relative flex h-7 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/60 bg-white text-[9px] font-bold text-gray-400">
                       MY
@@ -440,7 +467,7 @@ export default function KalkulatorPage() {
                     const active = filterNegeri === name;
                     return (
                       <button key={name} type="button" aria-pressed={active} disabled={isStateAdmin}
-                        onClick={() => setFilterNegeri(name)}
+                        onClick={() => { setFilterNegeri(name); setFilterDaerah('Semua'); }}
                         className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${active ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'} ${isStateAdmin ? 'cursor-default' : ''}`}>
                         {NEGERI_FLAG[name] ? (
                           <img src={NEGERI_FLAG[name]} alt={`Bendera ${name}`} className="h-7 w-10 rounded-lg border border-gray-200/60 object-contain bg-white flex-shrink-0" />
@@ -460,6 +487,48 @@ export default function KalkulatorPage() {
                     );
                   })}
               </div>
+            </div>
+          )}
+
+          {/* Listing daerah — muncul selepas negeri dipilih (sama seperti tab Kebun) */}
+          {showDaerahPicker && (
+            <div className="rounded-2xl border border-gold/20 bg-gold/5 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-[10px] font-bold text-forest">Pilih Daerah</p>
+                  <p className="text-[8px] text-gray-400">Daerah yang mempunyai rekod kebun sahaja</p>
+                </div>
+                <span className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1.5 text-[10px] font-semibold text-gold border border-gold/20 whitespace-nowrap">
+                  {negeriDaerahAktif && NEGERI_FLAG[negeriDaerahAktif] ? (
+                    <img src={NEGERI_FLAG[negeriDaerahAktif]} alt={`Bendera ${negeriDaerahAktif}`} className="h-6 w-9 rounded-sm border border-gray-200 object-contain bg-white" />
+                  ) : negeriDaerahAktif && NEGERI_FLAG_COLORS[negeriDaerahAktif] ? (
+                    <span className="h-6 w-9 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
+                      <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[negeriDaerahAktif].top }} />
+                      <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[negeriDaerahAktif].bottom }} />
+                    </span>
+                  ) : null}
+                  <span>{negeriDaerahAktif || 'Daerah Anda'}</span>
+                </span>
+              </div>
+
+              {daerahFilterOptions.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
+                  <button type="button" aria-pressed={filterDaerah === 'Semua'} onClick={() => setFilterDaerah('Semua')}
+                    className={`flex-none rounded-xl border px-3 py-2 text-[9px] font-semibold whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 ${filterDaerah === 'Semua' ? 'border-gold bg-gold text-black shadow-sm ring-2 ring-gold/10' : 'border-gray-200 bg-white text-gray-600 hover:border-gold/50'}`}>
+                    Semua Daerah <span className="ml-1 opacity-70">{scopedKebunForDaerah.length}</span>
+                  </button>
+                  {daerahFilterOptions.map(({ name, count }) => (
+                    <button key={name} type="button" aria-pressed={filterDaerah === name} onClick={() => setFilterDaerah(name)}
+                      className={`flex-none rounded-xl border px-3 py-2 text-[9px] font-semibold whitespace-nowrap transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-gold/40 ${filterDaerah === name ? 'border-gold bg-gold text-black shadow-sm ring-2 ring-gold/10' : 'border-gray-200 bg-white text-gray-600 hover:border-gold/50 hover:bg-gold/5'}`}>
+                      {name} <span className="ml-1 opacity-70">{count}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-gold/30 bg-white px-3 py-2 text-[9px] text-gray-500">
+                  Tiada daerah direkodkan untuk pilihan ini.
+                </p>
+              )}
             </div>
           )}
 
@@ -712,6 +781,28 @@ export default function KalkulatorPage() {
                         <p className="text-[8px] text-gray-500">Status pemantauan live</p>
                         <p className="text-[10px] font-bold text-gray-800">{unjuranKebunDipilih.pemantauan.label}</p>
                       </div>
+                      {/* Proses fasa kejadian sebenar yang direkodkan pada lawatan terakhir. */}
+                      {(() => {
+                        const stagesRekod = unjuranKebunDipilih.rekod.stages || {};
+                        const aktif = STAGES.filter(s => (Number(stagesRekod[s.key]?.pct) || 0) > 0);
+                        if (aktif.length === 0) return null;
+                        return (
+                          <div className="col-span-2">
+                            <p className="text-[8px] text-gray-500 mb-1">Proses fasa kejadian direkodkan</p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {aktif.map(s => {
+                                const pct = Number(stagesRekod[s.key]?.pct) || 0;
+                                const d = Number(stagesRekod[s.key]?.d) || 0;
+                                return (
+                                  <span key={s.key} className="rounded-md bg-white/70 border border-black/5 px-1.5 py-0.5 text-[8px] text-gray-700">
+                                    <span className="font-bold">{s.name}</span> {pct}%{s.J !== null ? ` · ${d} hari` : ''}
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   ) : (
                     <p className="mt-2 text-xs font-semibold text-gray-600">Belum pernah dipantau</p>
