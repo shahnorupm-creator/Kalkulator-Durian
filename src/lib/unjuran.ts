@@ -223,16 +223,14 @@ export function unjurLawatan<T extends InputUnjuranLawatan>(
     const pct = Math.min(100, nomborBukanNegatif(input?.pct));
     if (pct <= 0 || producingPct <= 0) return [];
     const dAsal = nomborBukanNegatif(input?.d);
-    // D "live": jika user belum kemas kini, umur buah terus bertambah mengikut
-    // bilangan hari sebenar sejak tarikh lawatan terakhir.
+    // Tarikh jangkaan gugur SENTIASA dikira dari tarikh lawatan sebenar: lawatan + (J - D).
+    // Nilai ini TETAP dan tidak bergerak walaupun user belum kemas kini, supaya laporan
+    // membaca data lawatan sebenar (contoh 10 Ogos) secara konsisten.
+    const tarikhJangkaan = tambahHari(rekod.tarikhLawatan || '', stage.J - dAsal);
+    // dLive/bakiHari kekal "live" untuk paparan status umur buah semasa sahaja,
+    // tetapi TIDAK mempengaruhi tarikh jangkaan pengeluaran di atas.
     const dLive = hariSejakLawatan === null ? dAsal : dAsal + hariSejakLawatan;
     const bakiHari = stage.J - dLive;
-    // Tarikh jangkaan gugur dikira dari HARI INI + baki hari yang tinggal.
-    // Ini memastikan anggaran bergerak lebih dekat apabila pemantauan lewat dikemas kini.
-    const asasTarikh = tarikhUtc(tarikhSemasa) !== null ? tarikhSemasa : (rekod.tarikhLawatan || '');
-    const tarikhJangkaan = hariSejakLawatan === null
-      ? tambahHari(rekod.tarikhLawatan || '', stage.J - dAsal)
-      : tambahHari(asasTarikh, bakiHari);
     return [{
       stageKey: stage.key,
       stageName: stage.name,

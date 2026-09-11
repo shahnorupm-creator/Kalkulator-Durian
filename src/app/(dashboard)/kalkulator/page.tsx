@@ -400,7 +400,7 @@ export default function KalkulatorPage() {
               <span className="text-lg" aria-hidden="true">⚠️</span>
               <div>
                 <p className="text-xs font-bold text-red-700">{jumlahLewat} kebun perlu pemantauan semula</p>
-                <p className="text-[10px] text-red-600 mt-0.5">Sila pergi membuat pemantauan dan kemas kini maklumat kebun. Sistem tidak mencipta rekod lawatan secara automatik.</p>
+                <p className="text-[10px] text-red-600 mt-0.5">Sila lakukan pemantauan di kebun dan mengemaskini fasa pengeluaran durian direkodkan.</p>
               </div>
             </div>
           )}
@@ -867,11 +867,8 @@ export default function KalkulatorPage() {
                       <div>
                         <p className="text-[10px] font-bold text-blue-800">{batch.stageName} · {batch.pct.toFixed(0)}%</p>
                         <p className="text-[8px] text-blue-600">
-                          J {STAGES.find(s => s.key === batch.stageKey)?.J} − D {batch.dLive ?? batch.dAsal} = baki {batch.bakiHari ?? Math.max(0, (STAGES.find(s => s.key === batch.stageKey)?.J || 0) - batch.dAsal)} hari
+                          J {STAGES.find(s => s.key === batch.stageKey)?.J} − D {batch.dAsal} = {Math.max(0, (STAGES.find(s => s.key === batch.stageKey)?.J || 0) - batch.dAsal)} hari dari tarikh lawatan
                         </p>
-                        {batch.dLive !== null && batch.dLive !== batch.dAsal && (
-                          <p className="text-[7px] text-amber-600">D asal {batch.dAsal} + {(batch.dLive - batch.dAsal)} hari sejak lawatan</p>
-                        )}
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-blue-800">{formatTarikhBM(batch.tarikhJangkaan)}</p>

@@ -786,11 +786,11 @@ export default function ProfilKebunPage() {
                 <p className="text-[10px] font-bold text-forest">Pilih Daerah</p>
                 <p className="text-[8px] text-gray-400">Daerah yang mempunyai rekod kebun sahaja</p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-2 py-1 text-[8px] font-semibold text-gold border border-gold/20 whitespace-nowrap">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white px-2.5 py-1.5 text-[10px] font-semibold text-gold border border-gold/20 whitespace-nowrap">
                 {negeriDaerahAktif && NEGERI_FLAG[negeriDaerahAktif] ? (
-                  <img src={NEGERI_FLAG[negeriDaerahAktif]} alt={`Bendera ${negeriDaerahAktif}`} className="h-3.5 w-5 rounded-sm border border-gray-200 object-contain bg-white" />
+                  <img src={NEGERI_FLAG[negeriDaerahAktif]} alt={`Bendera ${negeriDaerahAktif}`} className="h-6 w-9 rounded-sm border border-gray-200 object-contain bg-white" />
                 ) : negeriDaerahAktif && NEGERI_FLAG_COLORS[negeriDaerahAktif] ? (
-                  <span className="h-3.5 w-5 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
+                  <span className="h-6 w-9 rounded-sm border border-gray-200 overflow-hidden flex-shrink-0">
                     <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[negeriDaerahAktif].top }} />
                     <span className="block h-1/2 w-full" style={{ background: NEGERI_FLAG_COLORS[negeriDaerahAktif].bottom }} />
                   </span>
