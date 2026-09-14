@@ -768,11 +768,11 @@ export default function KalkulatorPage() {
                   {unjuranKebunDipilih ? (
                     <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
                       <div>
-                        <p className="text-[8px] text-gray-500">Tarikh lawatan</p>
+                        <p className="text-[8px] text-gray-500">Tarikh lawatan :</p>
                         <p className="text-xs font-bold text-gray-800">{formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}</p>
                       </div>
                       <div>
-                        <p className="text-[8px] text-gray-500">Fasa terakhir</p>
+                        <p className="text-[8px] text-gray-500">Fasa terakhir :</p>
                         <p className="text-xs font-bold text-gray-800">
                           {unjuranKebunDipilih.rekod.fasaUtama
                             ? fasaLabel(unjuranKebunDipilih.rekod.fasaUtama)
@@ -959,9 +959,6 @@ export default function KalkulatorPage() {
                     <div key={batch.stageKey} className="grid grid-cols-[1fr_auto] gap-3 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2">
                       <div>
                         <p className="text-[10px] font-bold text-blue-800">{batch.stageName} · {batch.pct.toFixed(0)}%</p>
-                        <p className="text-[8px] text-blue-600">
-                          J {STAGES.find(s => s.key === batch.stageKey)?.J} − D {batch.dAsal} = {Math.max(0, (STAGES.find(s => s.key === batch.stageKey)?.J || 0) - batch.dAsal)} hari dari tarikh lawatan
-                        </p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold text-blue-800">{formatTarikhBM(batch.tarikhJangkaan)}</p>
