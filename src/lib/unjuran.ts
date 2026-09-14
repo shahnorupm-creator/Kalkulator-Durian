@@ -1,8 +1,10 @@
 import { STAGES, VARIETIES } from '@/lib/constants';
 
 const MS_SEHARI = 86_400_000;
-export const AMBANG_PEMANTAUAN_HARI = 30;
-export const AMBANG_HAMPIR_PEMANTAUAN_HARI = 20;
+// Durian perlu dipantau kerap kerana fasa pengeluaran bergerak pantas.
+// Lebih 21 hari (3 minggu) tanpa pemantauan dikira lewat.
+export const AMBANG_PEMANTAUAN_HARI = 21;
+export const AMBANG_HAMPIR_PEMANTAUAN_HARI = 14;
 
 export interface InputPeringkatLawatan {
   pct?: number;
@@ -150,8 +152,8 @@ export function statusPemantauan(tarikhLawatan: string | undefined, tarikhSemasa
     const label = hari === 0
       ? 'Pemantauan dibuat hari ini'
       : hari === 1
-        ? 'Pemantauan dibuat semalam'
-        : `${hari} hari sejak pemantauan`;
+        ? 'Pemantauan terakhir: semalam'
+        : `Pemantauan terakhir: ${hari} hari lalu`;
     return { status: 'semasa', hariSejakLawatan: hari, hariLewat: 0, label };
   }
   if (hari <= AMBANG_PEMANTAUAN_HARI) {

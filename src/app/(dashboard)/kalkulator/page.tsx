@@ -603,7 +603,9 @@ export default function KalkulatorPage() {
                         : 'bg-gray-100 text-gray-500';
                   const statusLabel = !lawatanDimuat.has(k.id)
                     ? 'Memuatkan...'
-                    : projection?.pemantauan.label || 'Belum dipantau';
+                    : projection
+                      ? formatTarikhBM(projection.rekod.tarikhLawatan)
+                      : 'Belum dipantau';
                   return (
                     <div key={k.id} onClick={() => handleSelectKebun(k.id)}
                       className="grid grid-cols-12 gap-2 px-4 py-2.5 items-center cursor-pointer hover:bg-gray-50 border-b border-gray-50 last:border-0 transition-all">
@@ -813,7 +815,7 @@ export default function KalkulatorPage() {
                 </span>
               </div>
               <p className="mt-3 border-t border-black/5 pt-2 text-[9px] text-gray-600">
-                Borang di bawah ialah rekod pemantauan baharu. Tarikh dan fasa mesti diisi secara manual selepas lawatan sebenar.
+                Rekod pemantauan tidak dijana secara automatik. Sila isi tarikh lawatan dan fasa pengeluaran durian terkini.
               </p>
             </div>
           </div>
