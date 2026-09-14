@@ -432,47 +432,54 @@ export default function DashboardHQPage() {
             <h3 className="text-sm font-bold text-forest">{t('dash.varietiDist')}</h3>
             <span className="text-[9px] text-gray-400">{varietiDist.length} varieti</span>
           </div>
-          {/* Poster rujukan varieti durian FAMA */}
-          <div className="mb-4 overflow-hidden rounded-xl border border-gray-100 bg-amber-50/40">
-            <img
-              src="/list durian.png"
-              alt="Senarai varieti durian FAMA"
-              className="mx-auto block w-full max-w-md object-contain"
-              loading="lazy"
-            />
-          </div>
-
           {varietiDist.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-6">Belum ada data</p>
           ) : (
             (() => {
-              // Susun kad mengikut turutan durian dalam poster FAMA (kiri->kanan, atas->bawah).
+              // Setiap baris: gambar durian di kiri + kad peratus di kanan.
+              // imej = null bermaksud belum tersedia (guna placeholder warna).
               const TURUTAN_POSTER = [
-                { nama: 'Durian Kampung', warna: 'bg-amber-500' },
-                { nama: 'Bukit Merah/Sultan (D24)', warna: 'bg-purple-500' },
-                { nama: 'IOI / Hajah Hasmah (D168)', warna: 'bg-gold' },
-                { nama: 'Udang Merah (D175)', warna: 'bg-blue-500' },
-                { nama: 'Musang King (D197)', warna: 'bg-forest' },
-                { nama: 'Black Thorn (D200)', warna: 'bg-moss' },
+                { nama: 'Musang King (D197)', warna: 'bg-forest', imej: '/d197-musang-king.avif' },
+                { nama: 'IOI / Hajah Hasmah (D168)', warna: 'bg-gold', imej: '/d168-ioi.avif' },
+                { nama: 'Black Thorn (D200)', warna: 'bg-moss', imej: '/d200-black-thorn.avif' },
+                { nama: 'Udang Merah (D175)', warna: 'bg-blue-500', imej: '/d175-red-prawn-inline-01.avif' },
+                { nama: 'Bukit Merah/Sultan (D24)', warna: 'bg-purple-500', imej: '/d24-inline-02.avif' },
+                { nama: 'Durian Kampung', warna: 'bg-amber-500', imej: '/kampung.avif' },
               ];
               const cari = (nama: string) => varietiDist.find(v => v.name === nama);
               return (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
-                  {TURUTAN_POSTER.map(({ nama, warna }) => {
+                <div className="space-y-2.5">
+                  {TURUTAN_POSTER.map(({ nama, warna, imej }) => {
                     const v = cari(nama);
                     const pct = v?.pct ?? 0;
                     const mt = v ? v.kg / 1000 : 0;
                     return (
-                      <div key={nama} className="rounded-xl border border-gray-100 bg-gray-50/60 p-2.5 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${warna}`} />
-                          <span className="text-[9px] font-semibold text-gray-700 truncate">{nama.split(' (')[0]}</span>
+                      <div key={nama} className="flex items-stretch gap-2.5">
+                        {/* Gambar durian — jika imej belum ada / gagal muat, tunjuk placeholder warna */}
+                        <div className={`relative w-28 flex-shrink-0 overflow-hidden rounded-xl border border-gray-100 ${warna}`}>
+                          <span className="absolute inset-0 flex items-center justify-center px-1 text-center text-[8px] font-bold text-white">
+                            {nama.split(' (')[0]}
+                          </span>
+                          {imej && (
+                            <img src={imej} alt={nama} loading="lazy"
+                              className="relative h-full min-h-[64px] w-full object-cover"
+                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
+                          )}
                         </div>
-                        <p className="text-lg font-bold text-forest mt-1 leading-none">{pct.toFixed(1)}%</p>
-                        <div className="mt-1.5 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${warna}`} style={{ width: `${pct}%` }} />
+                        {/* Kad peratus */}
+                        <div className="flex-1 rounded-xl border border-gray-200 bg-white p-2.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${warna}`} />
+                            <span className="text-[10px] font-semibold text-gray-700 truncate">{nama.split(' (')[0]}</span>
+                          </div>
+                          <div className="mt-1 flex items-center gap-2">
+                            <p className="text-xl font-bold text-forest leading-none">{pct.toFixed(1)}%</p>
+                            <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${warna}`} style={{ width: `${pct}%` }} />
+                            </div>
+                          </div>
+                          <p className="text-[8px] text-gray-500 mt-1">{mt.toFixed(2)} MT</p>
                         </div>
-                        <p className="text-[8px] text-gray-500 mt-1">{mt.toFixed(2)} MT</p>
                       </div>
                     );
                   })}
