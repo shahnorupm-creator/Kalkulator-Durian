@@ -445,25 +445,40 @@ export default function DashboardHQPage() {
           {varietiDist.length === 0 ? (
             <p className="text-xs text-gray-400 text-center py-6">Belum ada data</p>
           ) : (
-            <div className="space-y-2.5">
-              {varietiDist.slice(0, 6).map((v, i) => {
-                const colors = ['bg-forest', 'bg-gold', 'bg-moss', 'bg-amber-500', 'bg-blue-500', 'bg-purple-500'];
-                const dotColors = ['bg-forest', 'bg-gold', 'bg-moss', 'bg-amber-500', 'bg-blue-500', 'bg-purple-500'];
-                return (
-                  <div key={v.name} className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 rounded-full ${dotColors[i % dotColors.length]}`} />
-                    <span className="text-[10px] text-gray-700 flex-1 truncate">{v.name}</span>
-                    <span className="text-[9px] font-bold text-gray-600 w-10 text-right">{v.pct.toFixed(1)}%</span>
-                    <div className="w-16">
-                      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${colors[i % colors.length]}`} style={{ width: `${v.pct}%` }} />
+            (() => {
+              // Susun kad mengikut turutan durian dalam poster FAMA (kiri->kanan, atas->bawah).
+              const TURUTAN_POSTER = [
+                { nama: 'Durian Kampung', warna: 'bg-amber-500' },
+                { nama: 'Bukit Merah/Sultan (D24)', warna: 'bg-purple-500' },
+                { nama: 'IOI / Hajah Hasmah (D168)', warna: 'bg-gold' },
+                { nama: 'Udang Merah (D175)', warna: 'bg-blue-500' },
+                { nama: 'Musang King (D197)', warna: 'bg-forest' },
+                { nama: 'Black Thorn (D200)', warna: 'bg-moss' },
+              ];
+              const cari = (nama: string) => varietiDist.find(v => v.name === nama);
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                  {TURUTAN_POSTER.map(({ nama, warna }) => {
+                    const v = cari(nama);
+                    const pct = v?.pct ?? 0;
+                    const mt = v ? v.kg / 1000 : 0;
+                    return (
+                      <div key={nama} className="rounded-xl border border-gray-100 bg-gray-50/60 p-2.5 text-center">
+                        <div className="flex items-center justify-center gap-1.5">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${warna}`} />
+                          <span className="text-[9px] font-semibold text-gray-700 truncate">{nama.split(' (')[0]}</span>
+                        </div>
+                        <p className="text-lg font-bold text-forest mt-1 leading-none">{pct.toFixed(1)}%</p>
+                        <div className="mt-1.5 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${warna}`} style={{ width: `${pct}%` }} />
+                        </div>
+                        <p className="text-[8px] text-gray-500 mt-1">{mt.toFixed(2)} MT</p>
                       </div>
-                    </div>
-                    <span className="w-16 text-right text-[8px] text-gray-500">{(v.kg / 1000).toFixed(2)} MT</span>
-                  </div>
-                );
-              })}
-            </div>
+                    );
+                  })}
+                </div>
+              );
+            })()
           )}
         </div>
       </div>
