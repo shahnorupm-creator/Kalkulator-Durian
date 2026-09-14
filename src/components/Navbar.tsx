@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { formatMasaBM } from '@/lib/constants';
+import { formatMasaBM, formatNamaPaparan } from '@/lib/constants';
 
 function MobileDateTime() {
   const [now, setNow] = useState<Date | null>(null);
@@ -52,7 +52,7 @@ export default function Navbar() {
           <div>
             <h1 className="text-sm font-bold leading-tight">{t('app.title')}</h1>
             <p className="text-[9px] opacity-60">
-              {profile?.nama || 'Pegawai'} &bull; {profile?.negeri || profile?.daerah || '-'}
+              {formatNamaPaparan(profile?.nama) || 'Pegawai'} &bull; {profile?.negeri || formatNamaPaparan(profile?.daerah) || '-'}
               {profile?.role && ` \u2022 ${ROLE_LABELS[profile.role] || profile.role}`}
             </p>
             <p className="text-[9px] opacity-50 mt-0.5">

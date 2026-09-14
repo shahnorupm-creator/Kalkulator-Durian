@@ -621,9 +621,9 @@ export default function KalkulatorPage() {
                             <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
                           </div>
                         ) : null}
-                        <span className="text-[10px] font-bold text-forest truncate">{k.nama}</span>
+                        <span className="text-[10px] font-bold text-forest truncate">{formatNamaPaparan(k.nama)}</span>
                       </div>
-                      <span className="col-span-2 text-[9px] text-gray-500 truncate">{k.daerah || '-'}</span>
+                      <span className="col-span-2 text-[9px] text-gray-500 truncate">{formatNamaPaparan(k.daerah) || '-'}</span>
                       <span className="col-span-1 text-[9px] text-center font-semibold text-forest">{k.saizKebun}</span>
                       <span className="col-span-1 text-[9px] text-center font-semibold text-gold">{pokok}</span>
                       <span className="col-span-3 text-[8px] text-gray-500 truncate">{varietiNames.join(', ')}</span>
@@ -671,9 +671,9 @@ export default function KalkulatorPage() {
                           <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
                         </div>
                       ) : null}
-                      <h4 className="font-bold text-forest text-sm truncate">{k.nama}</h4>
+                      <h4 className="font-bold text-forest text-sm truncate">{formatNamaPaparan(k.nama)}</h4>
                     </div>
-                    <p className="text-[10px] text-gray-500 mt-0.5 truncate">{k.daerah || '-'}, {k.negeri || '-'}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5 truncate">{formatNamaPaparan(k.daerah) || '-'}, {k.negeri || '-'}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-[9px] bg-forest/10 text-forest px-2 py-0.5 rounded-full font-semibold">{k.saizKebun} ekar</span>
                       <span className="text-[9px] bg-gold/10 text-gold px-2 py-0.5 rounded-full font-semibold">{pokok} pokok</span>
@@ -918,8 +918,8 @@ export default function KalkulatorPage() {
             <div className="bg-forest px-5 py-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-bold text-white">{kebun.nama}</h3>
-                  <p className="text-[10px] text-white/70">{kebun.daerah}, {kebun.negeri} &bull; {kebun.saizKebun} ekar &bull; {jumlahPokokKebun} pokok</p>
+                  <h3 className="text-base font-bold text-white">{formatNamaPaparan(kebun.nama)}</h3>
+                  <p className="text-[10px] text-white/70">{formatNamaPaparan(kebun.daerah)}, {kebun.negeri} &bull; {kebun.saizKebun} ekar &bull; {jumlahPokokKebun} pokok</p>
                 </div>
                 <div className="text-right">
                   <p className="text-[9px] text-white/60">Fasa</p>
@@ -1022,8 +1022,8 @@ export default function KalkulatorPage() {
                 </div>
               ) : null}
               <div>
-                <h3 className="text-lg font-bold text-forest">{kebun.nama}</h3>
-                <p className="text-[10px] text-gray-500">{kebun.daerah}, {kebun.negeri}</p>
+                <h3 className="text-lg font-bold text-forest">{formatNamaPaparan(kebun.nama)}</h3>
+                <p className="text-[10px] text-gray-500">{formatNamaPaparan(kebun.daerah)}, {kebun.negeri}</p>
               </div>
             </div>
 

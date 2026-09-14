@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { NEGERI_DAERAH, SENARAI_NEGERI, VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, formatMasaBM } from '@/lib/constants';
+import { NEGERI_DAERAH, SENARAI_NEGERI, VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
@@ -509,7 +509,7 @@ export default function ProfilKebunPage() {
 
           {editingKebun && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[10px] text-amber-700">
-              Sedang mengedit: <strong>{editingKebun.nama}</strong>
+              Sedang mengedit: <strong>{formatNamaPaparan(editingKebun.nama)}</strong>
             </div>
           )}
 
@@ -520,7 +520,7 @@ export default function ProfilKebunPage() {
               <select value={form.assignedTo} onChange={(e) => setForm({ ...form, assignedTo: e.target.value })}
                 className="w-full mt-1 px-3 py-2.5 border border-purple-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-purple-300 focus:outline-none">
                 <option value="">{t('kebun.selectPegawai')}</option>
-                {pegawaiList.map(p => <option key={p.uid} value={p.uid}>{p.nama} {p.negeri ? `(${p.negeri})` : ''}</option>)}
+                {pegawaiList.map(p => <option key={p.uid} value={p.uid}>{formatNamaPaparan(p.nama)} {p.negeri ? `(${p.negeri})` : ''}</option>)}
               </select>
             </div>
           )}
@@ -896,9 +896,9 @@ export default function ProfilKebunPage() {
                         <div className="w-full h-1/2" style={{ background: NEGERI_FLAG_COLORS[k.negeri].bottom }} />
                       </div>
                     ) : null}
-                    <span className="text-[10px] font-bold text-forest truncate">{k.nama}</span>
+                    <span className="text-[10px] font-bold text-forest truncate">{formatNamaPaparan(k.nama)}</span>
                   </div>
-                  <span className="col-span-2 text-[9px] text-gray-500 truncate">{k.daerah || '-'}</span>
+                  <span className="col-span-2 text-[9px] text-gray-500 truncate">{formatNamaPaparan(k.daerah) || '-'}</span>
                   <span className="col-span-1 text-[9px] text-center font-semibold text-forest">{k.saizKebun}</span>
                   <span className="col-span-1 text-[9px] text-center font-semibold text-gold">{pokok}</span>
                   <span className="col-span-3 text-[8px] text-gray-500 truncate">{varietiNames.join(', ')}</span>
@@ -990,10 +990,10 @@ export default function ProfilKebunPage() {
                       </div>
                     ) : null
                   )}
-                  <h4 className="font-bold text-forest text-sm pr-16 truncate">{k.nama}</h4>
+                  <h4 className="font-bold text-forest text-sm pr-16 truncate">{formatNamaPaparan(k.nama)}</h4>
                 </div>
                 <p className="text-[10px] text-gray-500 mt-0.5 truncate">
-                  {k.daerah || '-'}, {k.negeri || '-'} &bull; {k.alamat || '-'}
+                  {formatNamaPaparan(k.daerah) || '-'}, {k.negeri || '-'} &bull; {formatNamaPaparan(k.alamat) || '-'}
                 </p>
 
                 {/* Stats row */}
@@ -1032,7 +1032,7 @@ export default function ProfilKebunPage() {
 
                 {/* Assigned */}
                 {isAnyAdmin && k.assignedNama && (
-                  <p className="text-[8px] text-purple-500 mt-1">👤 {k.assignedNama}</p>
+                  <p className="text-[8px] text-purple-500 mt-1">👤 {formatNamaPaparan(k.assignedNama)}</p>
                 )}
 
                 {/* Delete */}

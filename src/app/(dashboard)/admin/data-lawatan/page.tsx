@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { collectionGroup, collection, query, onSnapshot, doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { SENARAI_NEGERI, negeriDariDaerah, formatMasaBM } from '@/lib/constants';
+import { SENARAI_NEGERI, negeriDariDaerah, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 
@@ -187,12 +187,12 @@ export default function DataLawatanPage() {
             <div key={l.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-forest truncate">{l.kebunNama || '(Kebun tidak dinamakan)'}</p>
+                  <p className="text-sm font-semibold text-forest truncate">{formatNamaPaparan(l.kebunNama) || '(Kebun tidak dinamakan)'}</p>
                   <p className="text-[10px] text-gray-500">
                     Tarikh: {tarikhPapar(l)} &bull; {(l.totalKg / 1000).toFixed(2)} MT
                   </p>
                   <p className="text-[10px] text-gray-400">
-                    Pegawai: {l.pegawaiNama || '-'} &bull; Daerah: {l.daerah || l.pegawaiDaerah || '-'}
+                    Pegawai: {formatNamaPaparan(l.pegawaiNama) || '-'} &bull; Daerah: {formatNamaPaparan(l.daerah || l.pegawaiDaerah) || '-'}
                   </p>
                   {l.createdAtSeconds > 0 && (
                     <p className="text-[9px] text-gray-300">Direkod: {formatMasaBM(new Date(l.createdAtSeconds * 1000))}</p>

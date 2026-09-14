@@ -354,8 +354,8 @@ export default function AdminPegawaiPage() {
             </div>
 
             <div className="bg-forest/5 rounded-lg p-2.5">
-              <p className="text-xs font-semibold text-forest">{editTarget.nama}</p>
-              <p className="text-[10px] text-gray-500">{editTarget.noPerkerja} &middot; {editTarget.daerah}</p>
+              <p className="text-xs font-semibold text-forest">{capitalizeWords(editTarget.nama || '')}</p>
+              <p className="text-[10px] text-gray-500">{editTarget.noPerkerja} &middot; {capitalizeWords(editTarget.daerah || '')}</p>
             </div>
 
             <div>

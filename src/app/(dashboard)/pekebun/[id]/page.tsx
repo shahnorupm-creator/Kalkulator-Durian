@@ -15,6 +15,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatNamaPaparan } from '@/lib/constants';
 import toast from 'react-hot-toast';
 
 interface Pekebun {
@@ -144,7 +145,7 @@ export default function PekebunDetailPage() {
         <button onClick={() => router.push('/pekebun')} className="text-forest text-xl">
           ←
         </button>
-        <h2 className="text-xl font-bold text-forest">{pekebun.nama}</h2>
+        <h2 className="text-xl font-bold text-forest">{formatNamaPaparan(pekebun.nama)}</h2>
       </div>
 
       {/* Pekebun Info Card */}
@@ -216,9 +217,9 @@ export default function PekebunDetailPage() {
         ) : (
           <>
             <div className="space-y-2 text-sm">
-              <p><span className="text-gray-500">Daerah:</span> {pekebun.daerah}</p>
-              <p><span className="text-gray-500">Mukim:</span> {pekebun.mukim || '-'}</p>
-              <p><span className="text-gray-500">Alamat:</span> {pekebun.alamatKebun || '-'}</p>
+              <p><span className="text-gray-500">Daerah:</span> {formatNamaPaparan(pekebun.daerah)}</p>
+              <p><span className="text-gray-500">Mukim:</span> {formatNamaPaparan(pekebun.mukim) || '-'}</p>
+              <p><span className="text-gray-500">Alamat:</span> {formatNamaPaparan(pekebun.alamatKebun) || '-'}</p>
               <p><span className="text-gray-500">Koordinat:</span> {pekebun.lat && pekebun.long ? `${pekebun.lat}, ${pekebun.long}` : '-'}</p>
             </div>
             <div className="flex gap-2 mt-4">

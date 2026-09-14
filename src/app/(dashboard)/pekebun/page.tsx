@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
+import { formatNamaPaparan } from '@/lib/constants';
 
 interface Pekebun {
   id: string;
@@ -104,12 +105,12 @@ export default function PekebunListPage() {
               href={`/pekebun/${p.id}`}
               className="block bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow border-l-4 border-moss"
             >
-              <h3 className="font-semibold text-forest">{p.nama}</h3>
+              <h3 className="font-semibold text-forest">{formatNamaPaparan(p.nama)}</h3>
               <p className="text-sm text-gray-600 mt-1">
-                {p.daerah} &middot; {p.mukim}
+                {formatNamaPaparan(p.daerah)} &middot; {formatNamaPaparan(p.mukim)}
               </p>
               <p className="text-xs text-gray-400 mt-1 truncate">
-                📍 {p.alamatKebun || 'Tiada alamat'}
+                📍 {formatNamaPaparan(p.alamatKebun) || 'Tiada alamat'}
               </p>
             </Link>
           ))}

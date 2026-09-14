@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { NEGERI_FLAG_COLORS, NEGERI_FLAG, SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
+import { NEGERI_FLAG_COLORS, NEGERI_FLAG, SENARAI_NEGERI, NEGERI_DAERAH, formatNamaPaparan } from '@/lib/constants';
 import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
@@ -254,7 +254,7 @@ export default function LaporanPage() {
       ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 20px sans-serif';
       ctx.fillText('SELURUH MALAYSIA', W / 2, 70);
       ctx.fillStyle = '#80CBC4'; ctx.font = '13px sans-serif';
-      ctx.fillText(`Dijana: ${formatTarikhBM(tarikhSemasa)} | ${profile?.nama || 'FAMA'}`, W / 2, 95);
+      ctx.fillText(`Dijana: ${formatTarikhBM(tarikhSemasa)} | ${formatNamaPaparan(profile?.nama) || 'FAMA'}`, W / 2, 95);
 
       // Summary stats
       const statsHQ = [
@@ -295,7 +295,7 @@ export default function LaporanPage() {
         ctx.fillText(row.negeri.toUpperCase(), colXHQ[0], y + 18);
         // Daerah (smaller, below — wrap to 2 lines if needed)
         ctx.fillStyle = '#C98A2C'; ctx.font = '10px sans-serif';
-        const daerahParts = row.daerah.split(' / ');
+        const daerahParts = row.daerah.split(' / ').map(d => formatNamaPaparan(d));
         const maxPerLine = 4;
         const line1 = daerahParts.slice(0, maxPerLine).join(' / ');
         const line2 = daerahParts.length > maxPerLine ? daerahParts.slice(maxPerLine).join(' / ') : '';
@@ -406,7 +406,7 @@ export default function LaporanPage() {
     ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 22px sans-serif';
     ctx.fillText(`NEGERI ${negeriName.toUpperCase()}`, W / 2, 82);
     ctx.fillStyle = '#80CBC4'; ctx.font = '13px sans-serif';
-    ctx.fillText(`Dijana: ${formatTarikhBM(tarikhSemasa)} | ${profile?.nama || 'FAMA'}`, W / 2, 106);
+    ctx.fillText(`Dijana: ${formatTarikhBM(tarikhSemasa)} | ${formatNamaPaparan(profile?.nama) || 'FAMA'}`, W / 2, 106);
 
     // Stats boxes
     const statsData = [
@@ -440,7 +440,7 @@ export default function LaporanPage() {
       const y = daerahStartY + 37 + (i * rowH);
       ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF'; ctx.fillRect(50, y, W - 100, rowH - 2);
       ctx.font = '12px sans-serif';
-      ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.fillText(row.daerah, colX[0], y + 21);
+      ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.fillText(formatNamaPaparan(row.daerah), colX[0], y + 21);
       ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.fillText(String(row.pekebun), colX[1], y + 21);
       ctx.fillText(row.ekar.toFixed(1), colX[2], y + 21);
       ctx.fillStyle = '#C98A2C'; ctx.fillText(row.kg > 0 ? row.kg.toLocaleString() : '-', colX[3], y + 21);

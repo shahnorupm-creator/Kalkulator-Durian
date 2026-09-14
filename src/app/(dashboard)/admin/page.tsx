@@ -377,7 +377,7 @@ export default function AdminPage() {
               <div className="flex justify-between items-start">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h4 className="font-semibold text-forest text-sm">{u.nama}</h4>
+                    <h4 className="font-semibold text-forest text-sm">{capitalizeWords(u.nama || '')}</h4>
                     <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold ${ROLE_COLORS[u.role] || 'bg-gray-100 text-gray-600'}`}>
                       {ROLE_LABELS[u.role] || u.role}
                     </span>
@@ -454,9 +454,9 @@ export default function AdminPage() {
             </div>
 
             <div className="bg-forest/5 rounded-lg p-2.5">
-              <p className="text-xs font-semibold text-forest">{settingsTarget.nama}</p>
+              <p className="text-xs font-semibold text-forest">{capitalizeWords(settingsTarget.nama || '')}</p>
               <p className="text-[10px] text-gray-500">
-                {ROLE_LABELS[settingsTarget.role] || settingsTarget.role} &bull; {settingsTarget.negeri || '-'} &bull; {settingsTarget.daerah || '-'}
+                {ROLE_LABELS[settingsTarget.role] || settingsTarget.role} &bull; {settingsTarget.negeri || '-'} &bull; {capitalizeWords(settingsTarget.daerah || '') || '-'}
               </p>
             </div>
 
