@@ -427,7 +427,7 @@ export default function KalkulatorPage() {
               <span className="text-lg" aria-hidden="true">⚠️</span>
               <div>
                 <p className="text-xs font-bold text-red-700">{jumlahLewat} kebun perlu pemantauan semula</p>
-                <p className="text-[10px] text-red-600 mt-0.5">Sila lakukan pemantauan di kebun dan mengemaskini fasa pengeluaran durian direkodkan.</p>
+                <p className="text-[10px] text-red-600 mt-0.5">Sila lakukan pemantauan di kebun dan mengemaskini fasa pengeluaran durian.</p>
               </div>
             </div>
           )}
@@ -780,7 +780,7 @@ export default function KalkulatorPage() {
                         </p>
                       </div>
                       <div className="col-span-2">
-                        <p className="text-[8px] text-gray-500">Status pemantauan live</p>
+                        <p className="text-[8px] text-gray-500">Status pemantauan :</p>
                         <p className="text-[10px] font-bold text-gray-800">{unjuranKebunDipilih.pemantauan.label}</p>
                       </div>
                       {/* Proses fasa kejadian sebenar yang direkodkan pada lawatan terakhir. */}
@@ -790,7 +790,7 @@ export default function KalkulatorPage() {
                         if (aktif.length === 0) return null;
                         return (
                           <div className="col-span-2">
-                            <p className="text-[8px] text-gray-500 mb-1">Proses fasa kejadian direkodkan</p>
+                            <p className="text-[8px] text-gray-500 mb-1">Proses fasa kejadian durian :</p>
                             <div className="flex flex-wrap gap-1.5">
                               {aktif.map(s => {
                                 const pct = Number(stagesRekod[s.key]?.pct) || 0;
@@ -1030,7 +1030,7 @@ export default function KalkulatorPage() {
             {unjuranKebunDipilih?.pemantauan.status === 'lewat' && (
               <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5">
                 <p className="text-xs font-bold text-red-700">⚠️ Sudah {unjuranKebunDipilih.pemantauan.hariSejakLawatan} hari tanpa pemantauan</p>
-                <p className="text-[9px] text-red-600 mt-1">Lawatan terakhir pada {formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}. Sila lakukan pemantauan di kebun dan mengemaskini fasa pengeluaran durian direkodkan.</p>
+                <p className="text-[9px] text-red-600 mt-1">Lawatan terakhir pada {formatTarikhBM(unjuranKebunDipilih.rekod.tarikhLawatan)}. Sila lakukan pemantauan di kebun dan mengemaskini fasa pengeluaran durian.</p>
               </div>
             )}
             {!unjuranKebunDipilih && lawatanDimuat.has(kebun.id) && (

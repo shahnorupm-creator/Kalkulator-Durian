@@ -164,7 +164,7 @@ export function statusPemantauan(tarikhLawatan: string | undefined, tarikhSemasa
     status: 'lewat',
     hariSejakLawatan: hari,
     hariLewat,
-    label: `Sudah ${hari} hari tanpa pemantauan. Sila lakukan pemantauan di kebun dan mengemaskini fasa pengeluaran durian direkodkan.`,
+    label: `Sudah ${hari} hari tanpa pemantauan. Sila lakukan pemantauan di kebun dan mengemaskini fasa pengeluaran durian.`,
   };
 }
 
