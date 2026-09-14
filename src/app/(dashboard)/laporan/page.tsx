@@ -55,6 +55,8 @@ export default function LaporanPage() {
   const { t } = useLanguage();
   const tarikhSemasa = useTarikhSemasa();
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Pra-muat bendera negeri (SVG) supaya boleh dilukis pada canvas secara segerak.
+  const benderaRef = useRef<Record<string, HTMLImageElement>>({});
   const [kebun, setKebun] = useState<KebunRecord[]>([]);
   const [lawatan, setLawatan] = useState<LawatanRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,16 @@ export default function LaporanPage() {
   const isHQ = isSuperAdmin || profile?.role === 'admin_hq';
   const isAdminNegeri = profile?.role === 'admin_negeri';
   const userNegeri = profile?.negeri?.trim() || '';
+
+  // Muat semua bendera negeri sekali sahaja ke dalam Image object.
+  useEffect(() => {
+    Object.entries(NEGERI_FLAG).forEach(([negeri, src]) => {
+      if (benderaRef.current[negeri]) return;
+      const img = new Image();
+      img.src = src;
+      benderaRef.current[negeri] = img;
+    });
+  }, []);
 
   useEffect(() => {
     if (!user || !profile) {
@@ -290,17 +302,30 @@ export default function LaporanPage() {
         ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
         ctx.beginPath(); ctx.moveTo(50, y + rowH - 2); ctx.lineTo(W - 50, y + rowH - 2); ctx.stroke();
 
+        // Bendera negeri (jika imej sudah dimuatkan) + nama negeri
+        const bendera = benderaRef.current[row.negeri];
+        const fW = 28, fH = 18;
+        const teksX = colXHQ[0] + fW + 8; // geser teks ke kanan bendera
+        if (bendera && bendera.complete && bendera.naturalWidth > 0) {
+          try {
+            ctx.save();
+            ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
+            ctx.strokeRect(colXHQ[0], y + 4, fW, fH);
+            ctx.drawImage(bendera, colXHQ[0], y + 4, fW, fH);
+            ctx.restore();
+          } catch { /* abaikan jika imej belum sedia */ }
+        }
         // Negeri name (bold)
         ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
-        ctx.fillText(row.negeri.toUpperCase(), colXHQ[0], y + 18);
+        ctx.fillText(row.negeri.toUpperCase(), teksX, y + 18);
         // Daerah (smaller, below — wrap to 2 lines if needed)
         ctx.fillStyle = '#C98A2C'; ctx.font = '10px sans-serif';
         const daerahParts = row.daerah.split(' / ').map(d => formatNamaPaparan(d));
         const maxPerLine = 4;
         const line1 = daerahParts.slice(0, maxPerLine).join(' / ');
         const line2 = daerahParts.length > maxPerLine ? daerahParts.slice(maxPerLine).join(' / ') : '';
-        ctx.fillText(`(${line1})`, colXHQ[0], y + 34);
-        if (line2) { ctx.fillText(`(${line2})`, colXHQ[0], y + 47); }
+        ctx.fillText(`(${line1})`, teksX, y + 34);
+        if (line2) { ctx.fillText(`(${line2})`, teksX, y + 47); }
 
         // Data
         ctx.textAlign = 'center'; ctx.fillStyle = '#4B5563'; ctx.font = '12px sans-serif';
@@ -404,7 +429,23 @@ export default function LaporanPage() {
     ctx.fillStyle = '#FFC107'; ctx.font = 'bold 28px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText(`ANGGARAN KEBERHASILAN DURIAN`, W / 2, 48);
     ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 22px sans-serif';
-    ctx.fillText(`NEGERI ${negeriName.toUpperCase()}`, W / 2, 82);
+    const tajukNegeri = `NEGERI ${negeriName.toUpperCase()}`;
+    ctx.fillText(tajukNegeri, W / 2, 82);
+    // Bendera negeri di sebelah kiri tajuk (jika ada dan sudah dimuatkan)
+    const benderaTajuk = benderaRef.current[negeriName];
+    if (benderaTajuk && benderaTajuk.complete && benderaTajuk.naturalWidth > 0) {
+      try {
+        const tW = ctx.measureText(tajukNegeri).width;
+        const fW = 40, fH = 26;
+        const fx = W / 2 - tW / 2 - fW - 12;
+        const fy = 82 - 21;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1;
+        ctx.strokeRect(fx, fy, fW, fH);
+        ctx.drawImage(benderaTajuk, fx, fy, fW, fH);
+        ctx.restore();
+      } catch { /* abaikan jika imej belum sedia */ }
+    }
     ctx.fillStyle = '#80CBC4'; ctx.font = '13px sans-serif';
     ctx.fillText(`Dijana: ${formatTarikhBM(tarikhSemasa)} | ${formatNamaPaparan(profile?.nama) || 'FAMA'}`, W / 2, 106);
 

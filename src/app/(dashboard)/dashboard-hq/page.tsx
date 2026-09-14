@@ -448,7 +448,7 @@ export default function DashboardHQPage() {
               ];
               const cari = (nama: string) => varietiDist.find(v => v.name === nama);
               return (
-                <div className="space-y-2.5">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-2.5">
                   {TURUTAN_POSTER.map(({ nama, warna, imej }) => {
                     const v = cari(nama);
                     const pct = v?.pct ?? 0;
