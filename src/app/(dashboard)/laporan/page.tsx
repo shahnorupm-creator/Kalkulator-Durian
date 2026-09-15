@@ -250,29 +250,34 @@ export default function LaporanPage() {
         bulanKumpulan: kumpulkanBulanMengikutTahun(d.bulan),
       })).sort((a, b) => b.mt - a.mt);
 
-      // Pecahan varieti seluruh Malaysia (gabungan semua negeri).
-      const varietiHQMap: Record<string, { kg: number; pokok: number }> = {};
+      // Matriks varieti mengikut negeri: MT setiap varieti untuk setiap negeri.
+      const matriks: Record<string, Record<string, number>> = {}; // negeri -> varieti -> kg
+      const jumlahVarietiKg: Record<string, number> = {};         // varieti -> jumlah kg
       projectedLawatan.forEach(item => {
         const farm = filteredById.get(item.rekod.kebunId);
         if (!farm) return;
+        const n = farm.negeri || 'Lain-lain';
         item.varieti.forEach(v => {
-          if (!varietiHQMap[v.name]) varietiHQMap[v.name] = { kg: 0, pokok: 0 };
-          varietiHQMap[v.name].kg += v.kg;
-          varietiHQMap[v.name].pokok += v.pokok;
+          if (!matriks[n]) matriks[n] = {};
+          matriks[n][v.name] = (matriks[n][v.name] || 0) + v.kg;
+          jumlahVarietiKg[v.name] = (jumlahVarietiKg[v.name] || 0) + v.kg;
         });
       });
-      const varietiHQRows = Object.entries(varietiHQMap)
-        .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, mt: d.kg / 1000 }))
-        .sort((a, b) => b.kg - a.kg);
-      const jumlahKgVarietiHQ = varietiHQRows.reduce((s, v) => s + v.kg, 0) || 1;
+      // Lajur varieti disusun ikut jumlah kg tertinggi; nama dipendekkan.
+      const varietiCols = Object.entries(jumlahVarietiKg)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name]) => name);
+      const pendekVarieti = (nama: string) => nama.split(' (')[0];
 
       const rowH = 65;
       const tableStartY = 180;
       const W = 1080;
-      // Ruang tambahan untuk seksyen varieti (tajuk + baris + padding).
-      const varietiRowH = 30;
-      const varietiSectionH = varietiHQRows.length > 0 ? 40 + (varietiHQRows.length * varietiRowH) + 20 : 0;
-      const H = Math.max(tableStartY + 45 + (negeriRows.length * rowH) + 60 + varietiSectionH + 40, 700);
+      // Ruang tambahan untuk jadual matriks varieti (tajuk + header + baris + jumlah + padding).
+      const matriksRowH = 30;
+      const matriksSectionH = varietiCols.length > 0
+        ? 30 + 30 + (negeriRows.length * matriksRowH) + 35 + 25
+        : 0;
+      const H = Math.max(tableStartY + 45 + (negeriRows.length * rowH) + 60 + matriksSectionH + 40, 700);
       canvas.width = W; canvas.height = H;
 
       // Background white + header bar
@@ -380,34 +385,66 @@ export default function LaporanPage() {
       ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
       ctx.fillText(totalMT.toFixed(2), colXHQ[4], totalYHQ + 22);
 
-      // ═══ Seksyen: Pecahan Mengikut Varieti (Seluruh Malaysia) ═══
-      if (varietiHQRows.length > 0) {
-        const varietiY = totalYHQ + 35 + 30;
+      // ═══ Jadual Matriks: Varieti Durian Mengikut Negeri (Metrik Tan) ═══
+      if (varietiCols.length > 0) {
+        const secY = totalYHQ + 35 + 30;
         // Tajuk seksyen
         ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 15px sans-serif';
-        ctx.fillText('🌳 Pecahan Mengikut Varieti Durian (Seluruh Malaysia)', 50, varietiY);
+        ctx.fillText('🌳 Pecahan Varieti Durian Mengikut Negeri (Metrik Tan)', 50, secY);
 
-        const barX = 340;          // mula bar
-        const barW = W - 50 - barX - 150; // lebar bar (sisakan ruang MT di kanan)
-        varietiHQRows.forEach((v, i) => {
-          const ry = varietiY + 20 + (i * varietiRowH);
-          const pct = (v.kg / jumlahKgVarietiHQ) * 100;
-          // Latar zebra
-          ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF';
-          ctx.fillRect(50, ry - 4, W - 100, varietiRowH - 2);
-          // Nama varieti
-          ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.font = 'bold 12px sans-serif';
-          ctx.fillText(v.name, 60, ry + 14);
-          // Bar peratus
-          ctx.fillStyle = '#E5E7EB'; ctx.fillRect(barX, ry + 5, barW, 10);
-          ctx.fillStyle = '#1F4D36'; ctx.fillRect(barX, ry + 5, Math.max(2, barW * (pct / 100)), 10);
-          // Peratus (label di hujung bar)
-          ctx.textAlign = 'start'; ctx.fillStyle = '#C98A2C'; ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(`${pct.toFixed(1)}%`, barX + barW + 10, ry + 14);
-          // MT (kanan sekali)
-          ctx.textAlign = 'end'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 12px sans-serif';
-          ctx.fillText(`${v.mt.toFixed(2)} Mt`, W - 55, ry + 14);
+        const mHeadY = secY + 18;
+        const negCol = 60;            // lajur nama negeri
+        const firstVarX = 250;        // permulaan lajur varieti pertama
+        const jumCol = W - 60;        // lajur jumlah (kanan sekali)
+        const colSpan = (jumCol - 40 - firstVarX) / varietiCols.length;
+
+        // Header baris (hijau)
+        ctx.fillStyle = '#1F4D36'; ctx.fillRect(50, mHeadY, W - 100, 30);
+        ctx.fillStyle = '#FFFFFF'; ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'start'; ctx.fillText('Negeri', negCol, mHeadY + 19);
+        ctx.textAlign = 'center';
+        varietiCols.forEach((name, ci) => {
+          ctx.fillText(pendekVarieti(name), firstVarX + colSpan * ci + colSpan / 2, mHeadY + 19, colSpan - 4);
         });
+        ctx.textAlign = 'end'; ctx.fillText('Jumlah', jumCol, mHeadY + 19);
+
+        // Baris setiap negeri
+        negeriRows.forEach((row, i) => {
+          const ry = mHeadY + 30 + (i * matriksRowH);
+          ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF';
+          ctx.fillRect(50, ry, W - 100, matriksRowH);
+          // Nama negeri
+          ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(row.negeri.toUpperCase(), negCol, ry + 19);
+          // Nilai setiap varieti
+          ctx.font = '10px sans-serif';
+          let jumlahBaris = 0;
+          varietiCols.forEach((name, ci) => {
+            const kg = matriks[row.negeri]?.[name] || 0;
+            jumlahBaris += kg;
+            const mt = kg / 1000;
+            ctx.textAlign = 'center';
+            ctx.fillStyle = mt > 0 ? '#C98A2C' : '#D1D5DB';
+            ctx.fillText(mt > 0 ? mt.toFixed(1) : '-', firstVarX + colSpan * ci + colSpan / 2, ry + 19);
+          });
+          // Jumlah negeri
+          ctx.textAlign = 'end'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 11px sans-serif';
+          ctx.fillText((jumlahBaris / 1000).toFixed(1), jumCol, ry + 19);
+        });
+
+        // Baris jumlah keseluruhan varieti
+        const mTotalY = mHeadY + 30 + (negeriRows.length * matriksRowH);
+        ctx.fillStyle = '#FEF3C7'; ctx.fillRect(50, mTotalY, W - 100, 30);
+        ctx.strokeStyle = '#C98A2C'; ctx.lineWidth = 1; ctx.strokeRect(50, mTotalY, W - 100, 30);
+        ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 11px sans-serif';
+        ctx.fillText('JUMLAH', negCol, mTotalY + 19);
+        ctx.font = 'bold 10px sans-serif';
+        varietiCols.forEach((name, ci) => {
+          const mt = (jumlahVarietiKg[name] || 0) / 1000;
+          ctx.textAlign = 'center'; ctx.fillStyle = '#1F4D36';
+          ctx.fillText(mt.toFixed(1), firstVarX + colSpan * ci + colSpan / 2, mTotalY + 19);
+        });
+        ctx.textAlign = 'end'; ctx.fillText(totalMT.toFixed(1), jumCol, mTotalY + 19);
       }
 
       // Footer
