@@ -157,7 +157,12 @@ export function statusPemantauan(tarikhLawatan: string | undefined, tarikhSemasa
     return { status: 'semasa', hariSejakLawatan: hari, hariLewat: 0, label };
   }
   if (hari <= AMBANG_PEMANTAUAN_HARI) {
-    return { status: 'hampir', hariSejakLawatan: hari, hariLewat: 0, label: `Pemantauan semula dalam ${AMBANG_PEMANTAUAN_HARI - hari} hari` };
+    return {
+      status: 'hampir',
+      hariSejakLawatan: hari,
+      hariLewat: 0,
+      label: `Sudah ${hari} hari sejak pemantauan. Sila rancang lawatan ke kebun untuk mengemaskini fasa pengeluaran durian.`,
+    };
   }
   const hariLewat = hari - AMBANG_PEMANTAUAN_HARI;
   return {
