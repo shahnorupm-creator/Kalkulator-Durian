@@ -413,9 +413,23 @@ export default function LaporanPage() {
           const ry = mHeadY + 30 + (i * matriksRowH);
           ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF';
           ctx.fillRect(50, ry, W - 100, matriksRowH);
+          // Bendera negeri (jika sudah dimuatkan)
+          const benderaM = benderaRef.current[row.negeri];
+          const mfW = 22, mfH = 14;
+          let namaX = negCol;
+          if (benderaM && benderaM.complete && benderaM.naturalWidth > 0) {
+            try {
+              ctx.save();
+              ctx.strokeStyle = '#E5E7EB'; ctx.lineWidth = 0.5;
+              ctx.strokeRect(negCol, ry + (matriksRowH - mfH) / 2, mfW, mfH);
+              ctx.drawImage(benderaM, negCol, ry + (matriksRowH - mfH) / 2, mfW, mfH);
+              ctx.restore();
+            } catch { /* abaikan jika belum sedia */ }
+            namaX = negCol + mfW + 6;
+          }
           // Nama negeri
           ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 11px sans-serif';
-          ctx.fillText(row.negeri.toUpperCase(), negCol, ry + 19);
+          ctx.fillText(row.negeri.toUpperCase(), namaX, ry + 19);
           // Nilai setiap varieti
           ctx.font = '10px sans-serif';
           let jumlahBaris = 0;
