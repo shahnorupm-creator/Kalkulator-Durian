@@ -444,7 +444,7 @@ export default function DashboardHQPage() {
                 { nama: 'Black Thorn (D200)', warna: 'bg-moss', imej: '/d200-black-thorn.avif' },
                 { nama: 'Udang Merah (D175)', warna: 'bg-blue-500', imej: '/d175-red-prawn-inline-01.avif' },
                 { nama: 'Bukit Merah/Sultan (D24)', warna: 'bg-purple-500', imej: '/d24-inline-02.avif' },
-                { nama: 'Durian Kampung', warna: 'bg-amber-500', imej: '/kampung.avif' },
+                { nama: 'Durian Kampung', warna: 'bg-amber-500', imej: '/durian kampung.avif' },
               ];
               const cari = (nama: string) => varietiDist.find(v => v.name === nama);
               return (
