@@ -250,10 +250,29 @@ export default function LaporanPage() {
         bulanKumpulan: kumpulkanBulanMengikutTahun(d.bulan),
       })).sort((a, b) => b.mt - a.mt);
 
+      // Pecahan varieti seluruh Malaysia (gabungan semua negeri).
+      const varietiHQMap: Record<string, { kg: number; pokok: number }> = {};
+      projectedLawatan.forEach(item => {
+        const farm = filteredById.get(item.rekod.kebunId);
+        if (!farm) return;
+        item.varieti.forEach(v => {
+          if (!varietiHQMap[v.name]) varietiHQMap[v.name] = { kg: 0, pokok: 0 };
+          varietiHQMap[v.name].kg += v.kg;
+          varietiHQMap[v.name].pokok += v.pokok;
+        });
+      });
+      const varietiHQRows = Object.entries(varietiHQMap)
+        .map(([name, d]) => ({ name, kg: d.kg, pokok: d.pokok, mt: d.kg / 1000 }))
+        .sort((a, b) => b.kg - a.kg);
+      const jumlahKgVarietiHQ = varietiHQRows.reduce((s, v) => s + v.kg, 0) || 1;
+
       const rowH = 65;
       const tableStartY = 180;
       const W = 1080;
-      const H = Math.max(tableStartY + 45 + (negeriRows.length * rowH) + 80, 700);
+      // Ruang tambahan untuk seksyen varieti (tajuk + baris + padding).
+      const varietiRowH = 30;
+      const varietiSectionH = varietiHQRows.length > 0 ? 40 + (varietiHQRows.length * varietiRowH) + 20 : 0;
+      const H = Math.max(tableStartY + 45 + (negeriRows.length * rowH) + 60 + varietiSectionH + 40, 700);
       canvas.width = W; canvas.height = H;
 
       // Background white + header bar
@@ -360,6 +379,36 @@ export default function LaporanPage() {
       ctx.fillStyle = '#C98A2C'; ctx.fillText(totalKg > 0 ? totalKg.toLocaleString() : '-', colXHQ[3], totalYHQ + 22);
       ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 13px sans-serif';
       ctx.fillText(totalMT.toFixed(2), colXHQ[4], totalYHQ + 22);
+
+      // ═══ Seksyen: Pecahan Mengikut Varieti (Seluruh Malaysia) ═══
+      if (varietiHQRows.length > 0) {
+        const varietiY = totalYHQ + 35 + 30;
+        // Tajuk seksyen
+        ctx.textAlign = 'start'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 15px sans-serif';
+        ctx.fillText('🌳 Pecahan Mengikut Varieti Durian (Seluruh Malaysia)', 50, varietiY);
+
+        const barX = 340;          // mula bar
+        const barW = W - 50 - barX - 150; // lebar bar (sisakan ruang MT di kanan)
+        varietiHQRows.forEach((v, i) => {
+          const ry = varietiY + 20 + (i * varietiRowH);
+          const pct = (v.kg / jumlahKgVarietiHQ) * 100;
+          // Latar zebra
+          ctx.fillStyle = i % 2 === 0 ? '#F9FAFB' : '#FFFFFF';
+          ctx.fillRect(50, ry - 4, W - 100, varietiRowH - 2);
+          // Nama varieti
+          ctx.textAlign = 'start'; ctx.fillStyle = '#1F2937'; ctx.font = 'bold 12px sans-serif';
+          ctx.fillText(v.name, 60, ry + 14);
+          // Bar peratus
+          ctx.fillStyle = '#E5E7EB'; ctx.fillRect(barX, ry + 5, barW, 10);
+          ctx.fillStyle = '#1F4D36'; ctx.fillRect(barX, ry + 5, Math.max(2, barW * (pct / 100)), 10);
+          // Peratus (label di hujung bar)
+          ctx.textAlign = 'start'; ctx.fillStyle = '#C98A2C'; ctx.font = 'bold 11px sans-serif';
+          ctx.fillText(`${pct.toFixed(1)}%`, barX + barW + 10, ry + 14);
+          // MT (kanan sekali)
+          ctx.textAlign = 'end'; ctx.fillStyle = '#1F4D36'; ctx.font = 'bold 12px sans-serif';
+          ctx.fillText(`${v.mt.toFixed(2)} Mt`, W - 55, ry + 14);
+        });
+      }
 
       // Footer
       ctx.fillStyle = '#9CA3AF'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
