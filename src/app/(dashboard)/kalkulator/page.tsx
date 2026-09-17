@@ -842,7 +842,7 @@ export default function KalkulatorPage() {
                                 Dipantau {r.bilangan} kali
                                 {r.terkini?.pegawaiNama ? ` · Terakhir oleh ${formatNamaPaparan(r.terkini.pegawaiNama)}` : ''}
                                 {perluSemak > 0
-                                  ? ` · ${perluSemak} rekod perlu semak`
+                                  ? ` · ${perluSemak} rekod direkod lewat (lebih 3 hari selepas lawatan)`
                                   : ' · Rekod normal'}
                               </span>
                             </div>

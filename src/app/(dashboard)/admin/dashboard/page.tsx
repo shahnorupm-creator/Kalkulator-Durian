@@ -362,10 +362,10 @@ export default function AdminDashboardPage() {
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">🟡 Hampir perlu pantau</span>
                   )}
                   {k.bilBackdate > 0 && (
-                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">🚩 {k.bilBackdate} rekod backdate</span>
+                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">🚩 {k.bilBackdate} rekod direkod lewat (lebih 14 hari)</span>
                   )}
                   {k.bilLewatRekod > 0 && (
-                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">⚠ {k.bilLewatRekod} rekod lewat direkod</span>
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">⚠ {k.bilLewatRekod} rekod direkod lewat (4-14 hari)</span>
                   )}
                   {k.keparahan === 0 && (
                     <span className="rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">✅ Semua rekod normal</span>
