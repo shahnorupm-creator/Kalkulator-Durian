@@ -113,7 +113,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     'calc.fasaDesc': 'Pilih peringkat dominan yang dilihat di kebun semasa lawatan',
     'calc.fasaSelected': '📌 Fasa dipilih:',
     'calc.fasaAutoFill': 'Peratusan peringkat telah di-auto-isi. Boleh edit jika perlu.',
-    'calc.step4': '4. Proses Fasa Kejadian',
+    'calc.step4': '4. Tentukan Peratus Proses Fasa Kejadian Durian',
     'calc.step4Desc': 'Auto-diisi berdasarkan fasa utama. Laraskan jika pemerhatian berbeza.',
     'calc.pctPokok': '% Pokok',
     'calc.usiaHari': 'Usia (D) hari',
@@ -145,7 +145,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     'calc.matang': 'Matang',
 
     // --- Dashboard HQ ---
-    'dash.title': 'Executive Dashboard',
+    'dash.title': 'Eksekutif Dashboard',
     'dash.subtitle': 'Analisis Pengeluaran Durian FAMA',
     'dash.updated': 'Dikemas kini',
     'dash.kebun': 'Jumlah Kebun',

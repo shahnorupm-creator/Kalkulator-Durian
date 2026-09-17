@@ -6,7 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
-import { bandingLawatanSemasa } from '@/lib/lawatan';
+import { bandingLawatanSemasa, kesanBackdate } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
 import toast from 'react-hot-toast';
@@ -122,13 +122,19 @@ export default function KalkulatorPage() {
     stages?: Record<string, InputPeringkatLawatan>;
     varietiResults?: InputVarietiLawatan[];
     createdAt: number;
+    pegawaiNama?: string;
   };
   const [lawatanMap, setLawatanMap] = useState<Record<string, LawatanRingkas>>({});
+  // Simpan SEMUA rekod lawatan per kebun (sejarah penuh) untuk kiraan bilangan pemantauan.
+  const [sejarahMap, setSejarahMap] = useState<Record<string, LawatanRingkas[]>>({});
   const [lawatanDimuat, setLawatanDimuat] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     const scopedIds = new Set(kebunList.map(k => k.id));
     setLawatanMap(prev => Object.fromEntries(
+      Object.entries(prev).filter(([kebunId]) => scopedIds.has(kebunId))
+    ));
+    setSejarahMap(prev => Object.fromEntries(
       Object.entries(prev).filter(([kebunId]) => scopedIds.has(kebunId))
     ));
     setLawatanDimuat(new Set());
@@ -138,11 +144,9 @@ export default function KalkulatorPage() {
     const unsubs = kebunList.map(k => onSnapshot(
       query(collection(db, 'kebun', k.id, 'lawatan')),
       (snap) => {
-        let semasa: LawatanRingkas | undefined;
-
-        snap.docs.forEach(d => {
+        const semua: LawatanRingkas[] = snap.docs.map(d => {
           const data = d.data();
-          const calon: LawatanRingkas = {
+          return {
             id: d.id,
             kebunId: k.id,
             tarikhLawatan: data.tarikhLawatan || '',
@@ -151,13 +155,18 @@ export default function KalkulatorPage() {
             stages: data.stages,
             varietiResults: data.varietiResults,
             createdAt: data.updatedAt?.seconds || data.createdAt?.seconds || 0,
-          };
-          if (!semasa || bandingLawatanSemasa(
-            { ...calon, createdAt: { seconds: calon.createdAt } },
-            { ...semasa, createdAt: { seconds: semasa.createdAt } }
-          ) > 0) semasa = calon;
+            pegawaiNama: data.pegawaiNama || '',
+          } as LawatanRingkas;
         });
 
+        // Susun sejarah: rekod paling baharu disimpan di atas.
+        const sejarah = [...semua].sort((a, b) => bandingLawatanSemasa(
+          { ...b, createdAt: { seconds: b.createdAt } },
+          { ...a, createdAt: { seconds: a.createdAt } }
+        ));
+        const semasa = sejarah[0];
+
+        setSejarahMap(prev => ({ ...prev, [k.id]: sejarah }));
         setLawatanMap(prev => {
           const next = { ...prev };
           if (semasa) next[k.id] = semasa;
@@ -177,6 +186,8 @@ export default function KalkulatorPage() {
   const semuaLawatanDimuat = kebunList.every(k => lawatanDimuat.has(k.id));
   const jumlahLewat = Object.values(unjuranMap).filter(item => item.pemantauan.status === 'lewat').length;
   const unjuranKebunDipilih = selectedKebun ? unjuranMap[selectedKebun] : undefined;
+  const sejarahKebunDipilih = selectedKebun ? (sejarahMap[selectedKebun] || []) : [];
+  const bilanganPemantauan = sejarahKebunDipilih.length;
 
   const negeriOptions = useMemo(() => {
     const counts = kebunList.reduce<Record<string, number>>((hasil, item) => {
@@ -354,6 +365,7 @@ export default function KalkulatorPage() {
         varietiResults: varietiResults.map(v => ({ key: v.varietiKey, name: v.varietiName, pokok: v.bilPokok, kg: v.totalKg })),
         totalKg: grandTotalKg, totalTan: grandTotalKg / 1000,
         pegawaiNama: profile?.nama || '', pegawaiDaerah: profile?.daerah || '', negeri: kebun.negeri || '',
+        pegawaiUid: user.uid, pegawaiEmail: profile?.email || user.email || '',
         createdAt: serverTimestamp(),
       });
       // Optimistic update — hanya ganti badge jika lawatan ini benar-benar paling baharu.
@@ -764,7 +776,14 @@ export default function KalkulatorPage() {
             }`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Rekod Lawatan Terakhir</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Rekod Lawatan Terakhir</p>
+                    {bilanganPemantauan > 0 && (
+                      <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[9px] font-bold text-forest">
+                        Pemantauan di kebun: {bilanganPemantauan} kali
+                      </span>
+                    )}
+                  </div>
                   {unjuranKebunDipilih ? (
                     <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
                       <div>
@@ -805,6 +824,42 @@ export default function KalkulatorPage() {
                           </div>
                         );
                       })()}
+
+                      {/* Sejarah pemantauan: senarai 5 lawatan terkini + kesan backdate. */}
+                      {sejarahKebunDipilih.length > 0 && (
+                        <div className="col-span-2 border-t border-black/5 pt-2">
+                          <p className="text-[8px] text-gray-500 mb-1">Sejarah pemantauan (terkini):</p>
+                          <div className="space-y-1">
+                            {sejarahKebunDipilih.slice(0, 5).map(rk => {
+                              const bd = kesanBackdate(rk.tarikhLawatan, rk.createdAt);
+                              const disimpan = rk.createdAt
+                                ? new Date(rk.createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })
+                                : '-';
+                              return (
+                                <div key={rk.id} className="flex items-start justify-between gap-2 text-[8px]">
+                                  <div className="min-w-0">
+                                    <span className="font-bold text-gray-800">{formatTarikhBM(rk.tarikhLawatan)}</span>
+                                    <span className="text-gray-500">
+                                      {rk.fasaUtama ? ` · ${fasaLabel(rk.fasaUtama)}` : ''}
+                                      {' · direkod '}{disimpan}
+                                      {rk.pegawaiNama ? ` · ${formatNamaPaparan(rk.pegawaiNama)}` : ''}
+                                    </span>
+                                    {bd.status === 'lewat' && (
+                                      <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 font-bold text-amber-700">⚠ {bd.label}</span>
+                                    )}
+                                    {bd.status === 'backdate' && (
+                                      <span className="ml-1 rounded bg-red-100 px-1 py-0.5 font-bold text-red-700">⚠ {bd.label}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          {sejarahKebunDipilih.length > 5 && (
+                            <p className="mt-1 text-[8px] text-gray-400">+ {sejarahKebunDipilih.length - 5} lawatan lagi</p>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ) : (
                     <p className="mt-2 text-xs font-semibold text-gray-600">Belum pernah dipantau</p>
