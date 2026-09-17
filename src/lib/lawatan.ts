@@ -109,3 +109,52 @@ export function kesanBackdate(
     label: `Direkod ${hariJurang} hari selepas tarikh lawatan — sila sahkan tarikh lawatan sebenar`,
   };
 }
+
+// ── Ringkasan pemantauan satu kebun ──────────────────────────────────────────
+// Kumpul kiraan mudah untuk paparan ringkas kepada pegawai dan admin:
+// berapa kali dipantau, lawatan terkini, dan berapa rekod yang perlu disemak.
+export interface RingkasanPemantauan {
+  bilangan: number;
+  terkini: {
+    tarikhLawatan?: string;
+    pegawaiNama?: string;
+    createdAtSeconds: number;
+  } | null;
+  bilBackdate: number; // rekod dengan status 'backdate' (>14 hari)
+  bilLewatRekod: number; // rekod dengan status 'lewat' (4-14 hari)
+}
+
+interface RekodRingkas extends LawatanSemasaBase {
+  pegawaiNama?: string;
+}
+
+/**
+ * Bina ringkasan pemantauan daripada senarai rekod lawatan satu kebun.
+ * Senarai TIDAK perlu disusun terlebih dahulu.
+ */
+export function ringkasanPemantauan(rekod: RekodRingkas[]): RingkasanPemantauan {
+  if (!rekod || rekod.length === 0) {
+    return { bilangan: 0, terkini: null, bilBackdate: 0, bilLewatRekod: 0 };
+  }
+  const tersusun = [...rekod].sort((a, b) => bandingLawatanSemasa(b, a));
+  const terkini = tersusun[0];
+
+  let bilBackdate = 0;
+  let bilLewatRekod = 0;
+  rekod.forEach(r => {
+    const bd = kesanBackdate(r.tarikhLawatan, r.createdAt?.seconds ?? null);
+    if (bd.status === 'backdate') bilBackdate += 1;
+    else if (bd.status === 'lewat') bilLewatRekod += 1;
+  });
+
+  return {
+    bilangan: rekod.length,
+    terkini: {
+      tarikhLawatan: terkini.tarikhLawatan,
+      pegawaiNama: terkini.pegawaiNama,
+      createdAtSeconds: terkini.createdAt?.seconds ?? terkini.updatedAt?.seconds ?? 0,
+    },
+    bilBackdate,
+    bilLewatRekod,
+  };
+}

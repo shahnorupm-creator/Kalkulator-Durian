@@ -6,7 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
-import { bandingLawatanSemasa, kesanBackdate } from '@/lib/lawatan';
+import { bandingLawatanSemasa, ringkasanPemantauan } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
 import toast from 'react-hot-toast';
@@ -187,7 +187,15 @@ export default function KalkulatorPage() {
   const jumlahLewat = Object.values(unjuranMap).filter(item => item.pemantauan.status === 'lewat').length;
   const unjuranKebunDipilih = selectedKebun ? unjuranMap[selectedKebun] : undefined;
   const sejarahKebunDipilih = selectedKebun ? (sejarahMap[selectedKebun] || []) : [];
-  const bilanganPemantauan = sejarahKebunDipilih.length;
+  const ringkasanKebunDipilih = useMemo(
+    () => ringkasanPemantauan(sejarahKebunDipilih.map(r => ({
+      kebunId: r.kebunId,
+      tarikhLawatan: r.tarikhLawatan,
+      createdAt: { seconds: r.createdAt },
+      pegawaiNama: r.pegawaiNama,
+    }))),
+    [sejarahKebunDipilih]
+  );
 
   const negeriOptions = useMemo(() => {
     const counts = kebunList.reduce<Record<string, number>>((hasil, item) => {
@@ -776,14 +784,7 @@ export default function KalkulatorPage() {
             }`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Rekod Lawatan Terakhir</p>
-                    {bilanganPemantauan > 0 && (
-                      <span className="rounded-full bg-forest/10 px-2 py-0.5 text-[9px] font-bold text-forest">
-                        Pemantauan di kebun: {bilanganPemantauan} kali
-                      </span>
-                    )}
-                  </div>
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Rekod Lawatan Terakhir</p>
                   {unjuranKebunDipilih ? (
                     <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-2">
                       <div>
@@ -825,41 +826,29 @@ export default function KalkulatorPage() {
                         );
                       })()}
 
-                      {/* Sejarah pemantauan: senarai 5 lawatan terkini + kesan backdate. */}
-                      {sejarahKebunDipilih.length > 0 && (
-                        <div className="col-span-2 border-t border-black/5 pt-2">
-                          <p className="text-[8px] text-gray-500 mb-1">Sejarah pemantauan (terkini):</p>
-                          <div className="space-y-1">
-                            {sejarahKebunDipilih.slice(0, 5).map(rk => {
-                              const bd = kesanBackdate(rk.tarikhLawatan, rk.createdAt);
-                              const disimpan = rk.createdAt
-                                ? new Date(rk.createdAt * 1000).toLocaleDateString('ms-MY', { day: 'numeric', month: 'short', year: 'numeric' })
-                                : '-';
-                              return (
-                                <div key={rk.id} className="flex items-start justify-between gap-2 text-[8px]">
-                                  <div className="min-w-0">
-                                    <span className="font-bold text-gray-800">{formatTarikhBM(rk.tarikhLawatan)}</span>
-                                    <span className="text-gray-500">
-                                      {rk.fasaUtama ? ` · ${fasaLabel(rk.fasaUtama)}` : ''}
-                                      {' · direkod '}{disimpan}
-                                      {rk.pegawaiNama ? ` · ${formatNamaPaparan(rk.pegawaiNama)}` : ''}
-                                    </span>
-                                    {bd.status === 'lewat' && (
-                                      <span className="ml-1 rounded bg-amber-100 px-1 py-0.5 font-bold text-amber-700">⚠ {bd.label}</span>
-                                    )}
-                                    {bd.status === 'backdate' && (
-                                      <span className="ml-1 rounded bg-red-100 px-1 py-0.5 font-bold text-red-700">⚠ {bd.label}</span>
-                                    )}
-                                  </div>
-                                </div>
-                              );
-                            })}
+                      {/* Ringkasan pemantauan sebaris — mudah, tidak sesak. */}
+                      {ringkasanKebunDipilih.bilangan > 0 && (() => {
+                        const r = ringkasanKebunDipilih;
+                        const perluSemak = r.bilBackdate + r.bilLewatRekod;
+                        return (
+                          <div className="col-span-2 border-t border-black/5 pt-2">
+                            <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[9px] font-semibold ${
+                              r.bilBackdate > 0 ? 'bg-red-50 text-red-700'
+                                : perluSemak > 0 ? 'bg-amber-50 text-amber-700'
+                                  : 'bg-green-50 text-green-700'
+                            }`}>
+                              <span>{r.bilBackdate > 0 ? '⚠️' : perluSemak > 0 ? '⚠️' : '✅'}</span>
+                              <span>
+                                Dipantau {r.bilangan} kali
+                                {r.terkini?.pegawaiNama ? ` · Terakhir oleh ${formatNamaPaparan(r.terkini.pegawaiNama)}` : ''}
+                                {perluSemak > 0
+                                  ? ` · ${perluSemak} rekod perlu semak`
+                                  : ' · Rekod normal'}
+                              </span>
+                            </div>
                           </div>
-                          {sejarahKebunDipilih.length > 5 && (
-                            <p className="mt-1 text-[8px] text-gray-400">+ {sejarahKebunDipilih.length - 5} lawatan lagi</p>
-                          )}
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   ) : (
                     <p className="mt-2 text-xs font-semibold text-gray-600">Belum pernah dipantau</p>
