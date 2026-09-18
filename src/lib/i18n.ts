@@ -113,7 +113,7 @@ export const translations: Record<Locale, Record<string, string>> = {
     'calc.fasaDesc': 'Pilih peringkat dominan yang dilihat di kebun semasa lawatan',
     'calc.fasaSelected': '📌 Fasa dipilih:',
     'calc.fasaAutoFill': 'Peratusan peringkat telah di-auto-isi. Boleh edit jika perlu.',
-    'calc.step4': '4. Pilih Peratusan Fasa Kejadian',
+    'calc.step4': 'Pilih Peratusan Fasa Kejadian',
     'calc.step4Desc': 'Auto-diisi berdasarkan fasa utama. Laraskan jika pemerhatian berbeza.',
     'calc.pctPokok': '% Pokok',
     'calc.usiaHari': 'Usia (D) hari',
