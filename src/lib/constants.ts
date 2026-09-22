@@ -1,12 +1,19 @@
 // Durian variety data
+// tempohMatang: bilangan hari dari BERBUNGA (antesis) sehingga buah gugur/matang.
+// Sumber: Pakej Teknologi Durian JPM 2024, Jadual 12 (tengah julat). Varieti yang
+// tiada dalam jadual (Udang Merah, Kampung) menggunakan anggaran munasabah.
 export const VARIETIES = [
-  { key: 'musangking', name: 'Musang King (D197)', bilanganBuah: 100, beratPerBuah: 1.5, hasil: 150, note: 'Isi kuning keemasan dengan rasa pahit-manis. Laraskan tempoh peringkat mengikut pemerhatian sebenar di kebun.' },
-  { key: 'blackthorn', name: 'Black Thorn (D200)', bilanganBuah: 85, beratPerBuah: 1.5, hasil: 130, note: 'Duri Hitam mempunyai isi pekat dan tempoh matang yang lazimnya lebih panjang. Gunakan pemerhatian lapangan sebenar.' },
-  { key: 'ioi', name: 'IOI / Hajah Hasmah (D168)', bilanganBuah: 93, beratPerBuah: 1.5, hasil: 140, note: 'IOI juga dikenali sebagai Hajah Hasmah atau Mas Muar. Buah sederhana dengan rasa manis dan kurang pahit.' },
-  { key: 'udangmerah', name: 'Udang Merah (D175)', bilanganBuah: 97, beratPerBuah: 1.5, hasil: 145, note: 'Udang Merah mempunyai isi jingga kemerahan dan rasa manis berlemak. Sahkan tahap kematangan melalui lawatan kebun.' },
-  { key: 'kampung', name: 'Durian Kampung', bilanganBuah: 60, beratPerBuah: 1.5, hasil: 90, note: 'Durian baka biji benih mempunyai saiz, hasil dan kualiti yang tidak seragam antara pokok.' },
-  { key: 'd24', name: 'Bukit Merah/Sultan (D24)', bilanganBuah: 90, beratPerBuah: 1.5, hasil: 135, note: 'D24 mempunyai isi kuning keemasan dan rasa pahit sederhana. Laraskan anggaran berdasarkan keadaan kebun.' },
+  { key: 'musangking', name: 'Musang King (D197)', bilanganBuah: 100, beratPerBuah: 1.5, hasil: 150, tempohMatang: 100, note: 'Isi kuning keemasan dengan rasa pahit-manis. Laraskan tempoh peringkat mengikut pemerhatian sebenar di kebun.' },
+  { key: 'blackthorn', name: 'Black Thorn (D200)', bilanganBuah: 85, beratPerBuah: 1.5, hasil: 130, tempohMatang: 95, note: 'Duri Hitam mempunyai isi pekat dan tempoh matang yang lazimnya lebih panjang. Gunakan pemerhatian lapangan sebenar.' },
+  { key: 'ioi', name: 'IOI / Hajah Hasmah (D168)', bilanganBuah: 93, beratPerBuah: 1.5, hasil: 140, tempohMatang: 110, note: 'IOI juga dikenali sebagai Hajah Hasmah atau Mas Muar. Buah sederhana dengan rasa manis dan kurang pahit.' },
+  { key: 'udangmerah', name: 'Udang Merah (D175)', bilanganBuah: 97, beratPerBuah: 1.5, hasil: 145, tempohMatang: 105, note: 'Udang Merah mempunyai isi jingga kemerahan dan rasa manis berlemak. Sahkan tahap kematangan melalui lawatan kebun.' },
+  { key: 'kampung', name: 'Durian Kampung', bilanganBuah: 60, beratPerBuah: 1.5, hasil: 90, tempohMatang: 100, note: 'Durian baka biji benih mempunyai saiz, hasil dan kualiti yang tidak seragam antara pokok.' },
+  { key: 'd24', name: 'Bukit Merah/Sultan (D24)', bilanganBuah: 90, beratPerBuah: 1.5, hasil: 135, tempohMatang: 110, note: 'D24 mempunyai isi kuning keemasan dan rasa pahit sederhana. Laraskan anggaran berdasarkan keadaan kebun.' },
 ] as const;
+
+// Tempoh matang lalai (hari) bagi rekod tanpa varieti dikenal pasti.
+// Sepadan dengan nilai J fasa Berbunga sedia ada supaya kelakuan kekal seperti asal.
+export const TEMPOH_MATANG_LALAI = 120;
 
 // Growth stages
 export const STAGES = [

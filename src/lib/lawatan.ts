@@ -120,6 +120,7 @@ export interface RingkasanPemantauan {
     pegawaiNama?: string;
     createdAtSeconds: number;
   } | null;
+  bilNormal: number; // rekod dengan jurang 0-3 hari (termasuk yang tiada tarikh sah)
   bilBackdate: number; // rekod dengan status 'backdate' (>14 hari)
   bilLewatRekod: number; // rekod dengan status 'lewat' (4-14 hari)
 }
@@ -134,17 +135,19 @@ interface RekodRingkas extends LawatanSemasaBase {
  */
 export function ringkasanPemantauan(rekod: RekodRingkas[]): RingkasanPemantauan {
   if (!rekod || rekod.length === 0) {
-    return { bilangan: 0, terkini: null, bilBackdate: 0, bilLewatRekod: 0 };
+    return { bilangan: 0, terkini: null, bilNormal: 0, bilBackdate: 0, bilLewatRekod: 0 };
   }
   const tersusun = [...rekod].sort((a, b) => bandingLawatanSemasa(b, a));
   const terkini = tersusun[0];
 
   let bilBackdate = 0;
   let bilLewatRekod = 0;
+  let bilNormal = 0;
   rekod.forEach(r => {
     const bd = kesanBackdate(r.tarikhLawatan, r.createdAt?.seconds ?? null);
     if (bd.status === 'backdate') bilBackdate += 1;
     else if (bd.status === 'lewat') bilLewatRekod += 1;
+    else bilNormal += 1; // 'normal' atau 'tiada' (tarikh tidak sah) dikira normal
   });
 
   return {
@@ -154,6 +157,7 @@ export function ringkasanPemantauan(rekod: RekodRingkas[]): RingkasanPemantauan 
       pegawaiNama: terkini.pegawaiNama,
       createdAtSeconds: terkini.createdAt?.seconds ?? terkini.updatedAt?.seconds ?? 0,
     },
+    bilNormal,
     bilBackdate,
     bilLewatRekod,
   };

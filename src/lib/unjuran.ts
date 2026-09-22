@@ -1,4 +1,4 @@
-import { STAGES, VARIETIES } from '@/lib/constants';
+import { STAGES, VARIETIES, TEMPOH_MATANG_LALAI } from '@/lib/constants';
 
 const MS_SEHARI = 86_400_000;
 // Durian perlu dipantau kerap kerana fasa pengeluaran bergerak pantas.
@@ -209,6 +209,28 @@ export function normalisasiVarieti(
   return Array.from(map.values()).sort((a, b) => b.kg - a.kg);
 }
 
+// Tentukan tempoh matang (hari berbunga->gugur) bagi satu lawatan berdasarkan
+// VARIETI DOMINAN (hasil kg tertinggi). Rekod tanpa varieti guna nilai lalai.
+// Nilai ini dibanding dengan tempoh Berbunga sedia ada untuk menganjak semua fasa
+// secara seragam supaya tarikh gugur lebih tepat mengikut varieti.
+function tempohMatangDominan(varietiResults?: InputVarietiLawatan[]): number {
+  if (!varietiResults || varietiResults.length === 0) return TEMPOH_MATANG_LALAI;
+  let kgTertinggi = -1;
+  let tempohDominan = TEMPOH_MATANG_LALAI;
+  varietiResults.forEach(v => {
+    const kg = nomborBukanNegatif(v.kg);
+    const ref = VARIETIES.find(x =>
+      x.key === v.key || x.key === v.name || x.name.toLowerCase() === (v.name || '').toLowerCase()
+    );
+    const tempoh = ref?.tempohMatang ?? TEMPOH_MATANG_LALAI;
+    if (kg > kgTertinggi) {
+      kgTertinggi = kg;
+      tempohDominan = tempoh;
+    }
+  });
+  return tempohDominan;
+}
+
 export function unjurLawatan<T extends InputUnjuranLawatan>(
   rekod: T,
   tarikhSemasa = tarikhMalaysia()
@@ -217,6 +239,11 @@ export function unjurLawatan<T extends InputUnjuranLawatan>(
   const pemantauan = statusPemantauan(rekod.tarikhLawatan, tarikhSemasa);
   const hariSejakLawatan = pemantauan.hariSejakLawatan;
   const tarikhLawatanSah = tarikhUtc(rekod.tarikhLawatan) !== null;
+
+  // Anjakan tempoh matang mengikut varieti dominan. Berbunga lalai = TEMPOH_MATANG_LALAI (120).
+  // Contoh Musang King (100): anjakan = 100 - 120 = -20 hari (matang lebih awal).
+  const tempohMatang = tempohMatangDominan(rekod.varietiResults);
+  const anjakanMatang = tempohMatang - TEMPOH_MATANG_LALAI;
 
   const inputs = rekod.stages || {};
   const producingPct = STAGES.reduce((sum, stage) => {
@@ -230,14 +257,17 @@ export function unjurLawatan<T extends InputUnjuranLawatan>(
     const pct = Math.min(100, nomborBukanNegatif(input?.pct));
     if (pct <= 0 || producingPct <= 0) return [];
     const dAsal = nomborBukanNegatif(input?.d);
+    // J efektif dilaraskan mengikut tempoh matang varieti dominan (anjakan seragam
+    // pada semua fasa). Contoh Musang King (100 hari): setiap fasa gugur 20 hari lebih awal.
+    const jEfektif = stage.J + anjakanMatang;
     // Tarikh jangkaan gugur SENTIASA dikira dari tarikh lawatan sebenar: lawatan + (J - D).
     // Nilai ini TETAP dan tidak bergerak walaupun user belum kemas kini, supaya laporan
     // membaca data lawatan sebenar (contoh 10 Ogos) secara konsisten.
-    const tarikhJangkaan = tambahHari(rekod.tarikhLawatan || '', stage.J - dAsal);
+    const tarikhJangkaan = tambahHari(rekod.tarikhLawatan || '', jEfektif - dAsal);
     // dLive/bakiHari kekal "live" untuk paparan status umur buah semasa sahaja,
     // tetapi TIDAK mempengaruhi tarikh jangkaan pengeluaran di atas.
     const dLive = hariSejakLawatan === null ? dAsal : dAsal + hariSejakLawatan;
-    const bakiHari = stage.J - dLive;
+    const bakiHari = jEfektif - dLive;
     return [{
       stageKey: stage.key,
       stageName: stage.name,

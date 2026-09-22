@@ -826,25 +826,38 @@ export default function KalkulatorPage() {
                         );
                       })()}
 
-                      {/* Ringkasan pemantauan sebaris — mudah, tidak sesak. */}
+                      {/* Ringkasan pemantauan sebaris + pecahan ikut jurang hari direkod. */}
                       {ringkasanKebunDipilih.bilangan > 0 && (() => {
                         const r = ringkasanKebunDipilih;
                         const perluSemak = r.bilBackdate + r.bilLewatRekod;
                         return (
-                          <div className="col-span-2 border-t border-black/5 pt-2">
+                          <div className="col-span-2 border-t border-black/5 pt-2 space-y-1.5">
                             <div className={`flex items-center gap-1.5 rounded-lg px-2 py-1.5 text-[9px] font-semibold ${
                               r.bilBackdate > 0 ? 'bg-red-50 text-red-700'
                                 : perluSemak > 0 ? 'bg-amber-50 text-amber-700'
                                   : 'bg-green-50 text-green-700'
                             }`}>
-                              <span>{r.bilBackdate > 0 ? '⚠️' : perluSemak > 0 ? '⚠️' : '✅'}</span>
+                              <span>{perluSemak > 0 ? '⚠️' : '✅'}</span>
                               <span>
                                 Dipantau {r.bilangan} kali
                                 {r.terkini?.pegawaiNama ? ` · Terakhir oleh ${formatNamaPaparan(r.terkini.pegawaiNama)}` : ''}
-                                {perluSemak > 0
-                                  ? ` · ${perluSemak} rekod direkod lewat (lebih 3 hari selepas lawatan)`
-                                  : ' · Rekod normal'}
                               </span>
+                            </div>
+                            {/* Pecahan ikut kategori jurang hari (tarikh lawatan vs masa direkod). */}
+                            <div className="flex flex-wrap gap-1.5 text-[8px] font-bold">
+                              <span className="rounded bg-green-100 px-1.5 py-0.5 text-green-700">
+                                {r.bilNormal} normal (0-3 hari)
+                              </span>
+                              {r.bilLewatRekod > 0 && (
+                                <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-700">
+                                  {r.bilLewatRekod} lewat (4-14 hari)
+                                </span>
+                              )}
+                              {r.bilBackdate > 0 && (
+                                <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">
+                                  {r.bilBackdate} backdate (lebih 14 hari)
+                                </span>
+                              )}
                             </div>
                           </div>
                         );
