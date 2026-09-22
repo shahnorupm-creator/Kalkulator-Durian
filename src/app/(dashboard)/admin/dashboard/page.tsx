@@ -26,6 +26,7 @@ interface LawatanRecord {
   createdAtSeconds: number;
   statusLokasi: string; // 'disahkan' | 'jauh' | 'tiada' | ''
   jarakDariKebunM: number | null;
+  gambar: { url: string; pegawaiNama?: string; lokasi?: string }[];
 }
 
 interface KebunInfo {
@@ -141,6 +142,7 @@ export default function AdminDashboardPage() {
               createdAtSeconds: data.createdAt?.seconds || 0,
               statusLokasi: typeof data.statusLokasi === 'string' ? data.statusLokasi : '',
               jarakDariKebunM: typeof data.jarakDariKebunM === 'number' ? data.jarakDariKebunM : null,
+              gambar: Array.isArray(data.gambar) ? data.gambar : [],
             } as LawatanRecord;
           }));
           publish();
@@ -425,6 +427,17 @@ export default function AdminDashboardPage() {
                           )}
                           {(r.statusLokasi === 'tiada' || r.statusLokasi === '') && (
                             <span className="ml-1 rounded bg-gray-100 px-1 py-0.5 font-bold text-gray-500">📍 Lokasi tidak disahkan</span>
+                          )}
+                          {/* Thumbnail gambar bukti lawatan */}
+                          {r.gambar.length > 0 && (
+                            <div className="mt-1 flex flex-wrap gap-1">
+                              {r.gambar.map((g, gi) => (
+                                <a key={gi} href={g.url} target="_blank" rel="noopener noreferrer" className="block w-12 h-12 rounded overflow-hidden border border-gray-200">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img src={g.url} alt={`Bukti ${gi + 1}`} className="w-full h-full object-cover" />
+                                </a>
+                              ))}
+                            </div>
                           )}
                         </div>
                       );

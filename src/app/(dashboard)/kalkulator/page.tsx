@@ -4,8 +4,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
-import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan, statusLokasiPegawai } from '@/lib/constants';
+import { db, storage } from '@/lib/firebase';
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan, statusLokasiPegawai, BIL_GAMBAR_WAJIB, mampatGambar } from '@/lib/constants';
 import { bandingLawatanSemasa, ringkasanPemantauan } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
@@ -78,6 +79,7 @@ export default function KalkulatorPage() {
   const [fasaUtama, setFasaUtama] = useState<string>('');
   const [tarikhLawatan, setTarikhLawatan] = useState('');
   const [stages, setStages] = useState<Record<string, StageInput>>(buatStagesKosong);
+  const [gambarLawatan, setGambarLawatan] = useState<File[]>([]);
   const [saving, setSaving] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -383,6 +385,14 @@ export default function KalkulatorPage() {
       toast.error('Lengkapkan tarikh lawatan, fasa dan pecahan peringkat sebelum menyimpan.');
       return;
     }
+    if (gambarLawatan.length < BIL_GAMBAR_WAJIB) {
+      toast.error(`Sila ambil ${BIL_GAMBAR_WAJIB} gambar bukti lawatan sebelum menyimpan.`);
+      return;
+    }
+    if (!navigator.onLine) {
+      toast.error('Muat naik gambar memerlukan sambungan internet. Sila cuba semula apabila ada talian.');
+      return;
+    }
     setSaving(true);
     try {
       // Cuba tangkap GPS pegawai + banding jarak dengan koordinat kebun.
@@ -397,6 +407,31 @@ export default function KalkulatorPage() {
         toast(`Anda ${keputusanLokasi.label}. Rekod tetap disimpan tetapi ditanda "jauh dari kebun".`, { icon: '⚠️' });
       }
 
+      // Mampat + muat naik semua gambar ke Firebase Storage secara selari.
+      toast.loading('Memuat naik gambar...', { id: 'upload-gambar' });
+      const asasMasa = Date.now();
+      const gambarUpload = await Promise.all(
+        gambarLawatan.map(async (fail, i) => {
+          const blob = await mampatGambar(fail);
+          const laluan = `lawatan/${kebun.id}/${asasMasa}_${i + 1}.jpg`;
+          const rujukan = storageRef(storage, laluan);
+          await uploadBytes(rujukan, blob, { contentType: 'image/jpeg' });
+          const url = await getDownloadURL(rujukan);
+          return { url, laluan };
+        })
+      );
+      toast.dismiss('upload-gambar');
+
+      // Metadata gambar: sama untuk set gambar ini (diambil dalam satu lawatan).
+      const gambarMeta = gambarUpload.map(g => ({
+        url: g.url,
+        laluan: g.laluan,
+        pegawaiUid: user.uid,
+        pegawaiNama: profile?.nama || '',
+        lokasi: lokasi ? `${lokasi.lat.toFixed(6)}, ${lokasi.long.toFixed(6)}` : '',
+        jarakDariKebunM: keputusanLokasi.jarakMeter !== null ? Math.round(keputusanLokasi.jarakMeter) : null,
+      }));
+
       await addDoc(collection(db, 'kebun', kebun.id, 'lawatan'), {
         kebunId: kebun.id, kebunNama: kebun.nama, daerah: kebun.daerah, tarikhLawatan, fasaUtama,
         saizKebun: kebun.saizKebun, jumlahPokok: jumlahPokokKebun, stages,
@@ -409,6 +444,8 @@ export default function KalkulatorPage() {
         lokasiAccuracy: lokasi ? Math.round(lokasi.accuracy) : null,
         jarakDariKebunM: keputusanLokasi.jarakMeter !== null ? Math.round(keputusanLokasi.jarakMeter) : null,
         statusLokasi: keputusanLokasi.status,
+        // Gambar bukti lawatan
+        gambar: gambarMeta,
         createdAt: serverTimestamp(),
       });
       // Optimistic update — hanya ganti badge jika lawatan ini benar-benar paling baharu.
@@ -437,8 +474,13 @@ export default function KalkulatorPage() {
       setTarikhLawatan('');
       setFasaUtama('');
       setStages(buatStagesKosong());
+      setGambarLawatan([]);
       setStep(2);
-    } catch (e) { console.error(e); toast.error(t('calc.saveFailed')); }
+    } catch (e) {
+      console.error(e);
+      toast.dismiss('upload-gambar');
+      toast.error(t('calc.saveFailed'));
+    }
     setSaving(false);
   };
 
@@ -937,6 +979,56 @@ export default function KalkulatorPage() {
             )}
           </div>
 
+          {/* Gambar Bukti Lawatan — wajib 5 gambar, diambil di kebun */}
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-semibold text-gray-500">
+                Gambar Bukti Lawatan (wajib {BIL_GAMBAR_WAJIB} gambar)
+              </p>
+              <span className={`text-[9px] font-bold ${gambarLawatan.length >= BIL_GAMBAR_WAJIB ? 'text-moss' : 'text-red-500'}`}>
+                {gambarLawatan.length}/{BIL_GAMBAR_WAJIB}
+              </span>
+            </div>
+            <p className="text-[8px] text-gray-400">
+              Ambil gambar terus di kebun. Lokasi, masa dan identiti pegawai direkod secara automatik.
+            </p>
+
+            <div className="grid grid-cols-5 gap-2">
+              {gambarLawatan.map((f, i) => (
+                <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={URL.createObjectURL(f)} alt={`Gambar ${i + 1}`} className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => setGambarLawatan(prev => prev.filter((_, idx) => idx !== i))}
+                    className="absolute top-0.5 right-0.5 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[9px] leading-none"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+              {gambarLawatan.length < BIL_GAMBAR_WAJIB && (
+                <label className="aspect-square rounded-lg border-2 border-dashed border-forest/30 bg-forest/5 flex flex-col items-center justify-center cursor-pointer text-forest">
+                  <span className="text-lg leading-none">📷</span>
+                  <span className="text-[7px] mt-0.5">Ambil</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    multiple
+                    className="hidden"
+                    onChange={(e) => {
+                      const dipilih = Array.from(e.target.files || []);
+                      if (dipilih.length === 0) return;
+                      setGambarLawatan(prev => [...prev, ...dipilih].slice(0, BIL_GAMBAR_WAJIB));
+                      e.target.value = ''; // benarkan ambil semula
+                    }}
+                  />
+                </label>
+              )}
+            </div>
+          </div>
+
           {/* Pecahan Peringkat — compact */}
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
             <p className="text-[10px] font-semibold text-gray-500 mb-1">{t('calc.step4')}</p>
@@ -984,6 +1076,10 @@ export default function KalkulatorPage() {
     toast.error('Jumlah pecahan peringkat mesti 100%.');
     return;
   }
+  if (gambarLawatan.length < BIL_GAMBAR_WAJIB) {
+    toast.error(`Sila ambil ${BIL_GAMBAR_WAJIB} gambar bukti lawatan.`);
+    return;
+  }
   // Pegawai wajib isi hari bagi peringkat aktif.
   if (!isAdmin) {
     const hasEmpty = Object.entries(stages).some(([key, val]) => key !== 'tidak' && val.pct > 0 && val.d <= 0);
@@ -994,7 +1090,7 @@ export default function KalkulatorPage() {
   }
   setStep(3);
 }}
-            disabled={!tarikhLawatan || !fasaSah(fasaUtama) || Math.abs(totalPct - 100) > 0.5}
+            disabled={!tarikhLawatan || !fasaSah(fasaUtama) || Math.abs(totalPct - 100) > 0.5 || gambarLawatan.length < BIL_GAMBAR_WAJIB}
             className="w-full bg-gradient-forest text-white py-3.5 rounded-xl font-semibold shadow-lg active:scale-[0.98] disabled:opacity-50">
             {t('calc.calculate')}
           </button>

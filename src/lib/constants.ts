@@ -222,3 +222,44 @@ export function statusLokasiPegawai(
   const jarakKm = (jarak / 1000).toFixed(jarak < 10_000 ? 1 : 0);
   return { status: 'jauh', jarakMeter: jarak, label: `${jarakKm} km dari kebun` };
 }
+
+// ── Gambar bukti lawatan ─────────────────────────────────────────────────────
+// Bilangan gambar wajib bagi setiap rekod lawatan.
+export const BIL_GAMBAR_WAJIB = 5;
+
+// Mampatkan gambar sebelum muat naik: turunkan resolusi + kualiti JPEG untuk
+// menjimatkan kuota storan dan mempercepat muat naik di kawasan talian lemah.
+export async function mampatGambar(
+  fail: File,
+  maxDimensi = 1280,
+  kualiti = 0.7
+): Promise<Blob> {
+  const bitmap = await createImageBitmap(fail);
+  let { width, height } = bitmap;
+  if (width > maxDimensi || height > maxDimensi) {
+    if (width >= height) {
+      height = Math.round((height / width) * maxDimensi);
+      width = maxDimensi;
+    } else {
+      width = Math.round((width / height) * maxDimensi);
+      height = maxDimensi;
+    }
+  }
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) {
+    bitmap.close();
+    return fail; // fallback: guna fail asal jika canvas gagal
+  }
+  ctx.drawImage(bitmap, 0, 0, width, height);
+  bitmap.close();
+  return new Promise((resolve) => {
+    canvas.toBlob(
+      (blob) => resolve(blob || fail),
+      'image/jpeg',
+      kualiti
+    );
+  });
+}

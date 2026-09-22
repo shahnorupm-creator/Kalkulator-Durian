@@ -8,6 +8,7 @@ import {
   CACHE_SIZE_UNLIMITED,
   Firestore,
 } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -49,4 +50,7 @@ if (typeof window !== 'undefined') {
   db = getFirestore(app);
 }
 
-export { app, auth, db };
+// --- Firebase Storage (untuk gambar bukti lawatan) ---
+const storage = getStorage(app);
+
+export { app, auth, db, storage };
