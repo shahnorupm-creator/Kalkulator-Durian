@@ -24,6 +24,8 @@ interface LawatanRecord {
   pegawaiDaerah: string;
   saizKebun: number;
   createdAtSeconds: number;
+  statusLokasi: string; // 'disahkan' | 'jauh' | 'tiada' | ''
+  jarakDariKebunM: number | null;
 }
 
 interface KebunInfo {
@@ -45,6 +47,8 @@ interface KadPemantauan {
   terkiniCreatedAt: number;
   bilBackdate: number;
   bilLewatRekod: number;
+  bilJauh: number; // rekod dengan lokasi jauh dari kebun
+  bilTiadaLokasi: number; // rekod tanpa lokasi disahkan
   statusPmt: string; // 'tiada'|'semasa'|'hampir'|'lewat'|...
   hariSejak: number | null;
   keparahan: number; // untuk susunan: makin tinggi makin perlu perhatian
@@ -135,6 +139,8 @@ export default function AdminDashboardPage() {
               pegawaiDaerah: data.pegawaiDaerah || data.daerah || '',
               saizKebun: data.saizKebun || 0,
               createdAtSeconds: data.createdAt?.seconds || 0,
+              statusLokasi: typeof data.statusLokasi === 'string' ? data.statusLokasi : '',
+              jarakDariKebunM: typeof data.jarakDariKebunM === 'number' ? data.jarakDariKebunM : null,
             } as LawatanRecord;
           }));
           publish();
@@ -178,9 +184,13 @@ export default function AdminDashboardPage() {
       })));
       const pmt = statusPemantauan(ring.terkini?.tarikhLawatan, tarikhSemasa);
 
-      // Keparahan: backdate > lewat pemantauan > lewat rekod > hampir > normal.
+      const bilJauh = rekod.filter(r => r.statusLokasi === 'jauh').length;
+      const bilTiadaLokasi = rekod.filter(r => r.statusLokasi === 'tiada' || r.statusLokasi === '').length;
+
+      // Keparahan: backdate > lokasi jauh > lewat pemantauan > lewat rekod > hampir > normal.
       let keparahan = 0;
       if (ring.bilBackdate > 0) keparahan += 100;
+      if (bilJauh > 0) keparahan += 60;
       if (pmt.status === 'lewat') keparahan += 50;
       if (pmt.status === 'hampir') keparahan += 20;
       if (ring.bilLewatRekod > 0) keparahan += 10;
@@ -196,6 +206,8 @@ export default function AdminDashboardPage() {
         terkiniCreatedAt: ring.terkini?.createdAtSeconds || 0,
         bilBackdate: ring.bilBackdate,
         bilLewatRekod: ring.bilLewatRekod,
+        bilJauh,
+        bilTiadaLokasi,
         statusPmt: pmt.status,
         hariSejak: pmt.hariSejakLawatan,
         keparahan,
@@ -257,13 +269,13 @@ export default function AdminDashboardPage() {
 
   // Warna kad ikut keadaan paling teruk.
   const gayaKad = (k: KadPemantauan) => {
-    if (k.bilBackdate > 0 || k.statusPmt === 'lewat') return 'border-red-200 bg-red-50';
-    if (k.statusPmt === 'hampir' || k.bilLewatRekod > 0) return 'border-amber-200 bg-amber-50';
+    if (k.bilBackdate > 0 || k.bilJauh > 0 || k.statusPmt === 'lewat') return 'border-red-200 bg-red-50';
+    if (k.statusPmt === 'hampir' || k.bilLewatRekod > 0 || k.bilTiadaLokasi > 0) return 'border-amber-200 bg-amber-50';
     return 'border-green-200 bg-green-50';
   };
   const ikonKad = (k: KadPemantauan) => {
-    if (k.bilBackdate > 0 || k.statusPmt === 'lewat') return '🔴';
-    if (k.statusPmt === 'hampir' || k.bilLewatRekod > 0) return '🟡';
+    if (k.bilBackdate > 0 || k.bilJauh > 0 || k.statusPmt === 'lewat') return '🔴';
+    if (k.statusPmt === 'hampir' || k.bilLewatRekod > 0 || k.bilTiadaLokasi > 0) return '🟡';
     return '🟢';
   };
 
@@ -367,8 +379,14 @@ export default function AdminDashboardPage() {
                   {k.bilLewatRekod > 0 && (
                     <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-700">⚠ {k.bilLewatRekod} rekod direkod lewat (4-14 hari)</span>
                   )}
-                  {k.keparahan === 0 && (
-                    <span className="rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">✅ Semua rekod normal</span>
+                  {k.bilJauh > 0 && (
+                    <span className="rounded bg-red-100 px-1.5 py-0.5 text-[9px] font-bold text-red-700">📍 {k.bilJauh} rekod jauh dari kebun</span>
+                  )}
+                  {k.bilTiadaLokasi > 0 && (
+                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[9px] font-bold text-gray-500">📍 {k.bilTiadaLokasi} rekod tanpa lokasi disahkan</span>
+                  )}
+                  {k.keparahan === 0 && k.bilTiadaLokasi === 0 && (
+                    <span className="rounded bg-green-100 px-1.5 py-0.5 text-[9px] font-bold text-green-700">✅ Semua rekod normal &amp; lokasi disahkan</span>
                   )}
                 </div>
 
@@ -398,6 +416,15 @@ export default function AdminDashboardPage() {
                           )}
                           {bd.status === 'backdate' && (
                             <span className="ml-1 rounded bg-red-100 px-1 py-0.5 font-bold text-red-700">🚩 {bd.hariJurang} hari</span>
+                          )}
+                          {r.statusLokasi === 'disahkan' && (
+                            <span className="ml-1 rounded bg-green-100 px-1 py-0.5 font-bold text-green-700">📍 Di kebun</span>
+                          )}
+                          {r.statusLokasi === 'jauh' && (
+                            <span className="ml-1 rounded bg-red-100 px-1 py-0.5 font-bold text-red-700">📍 {r.jarakDariKebunM !== null ? `${(r.jarakDariKebunM / 1000).toFixed(1)} km` : 'Jauh'} dari kebun</span>
+                          )}
+                          {(r.statusLokasi === 'tiada' || r.statusLokasi === '') && (
+                            <span className="ml-1 rounded bg-gray-100 px-1 py-0.5 font-bold text-gray-500">📍 Lokasi tidak disahkan</span>
                           )}
                         </div>
                       );

@@ -169,3 +169,56 @@ export function formatMasaBMWithSeconds(date: Date): string {
   }
   return `${String(h12).padStart(2, '0')}:${mm}:${ss} ${period}`;
 }
+
+// ── Pengesahan GPS kehadiran pegawai ─────────────────────────────────────────
+// Radius (meter) dari koordinat kebun yang dikira sebagai "berada di kebun".
+// 300m dipilih kerana kebun durian biasanya luas (beberapa ekar) — cukup longgar
+// untuk pergerakan dalam kebun, cukup ketat untuk mengesan pegawai yang jauh.
+export const RADIUS_KEBUN_METER = 300;
+
+export type StatusLokasi = 'disahkan' | 'jauh' | 'tiada';
+
+export interface KeputusanLokasi {
+  status: StatusLokasi;
+  jarakMeter: number | null;
+  label: string;
+}
+
+// Hurai rentetan "lat, long" (contoh "1.854230, 102.932100") kepada nombor.
+export function huraiLatLong(latlong?: string): { lat: number; long: number } | null {
+  if (!latlong) return null;
+  const bahagian = latlong.split(',').map(s => Number(s.trim()));
+  if (bahagian.length !== 2 || !Number.isFinite(bahagian[0]) || !Number.isFinite(bahagian[1])) return null;
+  return { lat: bahagian[0], long: bahagian[1] };
+}
+
+// Kira jarak (meter) antara dua koordinat menggunakan formula Haversine.
+export function jarakMeter(lat1: number, long1: number, lat2: number, long2: number): number {
+  const R = 6_371_000; // jejari Bumi dalam meter
+  const rad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = rad(lat2 - lat1);
+  const dLong = rad(long2 - long1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLong / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Tentukan status lokasi pegawai berbanding koordinat kebun.
+// - disahkan: dalam RADIUS_KEBUN_METER
+// - jauh: melebihi radius
+// - tiada: koordinat pegawai atau kebun tidak tersedia
+export function statusLokasiPegawai(
+  lokasiPegawai: { lat: number; long: number } | null,
+  latlongKebun?: string
+): KeputusanLokasi {
+  const kebun = huraiLatLong(latlongKebun);
+  if (!lokasiPegawai || !kebun) {
+    return { status: 'tiada', jarakMeter: null, label: 'Lokasi tidak disahkan' };
+  }
+  const jarak = jarakMeter(lokasiPegawai.lat, lokasiPegawai.long, kebun.lat, kebun.long);
+  if (jarak <= RADIUS_KEBUN_METER) {
+    return { status: 'disahkan', jarakMeter: jarak, label: 'Disahkan di kebun' };
+  }
+  const jarakKm = (jarak / 1000).toFixed(jarak < 10_000 ? 1 : 0);
+  return { status: 'jauh', jarakMeter: jarak, label: `${jarakKm} km dari kebun` };
+}

@@ -5,7 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
+import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan, statusLokasiPegawai } from '@/lib/constants';
 import { bandingLawatanSemasa, ringkasanPemantauan } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
@@ -18,6 +18,7 @@ interface KebunRecord {
   nama: string;
   negeri: string;
   daerah: string;
+  latlong?: string;
   saizKebun: number;
   kepadatan: number;
   pctMatang: number;
@@ -359,6 +360,23 @@ export default function KalkulatorPage() {
     setStep(2);
   };
 
+  // Cuba dapatkan lokasi GPS pegawai (Promise). Tidak menyekat penyimpanan —
+  // jika ditolak/gagal, kembalikan null supaya rekod tetap boleh disimpan.
+  const dapatkanLokasiPegawai = (): Promise<{ lat: number; long: number; accuracy: number } | null> => {
+    return new Promise((resolve) => {
+      if (!('geolocation' in navigator)) return resolve(null);
+      navigator.geolocation.getCurrentPosition(
+        (pos) => resolve({
+          lat: pos.coords.latitude,
+          long: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    });
+  };
+
   const handleSave = async () => {
     if (!user || !kebun) return;
     if (!tarikhLawatan || !fasaSah(fasaUtama) || Math.abs(totalPct - 100) > 0.5) {
@@ -367,6 +385,18 @@ export default function KalkulatorPage() {
     }
     setSaving(true);
     try {
+      // Cuba tangkap GPS pegawai + banding jarak dengan koordinat kebun.
+      const lokasi = await dapatkanLokasiPegawai();
+      const keputusanLokasi = statusLokasiPegawai(
+        lokasi ? { lat: lokasi.lat, long: lokasi.long } : null,
+        kebun.latlong
+      );
+      if (keputusanLokasi.status === 'tiada') {
+        toast('Lokasi GPS tidak dapat disahkan. Rekod tetap disimpan tetapi ditanda "lokasi tidak disahkan".', { icon: '⚠️' });
+      } else if (keputusanLokasi.status === 'jauh') {
+        toast(`Anda ${keputusanLokasi.label}. Rekod tetap disimpan tetapi ditanda "jauh dari kebun".`, { icon: '⚠️' });
+      }
+
       await addDoc(collection(db, 'kebun', kebun.id, 'lawatan'), {
         kebunId: kebun.id, kebunNama: kebun.nama, daerah: kebun.daerah, tarikhLawatan, fasaUtama,
         saizKebun: kebun.saizKebun, jumlahPokok: jumlahPokokKebun, stages,
@@ -374,6 +404,11 @@ export default function KalkulatorPage() {
         totalKg: grandTotalKg, totalTan: grandTotalKg / 1000,
         pegawaiNama: profile?.nama || '', pegawaiDaerah: profile?.daerah || '', negeri: kebun.negeri || '',
         pegawaiUid: user.uid, pegawaiEmail: profile?.email || user.email || '',
+        // Pengesahan lokasi kehadiran pegawai
+        lokasiPegawai: lokasi ? `${lokasi.lat.toFixed(6)}, ${lokasi.long.toFixed(6)}` : '',
+        lokasiAccuracy: lokasi ? Math.round(lokasi.accuracy) : null,
+        jarakDariKebunM: keputusanLokasi.jarakMeter !== null ? Math.round(keputusanLokasi.jarakMeter) : null,
+        statusLokasi: keputusanLokasi.status,
         createdAt: serverTimestamp(),
       });
       // Optimistic update — hanya ganti badge jika lawatan ini benar-benar paling baharu.
