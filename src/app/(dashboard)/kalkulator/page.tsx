@@ -3,13 +3,23 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { collection, query, onSnapshot, orderBy, addDoc, serverTimestamp, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc, setDoc, serverTimestamp, waitForPendingWrites, where } from 'firebase/firestore';
 import { db, storage } from '@/lib/firebase';
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { VARIETIES, STAGES, NEGERI_FLAG, NEGERI_FLAG_COLORS, formatMasaBM, formatNamaPaparan, statusLokasiPegawai, BIL_GAMBAR_WAJIB, mampatGambar } from '@/lib/constants';
 import { bandingLawatanSemasa, ringkasanPemantauan } from '@/lib/lawatan';
+import {
+  DRAF_LAWATAN_CHANGED_EVENT,
+  type DrafLawatan,
+  janaIdDraf,
+  kemasKiniDrafLawatan,
+  padamDrafLawatan,
+  senaraiDrafLawatan,
+  simpanDrafLawatan,
+} from '@/lib/lawatanDraftDb';
 import { formatTarikhBM, InputPeringkatLawatan, InputVarietiLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
+import { mulaTourJikaBaharu } from '@/lib/useTour';
 import toast from 'react-hot-toast';
 
 interface VarietiEntry { usia: string; varieti: string; bilangan: number; }
@@ -19,6 +29,7 @@ interface KebunRecord {
   nama: string;
   negeri: string;
   daerah: string;
+  alamat?: string;
   latlong?: string;
   saizKebun: number;
   kepadatan: number;
@@ -80,6 +91,9 @@ export default function KalkulatorPage() {
   const [tarikhLawatan, setTarikhLawatan] = useState('');
   const [stages, setStages] = useState<Record<string, StageInput>>(buatStagesKosong);
   const [gambarLawatan, setGambarLawatan] = useState<File[]>([]);
+  const [drafLawatan, setDrafLawatan] = useState<DrafLawatan[]>([]);
+  const [uploadingDrafId, setUploadingDrafId] = useState<string | null>(null);
+  const [isOnline, setIsOnline] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showPopup, setShowPopup] = useState(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -114,6 +128,54 @@ export default function KalkulatorPage() {
     });
     return () => unsub();
   }, [user, profile, isNationalAdmin, isStateAdmin, userNegeri]);
+
+  // Tour panduan kali pertama untuk halaman Kalkulator.
+  useEffect(() => {
+    if (!loading && profile) mulaTourJikaBaharu('kalkulator');
+  }, [loading, profile]);
+
+  // Status talian + senarai draf gambar yang tersimpan pada peranti ini.
+  useEffect(() => {
+    const kemasKiniOnline = () => setIsOnline(navigator.onLine);
+    kemasKiniOnline();
+    window.addEventListener('online', kemasKiniOnline);
+    window.addEventListener('offline', kemasKiniOnline);
+    return () => {
+      window.removeEventListener('online', kemasKiniOnline);
+      window.removeEventListener('offline', kemasKiniOnline);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user?.uid) {
+      setDrafLawatan([]);
+      return;
+    }
+    let aktif = true;
+    const muat = async () => {
+      try {
+        const senarai = await senaraiDrafLawatan(user.uid);
+        if (aktif) setDrafLawatan(senarai);
+      } catch (error) {
+        console.error('Gagal membaca draf lawatan:', error);
+      }
+    };
+    void muat();
+    window.addEventListener(DRAF_LAWATAN_CHANGED_EVENT, muat);
+    return () => {
+      aktif = false;
+      window.removeEventListener(DRAF_LAWATAN_CHANGED_EVENT, muat);
+    };
+  }, [user?.uid]);
+
+  // URL pratonton perlu dibuang apabila gambar berubah untuk elak kebocoran memori.
+  const gambarPreviewUrls = useMemo(
+    () => gambarLawatan.map(fail => URL.createObjectURL(fail)),
+    [gambarLawatan]
+  );
+  useEffect(() => () => {
+    gambarPreviewUrls.forEach(url => URL.revokeObjectURL(url));
+  }, [gambarPreviewUrls]);
 
   // Track lawatan semasa per kebun untuk status pemantauan live.
   type LawatanRingkas = {
@@ -347,6 +409,15 @@ export default function KalkulatorPage() {
     setShowPopup(true);
   };
 
+  const resetBorangLawatan = (kekalKebun = true) => {
+    setTarikhLawatan('');
+    setFasaUtama('');
+    setStages(buatStagesKosong());
+    setGambarLawatan([]);
+    if (!kekalKebun) setSelectedKebun('');
+    setStep(kekalKebun ? 2 : 1);
+  };
+
   const handleConfirmKebun = () => {
     if (!selectedKebun || !lawatanDimuat.has(selectedKebun)) {
       toast.error('Maklumat lawatan masih dimuatkan. Sila cuba sebentar lagi.');
@@ -355,11 +426,8 @@ export default function KalkulatorPage() {
 
     // Borang ini sentiasa mencipta lawatan baharu. Rekod terakhir hanya dipaparkan
     // sebagai rujukan read-only dan tidak boleh dipindahkan ke input baharu.
-    setTarikhLawatan('');
-    setFasaUtama('');
-    setStages(buatStagesKosong());
+    resetBorangLawatan(true);
     setShowPopup(false);
-    setStep(2);
   };
 
   // Cuba dapatkan lokasi GPS pegawai (Promise). Tidak menyekat penyimpanan —
@@ -379,109 +447,214 @@ export default function KalkulatorPage() {
     });
   };
 
+  const kemasKiniLawatanOptimistik = (draf: DrafLawatan) => {
+    const p = draf.payload;
+    setLawatanMap(prev => {
+      const calon: LawatanRingkas = {
+        id: draf.id,
+        kebunId: p.kebunId,
+        tarikhLawatan: p.tarikhLawatan,
+        fasaUtama: p.fasaUtama,
+        totalKg: p.totalKg,
+        stages: p.stages,
+        varietiResults: p.varietiResults,
+        createdAt: Math.floor(Date.now() / 1000),
+        pegawaiNama: p.pegawaiNama,
+      };
+      const semasa = prev[p.kebunId];
+      if (semasa && bandingLawatanSemasa(
+        { ...calon, createdAt: { seconds: calon.createdAt } },
+        { ...semasa, createdAt: { seconds: semasa.createdAt } }
+      ) <= 0) return prev;
+      return { ...prev, [p.kebunId]: calon };
+    });
+    setLawatanDimuat(prev => new Set(prev).add(p.kebunId));
+  };
+
+  // Muat naik satu draf dengan ID dan laluan Storage deterministik. Jika percubaan
+  // terputus, draf kekal dan retry tidak mencipta dokumen atau gambar pendua.
+  const muatNaikDraf = async (drafAsal: DrafLawatan): Promise<boolean> => {
+    if (!navigator.onLine) {
+      toast.error('Tiada sambungan internet. Draf kekal selamat pada peranti.');
+      return false;
+    }
+    if (uploadingDrafId) return false;
+
+    setUploadingDrafId(drafAsal.id);
+    let draf = drafAsal;
+    try {
+      draf = await kemasKiniDrafLawatan(draf, {
+        status: 'uploading',
+        attempts: draf.attempts + 1,
+        lastError: undefined,
+      });
+      toast.loading('Memuat naik 5 gambar dan rekod...', { id: 'upload-gambar' });
+
+      const gambarUpload = await Promise.all(draf.gambar.map(async gambar => {
+        const laluan = `lawatan/${draf.payload.kebunId}/${draf.id}/${gambar.index + 1}.jpg`;
+        const rujukan = storageRef(storage, laluan);
+        await uploadBytes(rujukan, gambar.blob, {
+          contentType: gambar.type || 'image/jpeg',
+          customMetadata: {
+            pegawaiUid: draf.pegawaiUid,
+            capturedAtClient: gambar.capturedAtClient,
+            draftId: draf.id,
+          },
+        });
+        const url = await getDownloadURL(rujukan);
+        return {
+          url,
+          laluan,
+          pegawaiUid: draf.payload.pegawaiUid,
+          pegawaiNama: draf.payload.pegawaiNama,
+          lokasi: draf.payload.lokasiPegawai,
+          alamat: draf.payload.alamatKebun,
+          jarakDariKebunM: draf.payload.jarakDariKebunM,
+          capturedAtClient: gambar.capturedAtClient,
+          uploadedAtClient: new Date().toISOString(),
+        };
+      }));
+
+      await setDoc(doc(db, 'kebun', draf.payload.kebunId, 'lawatan', draf.id), {
+        ...draf.payload,
+        gambar: gambarUpload,
+        draftId: draf.id,
+        uploadedAtClient: new Date().toISOString(),
+        createdAt: serverTimestamp(),
+      });
+
+      // Pastikan write benar-benar sampai ke pelayan sebelum draf gambar dipadam.
+      const disahkanPelayan = await Promise.race([
+        waitForPendingWrites(db).then(() => true),
+        new Promise<boolean>(resolve => setTimeout(() => resolve(false), 15_000)),
+      ]);
+      if (!disahkanPelayan) throw new Error('Pengesahan pelayan tamat masa. Cuba muat naik semula.');
+
+      await padamDrafLawatan(draf.id);
+      kemasKiniLawatanOptimistik(draf);
+      toast.dismiss('upload-gambar');
+      toast.success('Rekod dan 5 gambar berjaya dimuat naik.');
+      return true;
+    } catch (error) {
+      console.error('Muat naik draf gagal:', error);
+      const mesej = error instanceof Error ? error.message : 'Muat naik gagal.';
+      try {
+        await kemasKiniDrafLawatan(draf, { status: 'error', lastError: mesej });
+      } catch (kemasKiniError) {
+        console.error('Gagal mengemas kini status draf:', kemasKiniError);
+      }
+      toast.dismiss('upload-gambar');
+      toast.error('Muat naik belum berjaya. Draf dan gambar masih selamat pada peranti.');
+      return false;
+    } finally {
+      setUploadingDrafId(null);
+    }
+  };
+
   const handleSave = async () => {
     if (!user || !kebun) return;
     if (!tarikhLawatan || !fasaSah(fasaUtama) || Math.abs(totalPct - 100) > 0.5) {
       toast.error('Lengkapkan tarikh lawatan, fasa dan pecahan peringkat sebelum menyimpan.');
       return;
     }
-    if (gambarLawatan.length < BIL_GAMBAR_WAJIB) {
-      toast.error(`Sila ambil ${BIL_GAMBAR_WAJIB} gambar bukti lawatan sebelum menyimpan.`);
+    if (!isAdmin) {
+      const hariKosong = Object.entries(stages).some(([key, val]) => key !== 'tidak' && val.pct > 0 && val.d <= 0);
+      if (hariKosong) {
+        toast.error('Sila isi semua hari (D) untuk peringkat yang mempunyai peratusan.');
+        return;
+      }
+    }
+    if (gambarLawatan.length !== BIL_GAMBAR_WAJIB) {
+      toast.error(`Sila ambil tepat ${BIL_GAMBAR_WAJIB} gambar bukti lawatan sebelum menyimpan.`);
       return;
     }
-    if (!navigator.onLine) {
-      toast.error('Muat naik gambar memerlukan sambungan internet. Sila cuba semula apabila ada talian.');
-      return;
-    }
+
     setSaving(true);
     try {
-      // Cuba tangkap GPS pegawai + banding jarak dengan koordinat kebun.
+      // GPS dirakam ketika pegawai menekan Simpan—bukan ketika draf dimuat naik kemudian.
       const lokasi = await dapatkanLokasiPegawai();
       const keputusanLokasi = statusLokasiPegawai(
         lokasi ? { lat: lokasi.lat, long: lokasi.long } : null,
         kebun.latlong
       );
       if (keputusanLokasi.status === 'tiada') {
-        toast('Lokasi GPS tidak dapat disahkan. Rekod tetap disimpan tetapi ditanda "lokasi tidak disahkan".', { icon: '⚠️' });
+        toast('Lokasi GPS tidak dapat disahkan. Draf tetap disimpan dengan status lokasi tidak disahkan.', { icon: '⚠️' });
       } else if (keputusanLokasi.status === 'jauh') {
-        toast(`Anda ${keputusanLokasi.label}. Rekod tetap disimpan tetapi ditanda "jauh dari kebun".`, { icon: '⚠️' });
+        toast(`Anda ${keputusanLokasi.label}. Rekod ditanda jauh dari kebun.`, { icon: '⚠️' });
       }
 
-      // Mampat + muat naik semua gambar ke Firebase Storage secara selari.
-      toast.loading('Memuat naik gambar...', { id: 'upload-gambar' });
-      const asasMasa = Date.now();
-      const gambarUpload = await Promise.all(
-        gambarLawatan.map(async (fail, i) => {
-          const blob = await mampatGambar(fail);
-          const laluan = `lawatan/${kebun.id}/${asasMasa}_${i + 1}.jpg`;
-          const rujukan = storageRef(storage, laluan);
-          await uploadBytes(rujukan, blob, { contentType: 'image/jpeg' });
-          const url = await getDownloadURL(rujukan);
-          return { url, laluan };
-        })
-      );
-      toast.dismiss('upload-gambar');
-
-      // Metadata gambar: sama untuk set gambar ini (diambil dalam satu lawatan).
-      const gambarMeta = gambarUpload.map(g => ({
-        url: g.url,
-        laluan: g.laluan,
-        pegawaiUid: user.uid,
-        pegawaiNama: profile?.nama || '',
-        lokasi: lokasi ? `${lokasi.lat.toFixed(6)}, ${lokasi.long.toFixed(6)}` : '',
-        jarakDariKebunM: keputusanLokasi.jarakMeter !== null ? Math.round(keputusanLokasi.jarakMeter) : null,
+      toast.loading('Menyimpan draf dan gambar pada peranti...', { id: 'simpan-draf' });
+      const masaDraf = new Date().toISOString();
+      const gambarDraf = await Promise.all(gambarLawatan.map(async (fail, index) => {
+        let blob: Blob;
+        try {
+          blob = await mampatGambar(fail);
+        } catch {
+          blob = fail;
+        }
+        return {
+          index,
+          blob,
+          name: fail.name || `gambar-${index + 1}.jpg`,
+          type: blob.type || fail.type || 'image/jpeg',
+          lastModified: fail.lastModified || Date.now(),
+          capturedAtClient: new Date(fail.lastModified || Date.now()).toISOString(),
+        };
       }));
 
-      await addDoc(collection(db, 'kebun', kebun.id, 'lawatan'), {
-        kebunId: kebun.id, kebunNama: kebun.nama, daerah: kebun.daerah, tarikhLawatan, fasaUtama,
-        saizKebun: kebun.saizKebun, jumlahPokok: jumlahPokokKebun, stages,
-        varietiResults: varietiResults.map(v => ({ key: v.varietiKey, name: v.varietiName, pokok: v.bilPokok, kg: v.totalKg })),
-        totalKg: grandTotalKg, totalTan: grandTotalKg / 1000,
-        pegawaiNama: profile?.nama || '', pegawaiDaerah: profile?.daerah || '', negeri: kebun.negeri || '',
-        pegawaiUid: user.uid, pegawaiEmail: profile?.email || user.email || '',
-        // Pengesahan lokasi kehadiran pegawai
-        lokasiPegawai: lokasi ? `${lokasi.lat.toFixed(6)}, ${lokasi.long.toFixed(6)}` : '',
-        lokasiAccuracy: lokasi ? Math.round(lokasi.accuracy) : null,
-        jarakDariKebunM: keputusanLokasi.jarakMeter !== null ? Math.round(keputusanLokasi.jarakMeter) : null,
-        statusLokasi: keputusanLokasi.status,
-        // Gambar bukti lawatan
-        gambar: gambarMeta,
-        createdAt: serverTimestamp(),
-      });
-      // Optimistic update — hanya ganti badge jika lawatan ini benar-benar paling baharu.
-      setLawatanMap(prev => {
-        const calon: LawatanRingkas = {
-          id: `optimistic-${Date.now()}`,
+      const draf: DrafLawatan = {
+        id: janaIdDraf(),
+        status: 'pending',
+        createdAtClient: masaDraf,
+        updatedAtClient: masaDraf,
+        attempts: 0,
+        pegawaiUid: user.uid,
+        payload: {
           kebunId: kebun.id,
+          kebunNama: kebun.nama,
+          daerah: kebun.daerah,
+          alamatKebun: kebun.alamat || '',
           tarikhLawatan,
           fasaUtama,
-          totalKg: grandTotalKg,
-          stages,
+          saizKebun: kebun.saizKebun,
+          jumlahPokok: jumlahPokokKebun,
+          stages: { ...stages },
           varietiResults: varietiResults.map(v => ({ key: v.varietiKey, name: v.varietiName, pokok: v.bilPokok, kg: v.totalKg })),
-          createdAt: Math.floor(Date.now() / 1000),
-        };
-        const semasa = prev[kebun.id];
-        if (semasa && bandingLawatanSemasa(
-          { ...calon, createdAt: { seconds: calon.createdAt } },
-          { ...semasa, createdAt: { seconds: semasa.createdAt } }
-        ) <= 0) return prev;
-        return { ...prev, [kebun.id]: calon };
-      });
-      setLawatanDimuat(prev => new Set(prev).add(kebun.id));
-      toast.success(t('calc.saved'));
-      // Kosongkan borang dan kembali ke Step 2 supaya panel "Rekod Lawatan Terakhir"
-      // memaparkan rekod yang baru sahaja disimpan sebagai rujukan.
-      setTarikhLawatan('');
-      setFasaUtama('');
-      setStages(buatStagesKosong());
-      setGambarLawatan([]);
-      setStep(2);
-    } catch (e) {
-      console.error(e);
-      toast.dismiss('upload-gambar');
-      toast.error(t('calc.saveFailed'));
+          totalKg: grandTotalKg,
+          totalTan: grandTotalKg / 1000,
+          pegawaiNama: profile?.nama || '',
+          pegawaiDaerah: profile?.daerah || '',
+          negeri: kebun.negeri || '',
+          pegawaiUid: user.uid,
+          pegawaiEmail: profile?.email || user.email || '',
+          lokasiPegawai: lokasi ? `${lokasi.lat.toFixed(6)}, ${lokasi.long.toFixed(6)}` : '',
+          lokasiAccuracy: lokasi ? Math.round(lokasi.accuracy) : null,
+          jarakDariKebunM: keputusanLokasi.jarakMeter !== null ? Math.round(keputusanLokasi.jarakMeter) : null,
+          statusLokasi: keputusanLokasi.status,
+          capturedAtClient: masaDraf,
+        },
+        gambar: gambarDraf,
+      };
+
+      await simpanDrafLawatan(draf);
+      toast.dismiss('simpan-draf');
+      resetBorangLawatan(true);
+
+      if (!navigator.onLine) {
+        toast.success('Draf lawatan dan 5 gambar disimpan pada peranti. Muat naik apabila ada internet.');
+      } else {
+        const berjaya = await muatNaikDraf(draf);
+        if (!berjaya) {
+          toast('Gunakan butang Muat Naik Sekarang untuk mencuba semula.', { icon: '💾' });
+        }
+      }
+    } catch (error) {
+      console.error('Simpan draf gagal:', error);
+      toast.dismiss('simpan-draf');
+      toast.error('Draf tidak dapat disimpan. Borang dan gambar tidak dipadam—sila cuba semula.');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const fasaLabel = (key: string) => STAGES.find(s => s.key === key)?.name || key;
@@ -490,7 +663,7 @@ export default function KalkulatorPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div data-tour="kalkulator-tajuk">
           <h2 className="text-lg font-bold text-forest">{t('calc.title')}</h2>
           <p className="text-xs text-gray-500">{t('calc.subtitle')}</p>
         </div>
@@ -508,6 +681,50 @@ export default function KalkulatorPage() {
         ))}
       </div>
 
+      {/* Draf lawatan bergambar yang belum disahkan pelayan. */}
+      {drafLawatan.length > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold text-amber-800">💾 {drafLawatan.length} Draf Menunggu Muat Naik</p>
+              <p className="mt-0.5 text-[9px] text-amber-700">
+                Gambar dan maklumat selamat pada peranti ini. Muat naik apabila sambungan internet tersedia.
+              </p>
+            </div>
+            <span className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-bold ${isOnline ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+              {isOnline ? 'ONLINE' : 'OFFLINE'}
+            </span>
+          </div>
+
+          <div className="space-y-2">
+            {drafLawatan.map(draf => (
+              <div key={draf.id} className="rounded-xl border border-amber-100 bg-white p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[10px] font-bold text-gray-800">{formatNamaPaparan(draf.payload.kebunNama)}</p>
+                  <p className="text-[8px] text-gray-500">
+                    Lawatan {formatTarikhBM(draf.payload.tarikhLawatan)} · {draf.gambar.length} gambar
+                  </p>
+                  <p className="text-[8px] text-gray-400">
+                    Disimpan {new Date(draf.createdAtClient).toLocaleString('ms-MY', { dateStyle: 'medium', timeStyle: 'short' })}
+                  </p>
+                  {draf.status === 'error' && (
+                    <p className="mt-0.5 text-[8px] font-semibold text-red-600">Percubaan terdahulu gagal. Draf masih selamat.</p>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void muatNaikDraf(draf)}
+                  disabled={!isOnline || uploadingDrafId !== null}
+                  className="shrink-0 rounded-lg bg-forest px-3 py-2 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {uploadingDrafId === draf.id ? 'Memuat Naik...' : 'Muat Naik Sekarang'}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {isStateAdmin && (
         <div className={`rounded-xl border px-4 py-2.5 text-xs ${userNegeri ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-amber-200 bg-amber-50 text-amber-700'}`}>
           {userNegeri
@@ -518,7 +735,7 @@ export default function KalkulatorPage() {
 
       {/* ═══════════════════ STEP 1: Pilih Pekebun ═══════════════════ */}
       {step === 1 && (
-        <div className="space-y-3">
+        <div className="space-y-3" data-tour="kalkulator-pilih">
           {!loading && semuaLawatanDimuat && jumlahLewat > 0 && (
             <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 flex items-start gap-3">
               <span className="text-lg" aria-hidden="true">⚠️</span>
@@ -955,7 +1172,7 @@ export default function KalkulatorPage() {
           </div>
 
           {/* Tarikh & Fasa */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3" data-tour="kalkulator-tarikh">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-[10px] font-semibold text-gray-500">{t('calc.tarikhLawatan')}</label>
@@ -980,7 +1197,7 @@ export default function KalkulatorPage() {
           </div>
 
           {/* Gambar Bukti Lawatan — wajib 5 gambar, diambil di kebun */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-2" data-tour="kalkulator-gambar">
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-semibold text-gray-500">
                 Gambar Bukti Lawatan (wajib {BIL_GAMBAR_WAJIB} gambar)
@@ -990,14 +1207,14 @@ export default function KalkulatorPage() {
               </span>
             </div>
             <p className="text-[8px] text-gray-400">
-              Ambil gambar terus di kebun. Lokasi, masa dan identiti pegawai direkod secara automatik.
+              Muatnaik Gambar Proses Fasa Kejadian Semasa Pemantauan Di Kebun (Lokasi, Masa Dan Identiti Pegawai Direkod Secara Automatik). Gambar Boleh Diambil Tanpa Internet Dan Disimpan Sebagai Draf.
             </p>
 
             <div className="grid grid-cols-5 gap-2">
               {gambarLawatan.map((f, i) => (
                 <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-gray-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={URL.createObjectURL(f)} alt={`Gambar ${i + 1}`} className="w-full h-full object-cover" />
+                  <img src={gambarPreviewUrls[i]} alt={`Gambar ${i + 1}`} className="w-full h-full object-cover" />
                   <button
                     type="button"
                     onClick={() => setGambarLawatan(prev => prev.filter((_, idx) => idx !== i))}
@@ -1030,7 +1247,7 @@ export default function KalkulatorPage() {
           </div>
 
           {/* Pecahan Peringkat — compact */}
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100" data-tour="kalkulator-peratus">
             <p className="text-[10px] font-semibold text-gray-500 mb-1">{t('calc.step4')}</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
               {STAGES.map(stage => (
@@ -1179,13 +1396,17 @@ export default function KalkulatorPage() {
               </button>
               <button onClick={handleSave} disabled={saving}
                 className="py-2.5 bg-gradient-gold text-black rounded-xl text-xs font-bold shadow-md active:scale-[0.98] disabled:opacity-50">
-                {saving ? 'Menyimpan...' : '💾 Simpan Rekod'}
+                {saving
+                  ? 'Menyimpan Draf...'
+                  : isOnline
+                    ? '💾 Simpan & Muat Naik Rekod'
+                    : '💾 Simpan Draf Pada Peranti'}
               </button>
             </div>
           </div>
 
           {/* Kira semula */}
-          <button onClick={() => { setSelectedKebun(''); setStep(1); }}
+          <button onClick={() => resetBorangLawatan(false)}
             className="w-full py-3 text-sm font-semibold text-forest bg-forest/10 border-2 border-dashed border-forest/30 rounded-xl hover:bg-forest/20 hover:border-forest/50 transition-all active:scale-[0.98]">
             🔄 Kira Pekebun Lain
           </button>

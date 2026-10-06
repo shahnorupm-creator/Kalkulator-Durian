@@ -10,6 +10,7 @@ import { NEGERI_FLAG_COLORS, NEGERI_FLAG, VARIETIES, negeriDariDaerah } from '@/
 import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
+import { mulaTourJikaBaharu } from '@/lib/useTour';
 
 interface LawatanRecord {
   id: string;
@@ -67,6 +68,11 @@ export default function DashboardHQPage() {
   useEffect(() => {
     if (!authLoading && !canViewNationalDashboard) router.replace('/');
   }, [authLoading, canViewNationalDashboard, router]);
+
+  // Tour panduan kali pertama untuk Dashboard HQ.
+  useEffect(() => {
+    if (!loading && canViewNationalDashboard) mulaTourJikaBaharu('dashboard');
+  }, [loading, canViewNationalDashboard]);
 
   useEffect(() => {
     if (!canViewNationalDashboard) {
@@ -319,7 +325,7 @@ export default function DashboardHQPage() {
         <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-20 translate-x-20" />
         <div className="relative z-10">
           <div className="flex items-center justify-between">
-            <div>
+            <div data-tour="dashboard-tajuk">
               <h2 className="text-lg font-bold">{t('dash.title')}</h2>
               <p className="text-white/50 text-[10px]">{t('dash.subtitle')}</p>
             </div>
@@ -332,7 +338,7 @@ export default function DashboardHQPage() {
       </div>
 
       {/* KPI Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-tour="dashboard-kpi">
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
           <p className="text-[9px] text-gray-400 font-medium">{t('dash.kebun')}</p>
           <p className="text-2xl font-bold text-forest mt-1">{kpi.totalKebun}</p>
@@ -367,7 +373,7 @@ export default function DashboardHQPage() {
       )}
 
       {/* 1. Jadual Ringkasan Negeri */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100" data-tour="dashboard-negeri">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-forest">{t('dash.jadualNegeri')}</h3>
           <span className="text-[9px] text-gray-400">{negeriRanking.length} negeri</span>

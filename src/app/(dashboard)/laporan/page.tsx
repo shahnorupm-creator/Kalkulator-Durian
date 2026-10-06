@@ -9,6 +9,7 @@ import { NEGERI_FLAG_COLORS, NEGERI_FLAG, SENARAI_NEGERI, NEGERI_DAERAH, formatN
 import { pilihLawatanSemasaPerKebun } from '@/lib/lawatan';
 import { formatTarikhBM, InputPeringkatLawatan, unjurLawatan } from '@/lib/unjuran';
 import { useTarikhSemasa } from '@/lib/useTarikhSemasa';
+import { mulaTourJikaBaharu } from '@/lib/useTour';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
@@ -104,6 +105,7 @@ export default function LaporanPage() {
     const unsub = onSnapshot(q, (snap) => {
       setKebun(snap.docs.map(d => ({ id: d.id, ...d.data() } as KebunRecord)));
       setLoading(false);
+      mulaTourJikaBaharu('laporan');
     });
     return () => unsub();
   }, [user, profile, isHQ, isAdminNegeri, userNegeri]);
@@ -683,7 +685,7 @@ export default function LaporanPage() {
       {/* Header + Filters */}
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <div>
+          <div data-tour="laporan-tajuk">
             <h2 className="text-lg font-bold text-forest">
               {t('report.title')} {!isHQ && userNegeri ? `— ${userNegeri}` : ''}
             </h2>
@@ -692,7 +694,7 @@ export default function LaporanPage() {
               {filterDaerah !== 'Semua' && ` • ${filterDaerah}`}
             </p>
           </div>
-          <button onClick={generateReport} disabled={isAdminNegeri && !userNegeri}
+          <button data-tour="laporan-jana" onClick={generateReport} disabled={isAdminNegeri && !userNegeri}
             className="bg-gradient-gold text-black px-3 py-2 rounded-xl text-[10px] font-bold shadow-md active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50">
             📥 Jana Infografik
           </button>

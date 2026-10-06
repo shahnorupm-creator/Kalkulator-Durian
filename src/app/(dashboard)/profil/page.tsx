@@ -1,16 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth, ROLE_LABELS } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { doc, updateDoc } from 'firebase/firestore';
 import { updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'firebase/auth';
 import { db, auth } from '@/lib/firebase';
+import { mulaTourJikaBaharu } from '@/lib/useTour';
 import toast from 'react-hot-toast';
 
 export default function ProfilPage() {
   const { user, profile } = useAuth();
   const { t } = useLanguage();
+
+  // Tour panduan kali pertama untuk halaman Profil.
+  useEffect(() => {
+    if (profile) mulaTourJikaBaharu('profil');
+  }, [profile]);
   const [editMode, setEditMode] = useState(false);
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -85,7 +91,7 @@ export default function ProfilPage() {
   return (
     <div className="min-h-0 flex flex-col gap-4 lg:h-[calc(100vh-120px)] lg:overflow-hidden">
       {/* Header Card */}
-      <div className="bg-gradient-forest rounded-2xl p-5 text-white relative overflow-hidden flex items-center gap-4">
+      <div className="bg-gradient-forest rounded-2xl p-5 text-white relative overflow-hidden flex items-center gap-4" data-tour="profil-tajuk">
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-12 translate-x-12 pointer-events-none" />
         <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center border-2 border-white/30 flex-shrink-0">
           <span className="text-2xl">👤</span>
@@ -96,7 +102,7 @@ export default function ProfilPage() {
           <p className="text-white/50 text-[10px] mt-0.5">{profile?.email}</p>
         </div>
         {!editMode && (
-          <button onClick={() => { setEditMode(true); setNama(profile?.nama || ''); setNoPerkerja(profile?.noPerkerja || ''); setDaerah(profile?.daerah || ''); setAlamatPejabat(profileData?.alamatPejabat || ''); setNoTelefon(profileData?.noTelefon || ''); }}
+          <button data-tour="profil-edit" onClick={() => { setEditMode(true); setNama(profile?.nama || ''); setNoPerkerja(profile?.noPerkerja || ''); setDaerah(profile?.daerah || ''); setAlamatPejabat(profileData?.alamatPejabat || ''); setNoTelefon(profileData?.noTelefon || ''); }}
             className="text-[9px] bg-white/20 text-white px-3 py-1.5 rounded-lg font-semibold hover:bg-white/30 transition-all flex-shrink-0 relative z-20">
             ✏️ Kemaskini
           </button>

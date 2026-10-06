@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { collection, addDoc, query, onSnapshot, orderBy, serverTimestamp, doc, deleteDoc, updateDoc, where } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { NEGERI_DAERAH, SENARAI_NEGERI, VARIETIES, NEGERI_FLAG_COLORS, NEGERI_FLAG, formatMasaBM, formatNamaPaparan } from '@/lib/constants';
+import { mulaTourJikaBaharu } from '@/lib/useTour';
 import toast from 'react-hot-toast';
 
 interface KebunRecord {
@@ -153,6 +154,11 @@ export default function ProfilKebunPage() {
     });
     return () => unsub();
   }, [user, profile, canAccessAllNegeri, isAdminNegeri, userNegeri]);
+
+  // Tour panduan kali pertama untuk halaman Kebun.
+  useEffect(() => {
+    if (!loading && profile) mulaTourJikaBaharu('kebun');
+  }, [loading, profile]);
 
   useEffect(() => {
     if (!isSuperAdmin && !isAdminNegeri) {
@@ -459,7 +465,7 @@ export default function ProfilKebunPage() {
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div data-tour="kebun-tajuk">
           <h2 className="text-lg font-bold text-forest">{t('kebun.title')}</h2>
           {canAccessAllNegeri && (
             <p className="text-xs text-gray-500">
@@ -467,7 +473,7 @@ export default function ProfilKebunPage() {
             </p>
           )}
         </div>
-        <button onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
+        <button data-tour="kebun-tambah" onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
           className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md hover:bg-moss transition-all active:scale-95">
           {showForm ? t('kebun.closeBtn') : t('kebun.addBtn')}
         </button>
@@ -820,7 +826,7 @@ export default function ProfilKebunPage() {
           </div>
         )}
 
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2 items-center" data-tour="kebun-carian">
           <input placeholder={t('kebun.search')} value={search} onChange={(e) => setSearch(e.target.value)}
             className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-forest/30 focus:outline-none" />
           {/* Grid/List Toggle */}
@@ -912,7 +918,7 @@ export default function ProfilKebunPage() {
             })}
           </div>
         ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3" data-tour="kebun-senarai">
           {filtered.map(k => {
             const pokok = k.jumlahPokok || 0;
             const hasVarietiData = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0);

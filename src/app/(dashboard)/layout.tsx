@@ -11,6 +11,35 @@ import OfflineIndicator from '@/components/OfflineIndicator';
 import PendingSyncBadge from '@/components/PendingSyncBadge';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { mulaTourManual, type TourPageKey } from '@/lib/useTour';
+
+// Petakan laluan URL semasa kepada kunci tour halaman.
+function tourKeyDariPath(pathname: string): TourPageKey | null {
+  if (pathname === '/') return 'kebun';
+  if (pathname.startsWith('/kalkulator')) return 'kalkulator';
+  if (pathname.startsWith('/dashboard-hq')) return 'dashboard';
+  if (pathname.startsWith('/laporan')) return 'laporan';
+  if (pathname.startsWith('/profil')) return 'profil';
+  if (pathname === '/admin') return 'admin';
+  return null;
+}
+
+// Butang terapung "Panduan" — melancarkan semula tour bagi halaman semasa.
+function ButangPanduan() {
+  const pathname = usePathname();
+  const tourKey = tourKeyDariPath(pathname);
+  if (!tourKey) return null;
+  return (
+    <button
+      onClick={() => mulaTourManual(tourKey)}
+      title="Panduan halaman ini"
+      className="fixed bottom-24 right-4 lg:bottom-6 lg:right-6 z-40 flex items-center gap-1.5 rounded-full bg-forest text-white px-3.5 py-2.5 shadow-lg hover:bg-moss transition-all active:scale-95"
+    >
+      <span className="text-sm" aria-hidden="true">💡</span>
+      <span className="text-xs font-semibold">Panduan</span>
+    </button>
+  );
+}
 
 function LiveClock() {
   const [now, setNow] = useState<Date | null>(null);
@@ -188,6 +217,9 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+
+      {/* Butang panduan terapung */}
+      <ButangPanduan />
     </div>
   );
 }

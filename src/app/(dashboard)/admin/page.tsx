@@ -6,6 +6,7 @@ import type { UserRole } from '@/contexts/AuthContext';
 import { collection, query, onSnapshot, where } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { SENARAI_NEGERI, NEGERI_DAERAH } from '@/lib/constants';
+import { mulaTourJikaBaharu } from '@/lib/useTour';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -54,6 +55,11 @@ export default function AdminPage() {
       router.push('/');
     }
   }, [profile, isAnyAdmin, router]);
+
+  // Tour panduan kali pertama untuk Panel Admin.
+  useEffect(() => {
+    if (profile && isAnyAdmin) mulaTourJikaBaharu('admin');
+  }, [profile, isAnyAdmin]);
 
   // Fetch users — scoped for admin negeri
   useEffect(() => {
@@ -236,14 +242,14 @@ export default function AdminPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div>
+        <div data-tour="admin-tajuk">
           <h2 className="text-lg font-bold text-forest">Panel Admin</h2>
           <p className="text-xs text-gray-500">
             {isSuperAdmin ? 'Super Admin — Akses penuh' : `Admin ${adminNegeri} — Urus pegawai negeri`}
           </p>
         </div>
         {canCreateUser && (
-          <button onClick={() => setShowForm(!showForm)}
+          <button data-tour="admin-tambah" onClick={() => setShowForm(!showForm)}
             className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md active:scale-95">
             {showForm ? '✕ Tutup' : '+ Tambah User'}
           </button>
