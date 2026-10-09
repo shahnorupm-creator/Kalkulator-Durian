@@ -35,6 +35,7 @@ export default function Navbar() {
   const allNavItems = [
     { href: '/', label: t('nav.kebun'), icon: '🌱', pageKey: 'profil_kebun' },
     { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', pageKey: 'kalkulator' },
+    { href: '/peta-negeri', label: 'Peta', icon: '📍', pageKey: 'peta_negeri' },
     { href: '/laporan', label: 'Laporan', icon: '📋', pageKey: 'laporan' },
     { href: '/profil', label: t('nav.profil'), icon: '👤', pageKey: 'profil' },
     ...(isAnyAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: '⚙️', pageKey: 'admin' }] : []),
@@ -67,10 +68,7 @@ export default function Navbar() {
       </header>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 z-50 safe-bottom shadow-[0_-2px_15px_rgba(0,0,0,0.05)]">
-        <div className={`max-w-2xl mx-auto grid ${
-          navItems.length <= 3 ? 'grid-cols-3' :
-          navItems.length === 4 ? 'grid-cols-4' : 'grid-cols-5'
-        }`}>
+        <div className="max-w-2xl mx-auto flex overflow-x-auto">
           {navItems.map((item) => {
             const isActive = pathname === item.href ||
               (item.href !== '/' && pathname.startsWith(item.href));
@@ -78,7 +76,7 @@ export default function Navbar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex flex-col items-center gap-0.5 py-2.5 transition-all ${
+                className={`min-w-[64px] flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all ${
                   isActive ? 'text-forest border-t-2 border-forest -mt-[2px]' : 'text-gray-400'
                 }`}
               >

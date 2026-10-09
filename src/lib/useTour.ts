@@ -9,7 +9,7 @@ import 'driver.js/dist/driver.css';
 // pengguna sampai ke halaman (dijejak dalam localStorage), dan boleh dilancarkan
 // semula melalui butang "Panduan".
 
-export type TourPageKey = 'kebun' | 'kalkulator' | 'dashboard' | 'laporan' | 'profil' | 'admin';
+export type TourPageKey = 'kebun' | 'peta' | 'kalkulator' | 'dashboard' | 'laporan' | 'profil' | 'admin';
 
 const LANGKAH: Record<TourPageKey, DriveStep[]> = {
   kebun: [
@@ -17,6 +17,12 @@ const LANGKAH: Record<TourPageKey, DriveStep[]> = {
     { element: '[data-tour="kebun-tambah"]', popover: { title: 'Tambah Kebun', description: 'Tekan butang ini untuk mendaftar kebun baharu. Isi maklumat seperti nama, lokasi, keluasan dan varieti pokok.' } },
     { element: '[data-tour="kebun-carian"]', popover: { title: 'Cari & Tapis', description: 'Gunakan carian dan penapis negeri/daerah untuk mencari kebun dengan pantas.' } },
     { element: '[data-tour="kebun-senarai"]', popover: { title: 'Senarai Kebun', description: 'Semua kebun dalam skop anda dipaparkan di sini. Klik mana-mana kebun untuk mengemas kini maklumatnya.' } },
+  ],
+  peta: [
+    { element: '[data-tour="peta-tajuk"]', popover: { title: 'Peta Negeri', description: 'Lihat taburan kebun durian mengikut negeri berdasarkan skop capaian akaun anda.' } },
+    { element: '[data-tour="peta-kpi"]', popover: { title: 'Ringkasan Negeri', description: 'Semak jumlah kebun, daerah, keluasan dan bilangan pokok dalam skop yang dibenarkan.' } },
+    { element: '[data-tour="peta-interaktif"]', popover: { title: 'Peta Interaktif', description: 'Pilih negeri yang dibenarkan. Pengguna negeri hanya boleh membuka negeri yang ditetapkan pada profil.' } },
+    { element: '[data-tour="peta-butiran"]', popover: { title: 'Butiran Kebun', description: 'Lihat pecahan daerah, senarai kebun, pegawai yang ditugaskan dan status koordinat GPS.' } },
   ],
   kalkulator: [
     { element: '[data-tour="kalkulator-tajuk"]', popover: { title: 'Kalkulator Pengeluaran', description: 'Kira anggaran hasil durian dan rekod pemantauan lawatan di sini, dalam tiga langkah mudah.' } },

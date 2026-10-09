@@ -27,7 +27,10 @@ export default function AdminSettingsPage() {
       try {
         const snap = await getDoc(doc(db, 'settings', 'pageAccess'));
         if (snap.exists()) {
-          setPageAccess(snap.data() as Record<string, UserRole[]>);
+          setPageAccess({
+            ...DEFAULT_PAGE_ACCESS,
+            ...(snap.data() as Record<string, UserRole[]>),
+          });
         }
       } catch (e) {
         console.warn('Using defaults');

@@ -34,6 +34,7 @@ export const ROLE_COLORS: Record<UserRole, string> = {
 // Pages in the app
 export const APP_PAGES = [
   { key: 'profil_kebun', label: 'Profil & Kebun', path: '/' },
+  { key: 'peta_negeri', label: 'Peta Negeri', path: '/peta-negeri' },
   { key: 'kalkulator', label: 'Kalkulator (Usia & Fasa)', path: '/kalkulator' },
   { key: 'dashboard_hq', label: 'Dashboard HQ', path: '/dashboard-hq' },
   { key: 'laporan', label: 'Laporan & Infografik', path: '/laporan' },
@@ -44,6 +45,7 @@ export const APP_PAGES = [
 // Default page access per role
 export const DEFAULT_PAGE_ACCESS: Record<string, UserRole[]> = {
   profil_kebun: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
+  peta_negeri: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   kalkulator: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   dashboard_hq: ['superadmin', 'admin_hq'],
   laporan: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
@@ -103,7 +105,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const settingsDoc = await getDoc(doc(db, 'settings', 'pageAccess'));
         if (settingsDoc.exists()) {
-          setPageAccess(settingsDoc.data() as Record<string, UserRole[]>);
+          // Gabung dengan defaults supaya modul baharu kekal mempunyai akses lalai
+          // walaupun dokumen tetapan lama belum mengandungi key halaman tersebut.
+          setPageAccess({
+            ...DEFAULT_PAGE_ACCESS,
+            ...(settingsDoc.data() as Record<string, UserRole[]>),
+          });
         }
       } catch (e) {
         console.warn('Using default page access settings');

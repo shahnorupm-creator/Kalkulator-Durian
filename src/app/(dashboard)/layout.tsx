@@ -16,6 +16,7 @@ import { mulaTourManual, type TourPageKey } from '@/lib/useTour';
 // Petakan laluan URL semasa kepada kunci tour halaman.
 function tourKeyDariPath(pathname: string): TourPageKey | null {
   if (pathname === '/') return 'kebun';
+  if (pathname.startsWith('/peta-negeri')) return 'peta';
   if (pathname.startsWith('/kalkulator')) return 'kalkulator';
   if (pathname.startsWith('/dashboard-hq')) return 'dashboard';
   if (pathname.startsWith('/laporan')) return 'laporan';
@@ -72,6 +73,7 @@ function DesktopSidebar() {
   const allNavItems = [
     { href: '/', label: t('nav.kebun'), icon: '🌱', desc: locale === 'bm' ? 'Daftar & Kemaskini Profil Pekebun' : 'Register & Update Farmer Profile', pageKey: 'profil_kebun' },
     { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', desc: locale === 'bm' ? 'Kira Anggaran Pengeluaran' : 'Calculate Production Estimate', pageKey: 'kalkulator' },
+    { href: '/peta-negeri', label: locale === 'bm' ? 'Peta Negeri' : 'State Map', icon: '📍', desc: locale === 'bm' ? 'Lihat kebun mengikut negeri' : 'View farms by state', pageKey: 'peta_negeri' },
     { href: '/dashboard-hq', label: t('nav.dashboard'), icon: '🗺️', desc: locale === 'bm' ? 'Analisis keseluruhan' : 'Overall analysis', pageKey: 'dashboard_hq' },
     { href: '/laporan', label: locale === 'bm' ? 'Laporan' : 'Reports', icon: '📋', desc: locale === 'bm' ? 'Jana Laporan Infografik' : 'Generate Infographic Report', pageKey: 'laporan' },
     { href: '/profil', label: t('nav.profil'), icon: '👤', desc: locale === 'bm' ? 'Kemaskini Profil & Kata Laluan' : 'Update Profile & Password', pageKey: 'profil' },
