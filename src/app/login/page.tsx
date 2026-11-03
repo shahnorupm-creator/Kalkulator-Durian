@@ -43,8 +43,12 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center px-4 relative bg-center bg-cover bg-no-repeat"
-      style={{ backgroundImage: "url('/background%20durian.png')", backgroundColor: '#0a2e1a' }}
+      className="min-h-screen flex items-center justify-center px-4 relative bg-center bg-no-repeat"
+      style={{
+        backgroundImage: "url('/background%20durian.png')",
+        backgroundColor: '#062617',
+        backgroundSize: '100% 100%',
+      }}
     >
 
       {/* Language Toggle — Top Right */}
@@ -68,8 +72,8 @@ export default function LoginPage() {
 
       {/* Borang login — di tengah skrin */}
       <div className="w-full max-w-sm relative z-10">
-          {/* Login Card */}
-          <div className="bg-white rounded-3xl shadow-2xl p-7">
+          {/* Login Card — glass transparent supaya banner masih kelihatan */}
+          <div className="bg-white/75 backdrop-blur-md border border-white/50 rounded-3xl shadow-2xl p-7">
           <h2 className="text-lg font-bold text-forest mb-1">{t('login.title')}</h2>
           <p className="text-xs text-gray-400 mb-6">{t('login.subtitle')}</p>
 
