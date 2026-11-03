@@ -45,8 +45,8 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4 relative">
       {/* Background image */}
       <div className="absolute inset-0 z-0">
-        <img src="/durian.jpg" alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-forest-dark/70" />
+        <img src="/background%20durian.png" alt="" className="w-full h-full object-cover" />
+        <div className="absolute inset-0 bg-forest-dark/40" />
       </div>
       <div className="w-full max-w-sm relative z-10">
 

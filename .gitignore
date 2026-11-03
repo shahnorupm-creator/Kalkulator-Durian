@@ -37,3 +37,6 @@ next-env.d.ts
 # supaya Vercel boleh hidangkannya. Hanya abaikan fail source-map.
 public/sw.js.map
 public/workbox-*.js.map
+
+.vercel
+.env*
