@@ -50,6 +50,8 @@ export default function LoginPage() {
         backgroundSize: '100% 100%',
       }}
     >
+      {/* Gelapkan gambar latar sahaja; kandungan login kekal jelas */}
+      <div className="absolute inset-0 z-0 bg-black/50" aria-hidden="true" />
 
       {/* Language Toggle — Top Right */}
       <div className="absolute top-4 right-4 z-20">
