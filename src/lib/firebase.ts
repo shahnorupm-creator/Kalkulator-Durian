@@ -1,5 +1,10 @@
-import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, setPersistence, browserLocalPersistence } from 'firebase/auth';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import {
+  getAuth,
+  setPersistence,
+  browserLocalPersistence,
+  Auth,
+} from 'firebase/auth';
 import {
   initializeFirestore,
   getFirestore,
@@ -8,7 +13,7 @@ import {
   CACHE_SIZE_UNLIMITED,
   Firestore,
 } from 'firebase/firestore';
-import { getStorage } from 'firebase/storage';
+import { getStorage, FirebaseStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -19,38 +24,60 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-// Initialize Firebase
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+// Adakah config lengkap? Semasa prerender build di pelayan, env NEXT_PUBLIC_*
+// mungkin tiada — jika begitu, JANGAN init Firebase (elak crash
+// auth/invalid-api-key yang menggagalkan build).
+const configLengkap = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
 
-// --- Auth with LOCAL persistence (survive offline + page reloads) ---
-const auth = getAuth(app);
-if (typeof window !== 'undefined') {
-  setPersistence(auth, browserLocalPersistence).catch((err) => {
-    console.warn('[Auth] Persistence setup error:', err.message);
-  });
-}
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
+let db: Firestore | undefined;
+let storage: FirebaseStorage | undefined;
 
-// --- Firestore with multi-tab offline persistence ---
-let db: Firestore;
+if (configLengkap) {
+  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-if (typeof window !== 'undefined') {
-  try {
-    db = initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-      }),
+  // --- Auth with LOCAL persistence (survive offline + page reloads) ---
+  auth = getAuth(app);
+  if (typeof window !== 'undefined') {
+    setPersistence(auth, browserLocalPersistence).catch((err) => {
+      console.warn('[Auth] Persistence setup error:', err?.message);
     });
-  } catch (err: unknown) {
-    // Firestore already initialized (hot module reload in dev)
+  }
+
+  // --- Firestore with multi-tab offline persistence ---
+  if (typeof window !== 'undefined') {
+    try {
+      db = initializeFirestore(app, {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+          cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+        }),
+      });
+    } catch {
+      // Firestore already initialized (hot module reload in dev)
+      db = getFirestore(app);
+    }
+  } else {
+    // Server-side: no persistence needed
     db = getFirestore(app);
   }
-} else {
-  // Server-side: no persistence needed
-  db = getFirestore(app);
+
+  // --- Firebase Storage (untuk gambar bukti lawatan) ---
+  storage = getStorage(app);
 }
 
-// --- Firebase Storage (untuk gambar bukti lawatan) ---
-const storage = getStorage(app);
+// Eksport dengan cast non-null: dalam penggunaan sebenar (runtime pelayar),
+// config sentiasa lengkap jadi nilai ini pasti wujud. Hanya semasa prerender
+// build (tanpa env) ia undefined, dan kod pelayar tidak dijalankan ketika itu.
+// Cast menjaga jenis sedia ada supaya fail lain tidak perlu diubah.
+const authExport = auth as Auth;
+const dbExport = db as Firestore;
+const storageExport = storage as FirebaseStorage;
 
-export { app, auth, db, storage };
+export {
+  app,
+  authExport as auth,
+  dbExport as db,
+  storageExport as storage,
+};
