@@ -6,19 +6,37 @@ let adminApp: App;
 let adminAuth: Auth;
 let adminDb: Firestore;
 
+/**
+ * Baca kunci peribadi Firebase Admin. Utamakan versi base64
+ * (FIREBASE_ADMIN_PRIVATE_KEY_B64) kerana ia selamat daripada masalah
+ * baris-baru / terpotong semasa ditampal ke Vercel. Jika tiada, guna
+ * FIREBASE_ADMIN_PRIVATE_KEY (format \n literal atau baris baru sebenar).
+ */
+function readPrivateKey(): string {
+  const b64 = process.env.FIREBASE_ADMIN_PRIVATE_KEY_B64 || '';
+  if (b64.trim()) {
+    try {
+      return Buffer.from(b64.trim(), 'base64').toString('utf8');
+    } catch {
+      // jatuh ke bawah dan cuba kunci biasa
+    }
+  }
+
+  let key = process.env.FIREBASE_ADMIN_PRIVATE_KEY || '';
+  // Buang petikan luar jika tertampal dengan " ".
+  if (key.startsWith('"') && key.endsWith('"')) {
+    key = key.slice(1, -1);
+  }
+  // Tukar \n literal kepada baris baru sebenar.
+  return key.replace(/\\n/g, '\n');
+}
+
 function getAdminApp() {
   if (!adminApp) {
     if (getApps().length === 0) {
       const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || '';
       const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || '';
-      let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY || '';
-
-      // Buang petikan luar jika pengguna tertampal nilai dengan " " di Vercel,
-      // kemudian tukar \n literal kepada baris baru sebenar.
-      if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
-        privateKey = privateKey.slice(1, -1);
-      }
-      privateKey = privateKey.replace(/\\n/g, '\n');
+      let privateKey = readPrivateKey();
 
       // Beri mesej jelas jika mana-mana kredensial hilang (bukan 401 mengelirukan).
       if (!projectId || !clientEmail || !privateKey) {

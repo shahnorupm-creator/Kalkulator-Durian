@@ -12,15 +12,35 @@ export const dynamic = 'force-dynamic';
 export async function GET() {
   const projectId = process.env.FIREBASE_ADMIN_PROJECT_ID || '';
   const clientEmail = process.env.FIREBASE_ADMIN_CLIENT_EMAIL || '';
-  let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY || '';
+  const b64 = process.env.FIREBASE_ADMIN_PRIVATE_KEY_B64 || '';
 
-  const rawLen = privateKey.length;
-  const hasOuterQuotes = privateKey.startsWith('"') && privateKey.endsWith('"');
-  if (hasOuterQuotes) privateKey = privateKey.slice(1, -1);
+  let sumber = 'tiada';
+  let afterReplace = '';
+  let rawLen = 0;
+  let hasOuterQuotes = false;
+  let hasLiteralBackslashN = false;
+  let hasRealNewline = false;
 
-  const hasLiteralBackslashN = privateKey.includes('\\n');
-  const afterReplace = privateKey.replace(/\\n/g, '\n');
-  const hasRealNewline = afterReplace.includes('\n');
+  if (b64.trim()) {
+    sumber = 'FIREBASE_ADMIN_PRIVATE_KEY_B64 (base64)';
+    rawLen = b64.trim().length;
+    try {
+      afterReplace = Buffer.from(b64.trim(), 'base64').toString('utf8');
+      hasRealNewline = afterReplace.includes('\n');
+    } catch {
+      afterReplace = '';
+    }
+  } else {
+    sumber = 'FIREBASE_ADMIN_PRIVATE_KEY (biasa)';
+    let privateKey = process.env.FIREBASE_ADMIN_PRIVATE_KEY || '';
+    rawLen = privateKey.length;
+    hasOuterQuotes = privateKey.startsWith('"') && privateKey.endsWith('"');
+    if (hasOuterQuotes) privateKey = privateKey.slice(1, -1);
+    hasLiteralBackslashN = privateKey.includes('\\n');
+    afterReplace = privateKey.replace(/\\n/g, '\n');
+    hasRealNewline = afterReplace.includes('\n');
+  }
+  const privateKey = afterReplace;
 
   // Cuba init Admin SDK sebenar & verify ringan untuk tangkap ralat kredensial.
   let initStatus = 'tidak dicuba';
@@ -37,12 +57,14 @@ export async function GET() {
   }
 
   return NextResponse.json({
+    sumber_kunci: sumber,
     projectId_set: !!projectId,
     projectId_nilai: projectId || '(kosong)',
     clientEmail_set: !!clientEmail,
     clientEmail_hujung: clientEmail ? clientEmail.slice(-30) : '(kosong)',
     privateKey_set: !!privateKey,
     privateKey_panjang_mentah: rawLen,
+    privateKey_panjang_selepas_decode: afterReplace.length,
     privateKey_ada_petik_luar: hasOuterQuotes,
     privateKey_ada_backslash_n_literal: hasLiteralBackslashN,
     privateKey_ada_newline_sebenar_selepas_tukar: hasRealNewline,
