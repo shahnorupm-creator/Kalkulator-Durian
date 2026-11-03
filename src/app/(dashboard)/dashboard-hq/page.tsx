@@ -461,14 +461,17 @@ export default function DashboardHQPage() {
                     const mt = v ? v.kg / 1000 : 0;
                     return (
                       <div key={nama} className="flex items-stretch gap-2.5">
-                        {/* Gambar durian — jika imej belum ada / gagal muat, tunjuk placeholder warna */}
-                        <div className={`relative w-28 flex-shrink-0 overflow-hidden rounded-xl border border-gray-100 ${warna}`}>
-                          <span className="absolute inset-0 flex items-center justify-center px-1 text-center text-[8px] font-bold text-white">
-                            {nama.split(' (')[0]}
-                          </span>
+                        {/* Gambar durian. D24 dipaparkan penuh (menegak) atas latar putih;
+                            varieti lain diisi penuh ruang kad. */}
+                        <div className={`relative w-28 flex-shrink-0 overflow-hidden rounded-xl border border-gray-100 ${nama.includes('D24') ? 'bg-white' : warna}`}>
+                          {!nama.includes('D24') && (
+                            <span className="absolute inset-0 flex items-center justify-center px-1 text-center text-[8px] font-bold text-white">
+                              {nama.split(' (')[0]}
+                            </span>
+                          )}
                           {imej && (
                             <img src={imej} alt={nama} loading="lazy"
-                              className="relative h-full min-h-[64px] w-full object-cover"
+                              className={`relative h-full min-h-[64px] w-full ${nama.includes('D24') ? 'object-contain p-1.5' : 'object-cover'}`}
                               onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden'; }} />
                           )}
                         </div>
