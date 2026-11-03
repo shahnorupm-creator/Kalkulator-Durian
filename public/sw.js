@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'durian-fama-v5';
+const CACHE_VERSION = 'durian-fama-v6';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 
@@ -129,8 +129,9 @@ async function cacheFirst(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
+      const copy = response.clone();
       const cache = await caches.open(STATIC_CACHE);
-      cache.put(request, response.clone());
+      await cache.put(request, copy);
     }
     return response;
   } catch (err) {
@@ -142,8 +143,9 @@ async function networkFirst(request) {
   try {
     const response = await fetch(request);
     if (response.ok) {
+      const copy = response.clone();
       const cache = await caches.open(DYNAMIC_CACHE);
-      cache.put(request, response.clone());
+      await cache.put(request, copy);
     }
     return response;
   } catch (err) {
@@ -168,8 +170,10 @@ async function staleWhileRevalidate(request) {
   const fetchPromise = fetch(request)
     .then((response) => {
       if (response.ok) {
+        // Clone SEGERA sebelum body digunakan oleh pemulangan response.
+        const copy = response.clone();
         caches.open(DYNAMIC_CACHE).then((cache) => {
-          cache.put(request, response.clone());
+          cache.put(request, copy);
         });
       }
       return response;

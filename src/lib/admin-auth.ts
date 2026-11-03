@@ -39,7 +39,15 @@ export async function verifyCaller(request: NextRequest): Promise<Caller> {
   let decoded;
   try {
     decoded = await adminAuth().verifyIdToken(idToken);
-  } catch {
+  } catch (err) {
+    // Log punca sebenar ke Vercel Logs untuk diagnosis (tidak didedah ke klien).
+    const reason = err instanceof Error ? err.message : String(err);
+    console.error('[admin-auth] verifyIdToken gagal:', reason);
+    // Jika puncanya kredensial Admin hilang/salah, dedahkan mesej itu supaya
+    // mudah dikesan — bukan "token tidak sah" yang mengelirukan.
+    if (/Konfigurasi Firebase Admin tidak lengkap/.test(reason)) {
+      throw new AuthError(reason, 500);
+    }
     throw new AuthError('Token pengesahan tidak sah atau telah tamat tempoh.', 401);
   }
 
