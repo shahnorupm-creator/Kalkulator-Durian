@@ -223,11 +223,12 @@ export default function PetaNegeriPage() {
         </div>
       ) : (
         <>
-          <div className={`rounded-xl border px-4 py-3 text-xs ${nasional ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-green-200 bg-green-50 text-green-700'}`}>
-            {nasional
-              ? 'Capaian nasional. Pilih negeri untuk menapis dan mengezum peta ke kawasan berkenaan.'
-              : `Capaian dikunci kepada ${userNegeri}. Data negeri lain tidak boleh dibuka.`}
-          </div>
+          {/* Banner capaian negeri sahaja — admin nasional tidak perlu banner. */}
+          {!nasional && (
+            <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-xs text-green-700">
+              Capaian dikunci kepada {userNegeri}. Data negeri lain tidak boleh dibuka.
+            </div>
+          )}
 
           {/* KPI ringkas */}
           <div data-tour="peta-kpi" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
