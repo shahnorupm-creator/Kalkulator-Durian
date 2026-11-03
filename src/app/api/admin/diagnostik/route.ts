@@ -58,6 +58,8 @@ export async function GET() {
 
   return NextResponse.json({
     sumber_kunci: sumber,
+    env_B64_wujud: !!b64.trim(),
+    env_B64_panjang: b64.trim().length,
     projectId_set: !!projectId,
     projectId_nilai: projectId || '(kosong)',
     clientEmail_set: !!clientEmail,
