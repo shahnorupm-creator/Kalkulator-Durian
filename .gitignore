@@ -33,7 +33,7 @@ yarn-error.log*
 next-env.d.ts
 
 # PWA files
-public/sw.js
-public/workbox-*.js
+# NOTA: sw.js & workbox ditulis tangan (bukan auto-jana), jadi WAJIB di-commit
+# supaya Vercel boleh hidangkannya. Hanya abaikan fail source-map.
 public/sw.js.map
 public/workbox-*.js.map
