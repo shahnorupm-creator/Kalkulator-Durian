@@ -15,69 +15,52 @@ import {
 } from 'firebase/firestore';
 import { getStorage, FirebaseStorage } from 'firebase/storage';
 
+// Konfigurasi Firebase CLIENT. Nilai ini BUKAN rahsia — ia memang didedahkan
+// dalam bundle JavaScript pelayar dan selamat untuk dikod terus (keselamatan
+// dijaga oleh Firebase Security Rules, bukan kerahsiaan apiKey). Kita utamakan
+// env var NEXT_PUBLIC_* jika ada, dan jatuh balik ke nilai projek ini supaya
+// build & runtime tidak gagal walaupun env var tidak di-inject di Vercel.
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || 'AIzaSyDnHXLmFT4GmsSS4QQ9QUEw5nhZ1Zsuw7A',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || 'kalkulator-durian.firebaseapp.com',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || 'kalkulator-durian',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || 'kalkulator-durian.firebasestorage.app',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '29425935527',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || '1:29425935527:web:3931954241f426f1f82782',
 };
 
-// Adakah config lengkap? Semasa prerender build di pelayan, env NEXT_PUBLIC_*
-// mungkin tiada — jika begitu, JANGAN init Firebase (elak crash
-// auth/invalid-api-key yang menggagalkan build).
-const configLengkap = Boolean(firebaseConfig.apiKey && firebaseConfig.projectId);
+// Initialize Firebase
+const app: FirebaseApp =
+  getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-let app: FirebaseApp | undefined;
-let auth: Auth | undefined;
-let db: Firestore | undefined;
-let storage: FirebaseStorage | undefined;
-
-if (configLengkap) {
-  app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-
-  // --- Auth with LOCAL persistence (survive offline + page reloads) ---
-  auth = getAuth(app);
-  if (typeof window !== 'undefined') {
-    setPersistence(auth, browserLocalPersistence).catch((err) => {
-      console.warn('[Auth] Persistence setup error:', err?.message);
-    });
-  }
-
-  // --- Firestore with multi-tab offline persistence ---
-  if (typeof window !== 'undefined') {
-    try {
-      db = initializeFirestore(app, {
-        localCache: persistentLocalCache({
-          tabManager: persistentMultipleTabManager(),
-          cacheSizeBytes: CACHE_SIZE_UNLIMITED,
-        }),
-      });
-    } catch {
-      // Firestore already initialized (hot module reload in dev)
-      db = getFirestore(app);
-    }
-  } else {
-    // Server-side: no persistence needed
-    db = getFirestore(app);
-  }
-
-  // --- Firebase Storage (untuk gambar bukti lawatan) ---
-  storage = getStorage(app);
+// --- Auth with LOCAL persistence (survive offline + page reloads) ---
+const auth: Auth = getAuth(app);
+if (typeof window !== 'undefined') {
+  setPersistence(auth, browserLocalPersistence).catch((err) => {
+    console.warn('[Auth] Persistence setup error:', err?.message);
+  });
 }
 
-// Eksport dengan cast non-null: dalam penggunaan sebenar (runtime pelayar),
-// config sentiasa lengkap jadi nilai ini pasti wujud. Hanya semasa prerender
-// build (tanpa env) ia undefined, dan kod pelayar tidak dijalankan ketika itu.
-// Cast menjaga jenis sedia ada supaya fail lain tidak perlu diubah.
-const authExport = auth as Auth;
-const dbExport = db as Firestore;
-const storageExport = storage as FirebaseStorage;
+// --- Firestore with multi-tab offline persistence ---
+let db: Firestore;
+if (typeof window !== 'undefined') {
+  try {
+    db = initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager(),
+        cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+      }),
+    });
+  } catch {
+    // Firestore already initialized (hot module reload in dev)
+    db = getFirestore(app);
+  }
+} else {
+  // Server-side: no persistence needed
+  db = getFirestore(app);
+}
 
-export {
-  app,
-  authExport as auth,
-  dbExport as db,
-  storageExport as storage,
-};
+// --- Firebase Storage (untuk gambar bukti lawatan) ---
+const storage: FirebaseStorage = getStorage(app);
+
+export { app, auth, db, storage };
