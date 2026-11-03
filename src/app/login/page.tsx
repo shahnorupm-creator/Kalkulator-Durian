@@ -42,17 +42,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative">
-      {/* Background image */}
-      <div className="absolute inset-0 z-0">
-        <img src="/background%20durian.png" alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0 bg-forest-dark/40" />
-      </div>
-      <div className="w-full max-w-sm relative z-10">
+    <div className="min-h-screen bg-forest-dark flex flex-col">
+      {/* Banner hero — dipaparkan penuh di atas, tiada elemen bertindih */}
+      <div className="relative w-full">
+        <img
+          src="/background%20durian.png"
+          alt="Kalkulator Durian FAMA"
+          className="w-full h-auto object-contain"
+        />
+        {/* Gradien lembut di bawah banner supaya peralihan ke borang kemas */}
+        <div className="absolute inset-x-0 bottom-0 h-16 bg-gradient-to-t from-forest-dark to-transparent" />
 
-        {/* Language Toggle — Top Right */}
-        <div className="flex justify-end mb-4">
-          <div className="inline-flex bg-white/10 backdrop-blur-sm rounded-full p-1 border border-white/20">
+        {/* Language Toggle — Top Right (atas banner) */}
+        <div className="absolute top-3 right-3 sm:top-4 sm:right-4">
+          <div className="inline-flex bg-black/30 backdrop-blur-sm rounded-full p-1 border border-white/20">
             {(['bm', 'en'] as Locale[]).map((lang) => (
               <button
                 key={lang}
@@ -60,7 +63,7 @@ export default function LoginPage() {
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all ${
                   locale === lang
                     ? 'bg-white text-forest shadow-md'
-                    : 'text-white/70 hover:text-white'
+                    : 'text-white/80 hover:text-white'
                 }`}
               >
                 {LOCALE_SHORT[lang]}
@@ -68,18 +71,13 @@ export default function LoginPage() {
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Logo / Header */}
-        <div className="text-center mb-8">
-          <div className="w-28 h-28 rounded-2xl overflow-hidden mx-auto mb-4 shadow-lg border border-white/20">
-            <img src="/logo-durian.png" alt="Kalkulator Durian FAMA" className="w-full h-full object-cover" />
-          </div>
-          <h1 className="text-2xl font-bold text-white">Durian FAMA</h1>
-          <p className="text-white/50 text-sm mt-1">{t('app.subtitle')}</p>
-        </div>
-
-        {/* Login Card */}
-        <div className="bg-white rounded-3xl shadow-2xl p-7">
+      {/* Bahagian borang — latar hijau solid, borang di tengah */}
+      <div className="flex-1 flex items-start justify-center px-4 pb-8 -mt-4 sm:-mt-6">
+        <div className="w-full max-w-sm relative z-10">
+          {/* Login Card */}
+          <div className="bg-white rounded-3xl shadow-2xl p-7">
           <h2 className="text-lg font-bold text-forest mb-1">{t('login.title')}</h2>
           <p className="text-xs text-gray-400 mb-6">{t('login.subtitle')}</p>
 
@@ -148,12 +146,13 @@ export default function LoginPage() {
               {t('login.footerContact')}
             </p>
           </div>
-        </div>
+          </div>
 
-        {/* Footer */}
-        <p className="text-center text-white/30 text-[10px] mt-6">
-          {t('app.copyright')}
-        </p>
+          {/* Footer */}
+          <p className="text-center text-white/40 text-[10px] mt-6">
+            {t('app.copyright')}
+          </p>
+        </div>
       </div>
     </div>
   );
