@@ -188,3 +188,23 @@ body {
     animation: none;
   }
 }
+
+/* Panel login kaca: pada desktop, orchard di dalam panel disejajarkan dengan
+   koordinat halaman supaya ia benar-benar kelihatan transparent walaupun
+   artwork rujukan asal mempunyai panel putih statik di belakang. */
+.login-glass-panel {
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+}
+
+@media (min-width: 768px) {
+  .login-glass-panel {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.76), rgba(247, 249, 246, 0.82)),
+      url('/assets/login/orchard-backdrop.webp');
+    background-repeat: no-repeat;
+    background-size: 100vw 100vh;
+    background-position: -5vw -7vh;
+  }
+}

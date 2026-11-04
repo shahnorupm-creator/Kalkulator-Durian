@@ -142,7 +142,7 @@ export default function LoginPage() {
 
       <div className="relative z-20 flex min-h-screen items-center justify-center px-4 pb-6 pt-16 md:absolute md:left-[5%] md:top-[7%] md:h-[89%] md:min-h-0 md:w-[34.5%] md:px-0 md:py-0">
         {/* Panel HTML sebenar menutup panel/form statik pada background dengan tepat. */}
-        <section className="login-panel-enter flex w-full max-w-[500px] flex-col justify-center rounded-[34px] border border-white bg-white/[0.97] px-5 py-6 shadow-[0_22px_60px_rgba(6,59,42,.18)] backdrop-blur-xl sm:px-7 md:h-full md:max-h-none md:min-h-0 md:max-w-none md:px-[clamp(22px,2.3vw,38px)] md:py-[clamp(18px,2.5vh,30px)]">
+        <section className="login-glass-panel login-panel-enter flex w-full max-w-[500px] flex-col justify-center rounded-[34px] border border-white/80 px-5 py-6 shadow-[0_22px_60px_rgba(6,59,42,.18)] backdrop-blur-xl sm:px-7 md:h-full md:max-h-none md:min-h-0 md:max-w-none md:px-[clamp(22px,2.3vw,38px)] md:py-[clamp(18px,2.5vh,30px)]">
           <div className="mx-auto w-full max-w-[390px]">
             {/* Logo FAMA dan RMP sebenar daripada design pengguna */}
             <img
@@ -164,7 +164,7 @@ export default function LoginPage() {
             </header>
 
             {/* Kad borang login sebenar */}
-            <div className="mt-4 rounded-[26px] border border-white bg-white/[0.94] p-5 shadow-[0_12px_34px_rgba(6,59,42,.13)] md:mt-[2vh] md:p-[clamp(18px,2.3vh,24px)]">
+            <div className="mt-4 rounded-[26px] border border-white/85 bg-white/[0.88] p-5 shadow-[0_12px_34px_rgba(6,59,42,.13)] backdrop-blur-lg md:mt-[2vh] md:p-[clamp(18px,2.3vh,24px)]">
               <div className="mb-4 flex items-center gap-3 md:mb-[1.7vh]">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#8CC63F] to-[#15942B] text-white shadow-md" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6"><circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.7"/><path d="M6 19c.5-4 2.5-6 6-6s5.5 2 6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
