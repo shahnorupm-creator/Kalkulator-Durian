@@ -116,35 +116,33 @@ export default function LoginPage() {
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#EAF4ED] md:h-screen md:overflow-hidden">
-      {/* Latar orchard cerah daripada design pengguna */}
+      {/* Desktop: SATU kanvas penuh daripada design rujukan. Tiada gabungan dua gambar. */}
       <img
-        src="/assets/login/orchard-backdrop.webp"
+        src="/assets/login/login-reference-full.webp"
         alt=""
-        className="absolute inset-0 h-full w-full object-cover object-center"
+        className="absolute inset-0 hidden h-full w-full object-fill md:block"
         loading="eager"
         decoding="async"
       />
-      <div className="absolute inset-0 bg-white/8" aria-hidden="true" />
 
-      {/* Hero kanan sebenar daripada design rujukan — tiada form statik */}
-      <section className="absolute inset-y-0 right-0 hidden w-[62%] overflow-hidden md:block" aria-label="Identiti Sistem Kalkulator Durian FAMA">
-        <img
-          src="/assets/login/reference-hero.webp"
-          alt="Kalkulator Durian FAMA — Sistem Pemantauan dan Anggaran Hasil Durian pada komputer dan telefon"
-          className="h-full w-full object-cover object-left"
-          loading="eager"
-          decoding="async"
-        />
-      </section>
+      {/* Mobile: orchard bersih kerana hero besar disembunyikan. */}
+      <img
+        src="/assets/login/orchard-backdrop.webp"
+        alt=""
+        className="absolute inset-0 h-full w-full object-cover object-center md:hidden"
+        loading="eager"
+        decoding="async"
+      />
+      <div className="absolute inset-0 bg-white/20 md:hidden" aria-hidden="true" />
 
       {/* Language switch sebenar menutup switch visual dalam artwork */}
       <div className="absolute right-4 top-4 z-40 md:right-[3.6vw] md:top-[3vh]">
         <LanguageSwitcher locale={locale} setLocale={setLocale} label={t('login.selectLanguage')} />
       </div>
 
-      <div className="relative z-20 flex min-h-screen items-center justify-center px-4 pb-6 pt-16 md:h-screen md:w-[38%] md:px-[3vw] md:py-[4vh]">
-        {/* Panel kiri sebenar, mengikut saiz dan komposisi rujukan */}
-        <section className="login-panel-enter flex w-full max-w-[500px] flex-col justify-center rounded-[34px] border border-white/90 bg-white/91 px-5 py-6 shadow-[0_22px_60px_rgba(6,59,42,.20)] backdrop-blur-xl sm:px-7 md:h-[92vh] md:max-h-[900px] md:min-h-[660px] md:px-[clamp(22px,2.3vw,38px)] md:py-[clamp(20px,3vh,34px)]">
+      <div className="relative z-20 flex min-h-screen items-center justify-center px-4 pb-6 pt-16 md:absolute md:left-[5%] md:top-[7%] md:h-[89%] md:min-h-0 md:w-[34.5%] md:px-0 md:py-0">
+        {/* Panel HTML sebenar menutup panel/form statik pada background dengan tepat. */}
+        <section className="login-panel-enter flex w-full max-w-[500px] flex-col justify-center rounded-[34px] border border-white bg-white/[0.97] px-5 py-6 shadow-[0_22px_60px_rgba(6,59,42,.18)] backdrop-blur-xl sm:px-7 md:h-full md:max-h-none md:min-h-0 md:max-w-none md:px-[clamp(22px,2.3vw,38px)] md:py-[clamp(18px,2.5vh,30px)]">
           <div className="mx-auto w-full max-w-[390px]">
             {/* Logo FAMA dan RMP sebenar daripada design pengguna */}
             <img
@@ -166,7 +164,7 @@ export default function LoginPage() {
             </header>
 
             {/* Kad borang login sebenar */}
-            <div className="mt-4 rounded-[26px] border border-white bg-white/88 p-5 shadow-[0_12px_34px_rgba(6,59,42,.13)] md:mt-[2vh] md:p-[clamp(18px,2.3vh,24px)]">
+            <div className="mt-4 rounded-[26px] border border-white bg-white/[0.94] p-5 shadow-[0_12px_34px_rgba(6,59,42,.13)] md:mt-[2vh] md:p-[clamp(18px,2.3vh,24px)]">
               <div className="mb-4 flex items-center gap-3 md:mb-[1.7vh]">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#8CC63F] to-[#15942B] text-white shadow-md" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6"><circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.7"/><path d="M6 19c.5-4 2.5-6 6-6s5.5 2 6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
