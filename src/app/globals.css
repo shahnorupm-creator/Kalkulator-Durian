@@ -1,4 +1,4 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -123,7 +123,7 @@ body {
   }
 }
 
-/* Print styles — A4 output, hide UI elements */
+/* Print styles â€” A4 output, hide UI elements */
 @media print {
   @page {
     size: A4 landscape;
@@ -189,22 +189,32 @@ body {
   }
 }
 
-/* Panel login kaca: pada desktop, orchard di dalam panel disejajarkan dengan
-   koordinat halaman supaya ia benar-benar kelihatan transparent walaupun
-   artwork rujukan asal mempunyai panel putih statik di belakang. */
+/* Panel login: Premium FAMA Glass UI (glassmorphism).
+   Panel luar 15% putih + blur 12px + border halus + bayang lembut.
+   Pada desktop, lapisan orchard (::before) disejajarkan dengan koordinat halaman
+   (panel di left 5% / top 7%) supaya kebun durian kelihatan melalui kaca dan
+   menutup panel/borang statik yang dibakar dalam gambar background utama. */
 .login-glass-panel {
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.38);
+  box-shadow: 0 8px 32px rgba(6, 59, 42, 0.18);
 }
 
 @media (min-width: 768px) {
-  .login-glass-panel {
-    background-image:
-      linear-gradient(rgba(255, 255, 255, 0.76), rgba(247, 249, 246, 0.82)),
-      url('/assets/login/orchard-backdrop.webp');
+  .login-glass-panel::before {
+    content: '';
+    position: absolute;
+    inset: -24px;
+    z-index: -1;
+    background-image: url('/assets/login/orchard-backdrop.webp');
     background-repeat: no-repeat;
     background-size: 100vw 100vh;
-    background-position: -5vw -7vh;
+    background-position: calc(24px - 5vw) calc(24px - 7vh);
+    filter: blur(6px);
   }
 }
