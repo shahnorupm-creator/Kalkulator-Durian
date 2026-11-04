@@ -10,6 +10,16 @@
   --moss: #5C8D5A;
   --cream: #F8FAFC;
   --fama-green: #124028;
+  --fama-dark-green: #063B2A;
+  --fama-emerald: #075A3A;
+  --fama-lime: #8CC63F;
+  --fama-lime-accent: #A8D600;
+  --fama-gold: #D9AD32;
+  --surface: #F7F9F6;
+  --surface-muted: #E8ECE9;
+  --text-primary: #17372C;
+  --text-muted: #60776C;
+  --danger: #C83D3D;
 }
 
 body {
@@ -150,5 +160,31 @@ body {
     height: auto !important;
     max-height: 95vh !important;
     object-fit: contain !important;
+  }
+}
+
+/* Login page: subtle enterprise entrance motion */
+@keyframes login-panel-enter {
+  from { opacity: 0; transform: translateX(-14px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes login-hero-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.login-panel-enter {
+  animation: login-panel-enter 420ms ease-out both;
+}
+
+.login-hero-enter {
+  animation: login-hero-enter 520ms 80ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-panel-enter,
+  .login-hero-enter {
+    animation: none;
   }
 }
