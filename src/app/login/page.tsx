@@ -19,7 +19,7 @@ function LanguageSwitcher({
     <div
       role="group"
       aria-label={label}
-      className="inline-flex items-center rounded-full border border-white/90 bg-white/95 p-1 shadow-[0_5px_16px_rgba(6,59,42,.18)] backdrop-blur-md"
+      className="inline-flex items-center rounded-full border border-white/90 bg-white/95 p-1 backdrop-blur-md"
     >
       {(['bm', 'en'] as Locale[]).map((lang) => (
         <button
@@ -29,7 +29,7 @@ function LanguageSwitcher({
           aria-pressed={locale === lang}
           className={`rounded-full px-4 py-1.5 text-xs font-extrabold transition-all duration-200 ${
             locale === lang
-              ? 'bg-gradient-to-r from-[#15942B] to-[#075A3A] text-white shadow-sm'
+              ? 'bg-gradient-to-r from-[#15942B] to-[#075A3A] text-white'
               : 'text-[#063B2A] hover:bg-[#ECF5EA]'
           }`}
         >
