@@ -146,11 +146,11 @@ export default function LoginPage() {
           <div className="mx-auto w-full max-w-[390px]">
             {/* Logo FAMA dan RMP sebenar daripada design pengguna */}
             <img
-              src="/assets/branding/fama-rmp-official.webp"
-              width={370}
-              height={150}
+              src="/assets/branding/fama-rmp-clean.webp"
+              width={289}
+              height={118}
               alt="Logo FAMA dan Risikan & Pemodenan Pasaran RMP"
-              className="mx-auto h-[76px] w-auto object-contain mix-blend-multiply sm:h-[84px] md:h-[clamp(70px,10vh,92px)]"
+              className="mx-auto h-[70px] w-auto object-contain sm:h-[78px] md:h-[clamp(64px,9vh,86px)]"
               loading="eager"
               decoding="async"
             />
