@@ -118,7 +118,7 @@ export default function LoginPage() {
     <main className="relative min-h-screen overflow-x-hidden bg-[#EAF4ED] md:h-screen md:overflow-hidden">
       {/* Desktop: SATU kanvas penuh daripada design rujukan. Tiada gabungan dua gambar. */}
       <img
-        src="/assets/login/login-bg-v4.webp"
+        src="/assets/login/login-bg-v5.webp"
         alt=""
         className="absolute inset-0 hidden h-full w-full object-fill md:block"
         loading="eager"
