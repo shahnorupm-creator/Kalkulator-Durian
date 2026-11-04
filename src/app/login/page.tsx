@@ -243,9 +243,9 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <div className="mt-4 flex items-start gap-2 border-t border-[#DDE5DF] pt-3.5 md:mt-[1.8vh] md:pt-[1.5vh]">
-                <span className="mt-0.5 flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-[#8CC63F] text-[11px] font-extrabold text-[#087536]" aria-hidden="true">i</span>
-                <p className="text-[10px] leading-relaxed text-[#60776C]">{t('login.footer')}<br />{t('login.footerContact')}</p>
+              <div className="mt-4 flex items-center justify-center gap-2 border-t border-[#DDE5DF] pt-3.5 md:mt-[1.8vh] md:pt-[1.5vh]">
+                <span className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full border border-[#8CC63F] text-[11px] font-extrabold text-[#087536]" aria-hidden="true">i</span>
+                <p className="text-center text-[10px] leading-relaxed text-[#60776C]">{t('login.footer')}<br />{t('login.footerContact')}</p>
               </div>
             </div>
           </div>
