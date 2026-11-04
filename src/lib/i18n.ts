@@ -35,7 +35,13 @@ export const translations: Record<Locale, Record<string, string>> = {
     'login.errorNotFound': 'Akaun tidak wujud. Sila hubungi admin.',
     'login.errorTooMany': 'Terlalu banyak percubaan. Sila cuba selepas beberapa minit.',
     'login.errorGeneral': 'Gagal log masuk. Sila cuba lagi.',
+    'login.errorNetwork': 'Sambungan gagal. Sila cuba semula.',
     'login.selectLanguage': 'Pilih Bahasa',
+    'login.welcomeIntro': 'Selamat Datang ke Sistem',
+    'login.emailPlaceholder': 'cth: nama@fama.gov.my',
+    'login.showPassword': 'Tunjuk kata laluan',
+    'login.hidePassword': 'Sembunyikan kata laluan',
+    'login.loggingIn': 'Log Masuk...',
 
     // --- Navbar ---
     'nav.kebun': 'Kebun',
@@ -250,7 +256,13 @@ export const translations: Record<Locale, Record<string, string>> = {
     'login.errorNotFound': 'Account does not exist. Please contact admin.',
     'login.errorTooMany': 'Too many attempts. Please try again later.',
     'login.errorGeneral': 'Login failed. Please try again.',
+    'login.errorNetwork': 'Connection failed. Please try again.',
     'login.selectLanguage': 'Select Language',
+    'login.welcomeIntro': 'Welcome to the',
+    'login.emailPlaceholder': 'e.g: name@fama.gov.my',
+    'login.showPassword': 'Show password',
+    'login.hidePassword': 'Hide password',
+    'login.loggingIn': 'Logging in...',
 
     // --- Navbar ---
     'nav.kebun': 'Farm',
