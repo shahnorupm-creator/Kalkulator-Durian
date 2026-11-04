@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'durian-fama-v9';
+const CACHE_VERSION = 'durian-fama-v10';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 const DYNAMIC_CACHE = `${CACHE_VERSION}-dynamic`;
 

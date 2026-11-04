@@ -191,7 +191,7 @@ body {
 
 /* Panel login: Premium FAMA Glass UI (glassmorphism).
    Panel 15% putih + blur 12px + border halus. Latar di belakangnya ialah
-   gambar latar utama yang sama (login-bg-v3.webp), jadi kaca
+   gambar latar utama yang sama (login-bg-v4.webp), jadi kaca
    menapis latar sebenar dan bukan imej lain. Tiada shadow pada panel. */
 .login-glass-panel {
   position: relative;
