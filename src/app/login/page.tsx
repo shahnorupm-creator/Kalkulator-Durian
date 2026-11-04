@@ -165,11 +165,11 @@ export default function LoginPage() {
 
             {/* Kad borang login sebenar */}
             <div className="mt-4 rounded-[26px] border border-white/70 bg-white/80 p-5 shadow-[0_12px_34px_rgba(6,59,42,.13)] backdrop-blur-lg md:mt-[2vh] md:p-[clamp(18px,2.3vh,24px)]">
-              <div className="mb-4 flex items-center gap-3 md:mb-[1.7vh]">
+              <div className="mb-4 flex items-center justify-center gap-3 md:mb-[1.7vh]">
                 <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#8CC63F] to-[#15942B] text-white shadow-md" aria-hidden="true">
                   <svg viewBox="0 0 24 24" fill="none" className="h-6 w-6"><circle cx="12" cy="8" r="3" stroke="currentColor" strokeWidth="1.7"/><path d="M6 19c.5-4 2.5-6 6-6s5.5 2 6 6" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"/></svg>
                 </span>
-                <div>
+                <div className="text-center">
                   <h2 className="text-lg font-extrabold leading-tight text-[#063B2A]">{t('login.title')}</h2>
                   <p className="mt-0.5 text-[11px] text-[#60776C]">{t('login.subtitle')}</p>
                 </div>
