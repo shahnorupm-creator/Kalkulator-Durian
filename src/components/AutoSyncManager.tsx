@@ -75,7 +75,7 @@ export default function AutoSyncManager() {
         duration: 3000,
         icon: '🔄',
         style: {
-          background: '#1F4D36',
+          background: '#114B39',
           color: '#fff',
         },
       });

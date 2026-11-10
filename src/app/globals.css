@@ -1,15 +1,17 @@
-﻿@tailwind base;
+@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  --forest: #1F4D36;
-  --forest-dark: #0C2D1C;
+  --forest: #114B39;
+  --forest-dark: #0B3326;
   --gold: #C98A2C;
   --gold-light: #FFC107;
   --moss: #5C8D5A;
-  --cream: #F8FAFC;
+  --cream: #F3F7F5;
   --fama-green: #124028;
+  --fama-lime-brand: #83C341;
+  --fama-blue: #114F8B;
   --fama-dark-green: #063B2A;
   --fama-emerald: #075A3A;
   --fama-lime: #8CC63F;
@@ -67,7 +69,7 @@ body {
 }
 .card-hover:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(31, 77, 54, 0.1);
+  box-shadow: 0 8px 25px rgba(17, 75, 57, 0.1);
 }
 .card-hover:active {
   transform: translateY(0);
@@ -75,7 +77,7 @@ body {
 
 /* Gradient backgrounds */
 .bg-gradient-forest {
-  background: linear-gradient(135deg, #1F4D36 0%, #2d6b4a 100%);
+  background: linear-gradient(135deg, #114B39 0%, #1A6A50 100%);
 }
 .bg-gradient-gold {
   background: linear-gradient(135deg, #C98A2C 0%, #e6a93d 100%);

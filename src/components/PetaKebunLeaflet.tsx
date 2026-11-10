@@ -25,7 +25,7 @@ interface PetaKebunLeafletProps {
 // yang selalunya gagal dimuat dalam bundler.
 const ikonKebun = L.divIcon({
   className: '',
-  html: '<div style="width:16px;height:16px;border-radius:9999px;background:#1F4D36;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>',
+  html: '<div style="width:16px;height:16px;border-radius:9999px;background:#114B39;border:2px solid #ffffff;box-shadow:0 1px 3px rgba(0,0,0,0.4)"></div>',
   iconSize: [16, 16],
   iconAnchor: [8, 8],
   popupAnchor: [0, -8],
@@ -75,7 +75,7 @@ export default function PetaKebunLeaflet({ pin, tinggi = 380 }: PetaKebunLeaflet
       const penanda = L.marker([item.lat, item.long], { icon: ikonKebun });
       penanda.bindPopup(
         `<div style="min-width:150px">
-          <div style="font-weight:700;color:#1F4D36">${item.nama}</div>
+          <div style="font-weight:700;color:#114B39">${item.nama}</div>
           <div style="font-size:11px;color:#555">${item.daerah}, ${item.negeri}</div>
           <div style="font-size:11px;color:#555;margin-top:2px">${item.ekar} ekar &middot; ${item.pokok.toLocaleString()} pokok</div>
           <div style="font-size:11px;font-weight:700;color:#C98A2C;margin-top:2px">${item.mt.toFixed(2)} MT</div>
