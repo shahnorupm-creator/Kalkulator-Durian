@@ -203,3 +203,21 @@ body {
   backdrop-filter: blur(12px);
   border: 1px solid rgba(255, 255, 255, 0.38);
 }
+
+/* Permainan Kebun Maya: pokok bergoyang perlahan. Dimatikan bagi pengguna
+   yang memilih prefers-reduced-motion. */
+@keyframes pokok-goyang {
+  0%, 100% { transform: rotate(-1.4deg); }
+  50% { transform: rotate(1.4deg); }
+}
+
+.pokok-goyang {
+  transform-origin: 50% 94%;
+  animation: pokok-goyang 5s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pokok-goyang {
+    animation: none;
+  }
+}

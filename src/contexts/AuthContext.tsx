@@ -38,6 +38,7 @@ export const APP_PAGES = [
   { key: 'kalkulator', label: 'Kalkulator (Usia & Fasa)', path: '/kalkulator' },
   { key: 'dashboard_hq', label: 'Dashboard HQ', path: '/dashboard-hq' },
   { key: 'laporan', label: 'Laporan & Infografik', path: '/laporan' },
+  { key: 'permainan', label: 'Permainan (Kebun Maya)', path: '/permainan' },
   { key: 'profil', label: 'Profil Saya', path: '/profil' },
   { key: 'admin', label: 'Admin Panel', path: '/admin' },
 ] as const;
@@ -49,6 +50,7 @@ export const DEFAULT_PAGE_ACCESS: Record<string, UserRole[]> = {
   kalkulator: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   dashboard_hq: ['superadmin', 'admin_hq'],
   laporan: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
+  permainan: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   profil: ['superadmin', 'admin_negeri', 'admin_hq', 'pegawai_daerah', 'pegawai'],
   admin: ['superadmin', 'admin_negeri'],
 };

@@ -76,6 +76,7 @@ function DesktopSidebar() {
     { href: '/peta-negeri', label: locale === 'bm' ? 'Peta Negeri' : 'State Map', icon: '📍', desc: locale === 'bm' ? 'Lihat kebun mengikut negeri' : 'View farms by state', pageKey: 'peta_negeri' },
     { href: '/dashboard-hq', label: t('nav.dashboard'), icon: '🗺️', desc: locale === 'bm' ? 'Analisis keseluruhan' : 'Overall analysis', pageKey: 'dashboard_hq' },
     { href: '/laporan', label: locale === 'bm' ? 'Laporan' : 'Reports', icon: '📋', desc: locale === 'bm' ? 'Jana Laporan Infografik' : 'Generate Infographic Report', pageKey: 'laporan' },
+    { href: '/permainan', label: locale === 'bm' ? 'Permainan' : 'Game', icon: '🎮', desc: locale === 'bm' ? 'Kebun Maya daripada rekod lawatan' : 'Virtual orchard from visit records', pageKey: 'permainan' },
     { href: '/profil', label: t('nav.profil'), icon: '👤', desc: locale === 'bm' ? 'Kemaskini Profil & Kata Laluan' : 'Update Profile & Password', pageKey: 'profil' },
     ...(isAnyAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: '⚙️', desc: locale === 'bm' ? 'Urus pengguna & role' : 'Manage users & roles', pageKey: 'admin' }] : []),
     ...(isSuperAdmin ? [{ href: '/admin/settings', label: locale === 'bm' ? 'Tetapan Akses' : 'Access Settings', icon: '🔒', desc: locale === 'bm' ? 'Kawal akses halaman' : 'Control page access', pageKey: 'admin' }] : []),
