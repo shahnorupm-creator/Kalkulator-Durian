@@ -30,14 +30,13 @@ function MobileDateTime() {
 export default function Navbar() {
   const pathname = usePathname();
   const { profile, isOnline, hasPageAccess, isAnyAdmin } = useAuth();
-  const { t, locale } = useLanguage();
+  const { t } = useLanguage();
 
   const allNavItems = [
     { href: '/', label: t('nav.kebun'), icon: '🌱', pageKey: 'profil_kebun' },
     { href: '/kalkulator', label: t('nav.kalkulator'), icon: '📊', pageKey: 'kalkulator' },
     { href: '/peta-negeri', label: 'Peta', icon: '📍', pageKey: 'peta_negeri' },
     { href: '/laporan', label: 'Laporan', icon: '📋', pageKey: 'laporan' },
-    { href: '/permainan', label: locale === 'bm' ? 'Permainan' : 'Game', icon: '🎮', pageKey: 'permainan' },
     { href: '/profil', label: t('nav.profil'), icon: '👤', pageKey: 'profil' },
     ...(isAnyAdmin ? [{ href: '/admin', label: t('nav.admin'), icon: '⚙️', pageKey: 'admin' }] : []),
   ];
