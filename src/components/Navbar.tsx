@@ -45,9 +45,9 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="bg-gradient-forest text-white px-4 py-3 flex items-center justify-between shadow-lg sticky top-0 z-50">
+      <header className="bg-gradient-forest text-white px-4 py-3 flex items-center justify-between border-b-[3px] border-fama-lime sticky top-0 z-50">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg overflow-hidden">
+          <div className="w-9 h-9 rounded-lg overflow-hidden ring-2 ring-fama-lime/70">
             <img src="/logo-durian.png" alt="FAMA" className="w-full h-full object-cover" />
           </div>
           <div>
@@ -77,7 +77,7 @@ export default function Navbar() {
                 key={item.href}
                 href={item.href}
                 className={`min-w-[64px] flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all ${
-                  isActive ? 'text-forest border-t-2 border-forest -mt-[2px]' : 'text-gray-400'
+                  isActive ? 'text-forest border-t-[3px] border-fama-lime -mt-[2px]' : 'text-gray-400'
                 }`}
               >
                 <span className="text-lg">{item.icon}</span>

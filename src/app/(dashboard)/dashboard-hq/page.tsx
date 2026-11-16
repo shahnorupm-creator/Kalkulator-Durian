@@ -321,17 +321,20 @@ export default function DashboardHQPage() {
   return (
     <div className="space-y-5">
       {/* BI Header */}
-      <div className="bg-gradient-forest rounded-2xl p-5 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-20 translate-x-20" />
+      <div className="bg-gradient-to-br from-forest via-forest to-forest-dark rounded-2xl p-5 sm:p-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-56 h-56 bg-fama-lime/15 rounded-full -translate-y-24 translate-x-24" />
+        <div className="absolute bottom-0 right-24 w-32 h-32 bg-fama-blue/25 rounded-full translate-y-16" />
+        <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-fama-lime via-fama-lime/60 to-fama-blue" />
         <div className="relative z-10">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div data-tour="dashboard-tajuk">
-              <h2 className="text-lg font-bold">{t('dash.title')}</h2>
-              <p className="text-white/50 text-[10px]">{t('dash.subtitle')}</p>
+              <p className="text-fama-lime text-[10px] font-bold tracking-widest uppercase mb-1">FAMA Executive</p>
+              <h2 className="text-xl sm:text-2xl font-extrabold leading-tight">{t('dash.title')}</h2>
+              <p className="text-white/60 text-[11px] mt-0.5">{t('dash.subtitle')}</p>
             </div>
-            <div className="text-right">
-              <p className="text-[9px] text-white/40">{t('dash.updated')}</p>
-              <p className="text-[10px] text-white/70 font-medium">{today}</p>
+            <div className="text-right flex-shrink-0 bg-white/10 rounded-xl px-3 py-2">
+              <p className="text-[9px] text-white/60">{t('dash.updated')}</p>
+              <p className="text-[11px] text-white font-semibold">{today}</p>
             </div>
           </div>
         </div>
@@ -339,25 +342,37 @@ export default function DashboardHQPage() {
 
       {/* KPI Row */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3" data-tour="dashboard-kpi">
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">{t('dash.kebun')}</p>
-          <p className="text-2xl font-bold text-forest mt-1">{kpi.totalKebun}</p>
-          <p className="text-[9px] text-moss mt-0.5">{kpi.negeriAktif} {t('dash.negeriAktif')}</p>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 border-t-4 border-t-forest">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-gray-500 font-semibold">{t('dash.kebun')}</p>
+            <span className="w-7 h-7 rounded-lg bg-forest/10 flex items-center justify-center text-sm" aria-hidden="true">🌳</span>
+          </div>
+          <p className="text-3xl font-extrabold text-forest mt-2 leading-none">{kpi.totalKebun}</p>
+          <p className="text-[10px] text-forest/60 mt-1.5">{kpi.negeriAktif} {t('dash.negeriAktif')}</p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">{t('dash.keluasan')}</p>
-          <p className="text-2xl font-bold text-forest mt-1">{kpi.totalEkar.toFixed(0)}</p>
-          <p className="text-[9px] text-moss mt-0.5">{t('dash.ekarKeseluruhan')}</p>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 border-t-4 border-t-fama-lime">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-gray-500 font-semibold">{t('dash.keluasan')}</p>
+            <span className="w-7 h-7 rounded-lg bg-fama-lime/20 flex items-center justify-center text-sm" aria-hidden="true">📐</span>
+          </div>
+          <p className="text-3xl font-extrabold text-forest mt-2 leading-none">{kpi.totalEkar.toFixed(0)}</p>
+          <p className="text-[10px] text-forest/60 mt-1.5">{t('dash.ekarKeseluruhan')}</p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">{t('dash.anggaranHasil')}</p>
-          <p className="text-2xl font-bold text-gold mt-1">{kpi.totalMT.toFixed(2)}</p>
-          <p className="text-[9px] text-moss mt-0.5">{t('dash.metrikTan')}</p>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 border-t-4 border-t-gold">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-gray-500 font-semibold">{t('dash.anggaranHasil')}</p>
+            <span className="w-7 h-7 rounded-lg bg-gold/15 flex items-center justify-center text-sm" aria-hidden="true">🍈</span>
+          </div>
+          <p className="text-3xl font-extrabold text-gold mt-2 leading-none">{kpi.totalMT.toFixed(2)}</p>
+          <p className="text-[10px] text-forest/60 mt-1.5">{t('dash.metrikTan')}</p>
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-          <p className="text-[9px] text-gray-400 font-medium">Kategori Varieti</p>
-          <p className="text-2xl font-bold text-forest mt-1">{varietiDist.length}</p>
-          <p className="text-[9px] text-moss mt-0.5 truncate">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 border-t-4 border-t-fama-blue">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-gray-500 font-semibold">Kategori Varieti</p>
+            <span className="w-7 h-7 rounded-lg bg-fama-blue/10 flex items-center justify-center text-sm" aria-hidden="true">◆</span>
+          </div>
+          <p className="text-3xl font-extrabold text-fama-blue mt-2 leading-none">{varietiDist.length}</p>
+          <p className="text-[10px] text-forest/60 mt-1.5 truncate">
             {varietiDist.length > 0
               ? `Tertinggi: ${varietiDist[0].name.split(' (')[0]}`
               : 'Belum ada data'}

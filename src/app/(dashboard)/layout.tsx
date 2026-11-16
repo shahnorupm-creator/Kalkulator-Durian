@@ -54,11 +54,11 @@ function LiveClock() {
   if (!now) return null;
 
   return (
-    <div className="mt-3 bg-forest/5 rounded-lg px-3 py-2 text-center">
-      <p className="text-[10px] text-gray-500">
+    <div className="mt-3 bg-white/10 rounded-lg px-3 py-2 text-center">
+      <p className="text-[10px] text-white/60">
         {now.toLocaleDateString('ms-MY', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
       </p>
-      <p className="text-sm font-bold text-forest">
+      <p className="text-sm font-bold text-white">
         {formatMasaBMWithSeconds(now)}
       </p>
     </div>
@@ -84,16 +84,16 @@ function DesktopSidebar() {
   const navItems = allNavItems.filter(item => hasPageAccess(item.pageKey));
 
   return (
-    <aside className="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed top-0 left-0 h-screen z-40">
+    <aside className="hidden lg:flex flex-col w-64 bg-gradient-to-b from-forest to-forest-dark text-white fixed top-0 left-0 h-screen z-40">
       {/* Logo */}
-      <div className="p-5 border-b border-gray-100">
+      <div className="p-5 border-b border-white/10">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-md">
+          <div className="w-10 h-10 rounded-xl overflow-hidden ring-2 ring-fama-lime/70">
             <img src="/logo-durian.png" alt="FAMA" className="w-full h-full object-cover" />
           </div>
           <div>
-            <h1 className="text-sm font-bold text-forest">{locale === 'bm' ? 'Kalkulator Durian' : 'Durian Calculator'}</h1>
-            <p className="text-[9px] text-gray-400">FAMA Malaysia</p>
+            <h1 className="text-sm font-bold text-white">{locale === 'bm' ? 'Kalkulator Durian' : 'Durian Calculator'}</h1>
+            <p className="text-[9px] text-fama-lime font-semibold tracking-wide">FAMA MALAYSIA</p>
           </div>
         </div>
         <LiveClock />
@@ -101,15 +101,15 @@ function DesktopSidebar() {
 
       {/* Language Toggle */}
       <div className="px-4 pt-3">
-        <div className="inline-flex bg-gray-100 rounded-full p-0.5 w-full">
+        <div className="inline-flex bg-white/10 rounded-full p-0.5 w-full">
           {(['bm', 'en'] as Locale[]).map((lang) => (
             <button
               key={lang}
               onClick={() => setLocale(lang)}
               className={`flex-1 px-3 py-1.5 rounded-full text-[10px] font-bold transition-all ${
                 locale === lang
-                  ? 'bg-forest text-white shadow-sm'
-                  : 'text-gray-500 hover:text-forest'
+                  ? 'bg-fama-lime text-forest-dark'
+                  : 'text-white/70 hover:text-white'
               }`}
             >
               {LOCALE_SHORT[lang]}
@@ -127,16 +127,16 @@ function DesktopSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-l-4 transition-all ${
                 isActive
-                  ? 'bg-forest/10 text-forest'
-                  : 'text-gray-500 hover:bg-gray-50 hover:text-forest'
+                  ? 'bg-white/15 border-fama-lime text-white'
+                  : 'border-transparent text-white/70 hover:bg-white/10 hover:text-white'
               }`}
             >
               <span className="text-lg">{item.icon}</span>
               <div>
                 <p className={`text-sm ${isActive ? 'font-bold' : 'font-medium'}`}>{item.label}</p>
-                <p className="text-[9px] text-gray-400">{item.desc}</p>
+                <p className={`text-[9px] ${isActive ? 'text-fama-lime' : 'text-white/45'}`}>{item.desc}</p>
               </div>
             </Link>
           );
@@ -144,18 +144,18 @@ function DesktopSidebar() {
       </nav>
 
       {/* User info */}
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-white/10">
         <div className="flex items-center gap-3 mb-3">
-          <div className="w-9 h-9 bg-forest/10 rounded-full flex items-center justify-center">
+          <div className="w-9 h-9 bg-fama-lime/20 ring-1 ring-fama-lime/50 rounded-full flex items-center justify-center">
             <span className="text-sm">👤</span>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold text-forest truncate">{formatNamaPaparan(profile?.nama) || '-'}</p>
-            <p className="text-[9px] text-gray-400 truncate">{profile?.negeri || profile?.daerah || '-'} &bull; {ROLE_LABELS[profile?.role || 'pegawai']}</p>
+            <p className="text-xs font-semibold text-white truncate">{formatNamaPaparan(profile?.nama) || '-'}</p>
+            <p className="text-[9px] text-white/55 truncate">{profile?.negeri || profile?.daerah || '-'} &bull; {ROLE_LABELS[profile?.role || 'pegawai']}</p>
           </div>
         </div>
         <button onClick={signOut}
-          className="w-full text-xs text-gray-400 hover:text-red-500 py-2 rounded-lg hover:bg-red-50 transition-all">
+          className="w-full text-xs text-white/60 hover:text-white py-2 rounded-lg hover:bg-white/10 transition-all">
           {t('nav.logout')}
         </button>
       </div>
