@@ -58,6 +58,58 @@ const USIA_BRACKETS = [
   { key: '16+', label: '16 Tahun Atas' },
 ] as const;
 
+// Gambar durian ikut varieti. Aset yang sama digunakan di Dashboard HQ.
+const GAMBAR_VARIETI: Record<string, string> = {
+  musangking: '/d197-musang-king.avif',
+  ioi: '/d168-ioi.avif',
+  blackthorn: '/d200-black-thorn.avif',
+  udangmerah: '/d175-red-prawn-inline-01.avif',
+  d24: '/d24-inline-02.avif',
+  kampung: '/durian%20kampung.avif',
+};
+
+// Bilangan pokok bagi setiap varieti dalam satu kebun (format baharu, kemudian format lama).
+function jumlahPokokIkutVarieti(k: KebunRecord): Record<string, number> {
+  const jumlah: Record<string, number> = {};
+  if (k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0)) {
+    k.varietiData.forEach(v => {
+      if (v.varieti && v.bilangan > 0) jumlah[v.varieti] = (jumlah[v.varieti] || 0) + v.bilangan;
+    });
+    return jumlah;
+  }
+  const lama: [string, number][] = [
+    [k.varieti5_9, k.usia5_9 || 0],
+    [k.varieti10_15, k.usia10_15 || 0],
+    [k.varieti16_19, k.usia16_19 || 0],
+    [k.varieti20, k.usia20 || 0],
+  ];
+  lama.forEach(([kunci, bil]) => {
+    if (kunci && bil > 0) jumlah[kunci] = (jumlah[kunci] || 0) + bil;
+  });
+  // Rekod lama tanpa bilangan: ambil varieti pertama yang diisi supaya gambar tetap ada.
+  if (Object.keys(jumlah).length === 0) {
+    const pertama = k.varieti5_9 || k.varieti10_15 || k.varieti16_19 || k.varieti20;
+    if (pertama) jumlah[pertama] = 1;
+  }
+  return jumlah;
+}
+
+// Varieti paling banyak pokok dalam kebun ini (untuk foto kad).
+function kunciVarietiDominan(k: KebunRecord): string | null {
+  const atas = Object.entries(jumlahPokokIkutVarieti(k)).sort((a, b) => b[1] - a[1])[0];
+  return atas ? atas[0] : null;
+}
+
+// Sama dengan syarat "Lengkap" yang digunakan pada kad kebun.
+function kebunLengkap(k: KebunRecord): boolean {
+  const pokok = k.jumlahPokok || 0;
+  const adaVarietiBaharu = !!(k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0));
+  const adaVarietiLama = (!k.varietiData || k.varietiData.length === 0)
+    && !!(k.varieti5_9 || k.varieti10_15 || k.varieti16_19);
+  return pokok > 0 && (adaVarietiBaharu || adaVarietiLama)
+    && !!k.alamat && !!k.mukim && !!k.latlong && !!k.noTelefon && k.noTelefon !== '-';
+}
+
 export default function ProfilKebunPage() {
   const { user, profile, isSuperAdmin, isAdminNegeri, isAnyAdmin, signOut } = useAuth();
   const { t } = useLanguage();
@@ -461,20 +513,41 @@ export default function ProfilKebunPage() {
     if (filterDaerah !== 'Semua' && !daerahMasihWujud) setFilterDaerah('Semua');
   }, [kebunList, loading, filterNegeri, filterDaerah]);
 
+  // KPI mengikut senarai yang sedang ditapis (negeri, daerah dan carian).
+  const kpiPokok = filtered.reduce((jumlah, k) => jumlah + (k.jumlahPokok || 0), 0);
+  const kpiEkar = filtered.reduce((jumlah, k) => jumlah + (k.saizKebun || 0), 0);
+  const kpiLengkap = filtered.filter(kebunLengkap).length;
+  const kpiPeratusLengkap = filtered.length > 0 ? Math.round((kpiLengkap / filtered.length) * 100) : 0;
+  const kpiVarietiUtama = (() => {
+    const jumlah: Record<string, number> = {};
+    filtered.forEach(k => {
+      Object.entries(jumlahPokokIkutVarieti(k)).forEach(([kunci, bil]) => {
+        jumlah[kunci] = (jumlah[kunci] || 0) + bil;
+      });
+    });
+    const atas = Object.entries(jumlah).sort((a, b) => b[1] - a[1])[0];
+    if (!atas) return null;
+    return {
+      nama: VARIETIES.find(v => v.key === atas[0])?.name.split(' (')[0] || atas[0],
+      pokok: atas[1],
+    };
+  })();
+
   return (
     <div className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div data-tour="kebun-tajuk">
-          <h2 className="text-lg font-bold text-forest">{t('kebun.title')}</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-forest leading-tight">{t('kebun.title')}</h2>
           {canAccessAllNegeri && (
-            <p className="text-xs text-gray-500">
-              {t('kebun.subtitleAdmin')}
+            <p className="text-xs sm:text-sm text-forest/70 mt-0.5 flex items-center gap-1.5">
+              <span aria-hidden="true">🌿</span>{t('kebun.subtitleAdmin')}
             </p>
           )}
+          <span className="mt-2 block h-1 w-16 rounded-full bg-gradient-to-r from-fama-lime to-fama-lime/20" aria-hidden="true" />
         </div>
         <button data-tour="kebun-tambah" onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
-          className="bg-forest text-white px-4 py-2 rounded-xl text-sm font-semibold shadow-md hover:bg-moss transition-all active:scale-95">
+          className="bg-gradient-forest text-white px-5 py-2.5 rounded-full text-sm font-bold shadow-md ring-2 ring-fama-lime/40 hover:ring-fama-lime hover:-translate-y-0.5 transition-all active:scale-95 motion-reduce:hover:translate-y-0">
           {showForm ? t('kebun.closeBtn') : t('kebun.addBtn')}
         </button>
       </div>
@@ -729,10 +802,60 @@ export default function ProfilKebunPage() {
         </div>
       )}
 
+      {/* KPI — daripada data sebenar mengikut penapis semasa */}
+      {!loading && kebunList.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="rounded-2xl border border-gray-100 border-t-4 border-t-forest bg-white/90 p-3.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-gray-500">Jumlah Kebun</p>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-forest/10 text-sm" aria-hidden="true">🌱</span>
+            </div>
+            <p className="mt-2 text-2xl font-extrabold leading-none text-forest">{filtered.length.toLocaleString('ms-MY')}</p>
+            <p className="mt-1.5 text-[10px] text-forest/60">
+              {filterNegeri !== 'Semua' ? filterNegeri : 'Seluruh akses anda'}
+            </p>
+          </div>
+          <div className="rounded-2xl border border-gray-100 border-t-4 border-t-fama-lime bg-white/90 p-3.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-gray-500">Jumlah Pokok</p>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-fama-lime/20 text-sm" aria-hidden="true">🌳</span>
+            </div>
+            <p className="mt-2 text-2xl font-extrabold leading-none text-forest">{kpiPokok.toLocaleString('ms-MY')}</p>
+            <p className="mt-1.5 text-[10px] text-forest/60">pokok didaftarkan</p>
+          </div>
+          <div className="rounded-2xl border border-gray-100 border-t-4 border-t-fama-blue bg-white/90 p-3.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-gray-500">Keluasan</p>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-fama-blue/10 text-sm" aria-hidden="true">📐</span>
+            </div>
+            <p className="mt-2 text-2xl font-extrabold leading-none text-fama-blue">{kpiEkar.toLocaleString('ms-MY', { maximumFractionDigits: 1 })}</p>
+            <p className="mt-1.5 text-[10px] text-forest/60">ekar</p>
+          </div>
+          <div className="rounded-2xl border border-gray-100 border-t-4 border-t-moss bg-white/90 p-3.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-gray-500">Data Lengkap</p>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-moss/15 text-sm" aria-hidden="true">✓</span>
+            </div>
+            <p className="mt-2 text-2xl font-extrabold leading-none text-forest">{kpiPeratusLengkap}%</p>
+            <p className="mt-1.5 text-[10px] text-forest/60">{kpiLengkap} daripada {filtered.length} kebun</p>
+          </div>
+          <div className="col-span-2 lg:col-span-1 rounded-2xl border border-gold/30 border-t-4 border-t-gold bg-gradient-to-br from-white to-gold/10 p-3.5 shadow-sm">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[10px] font-semibold text-gray-500">Varieti Utama</p>
+              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-gold/15 text-sm" aria-hidden="true">🍈</span>
+            </div>
+            <p className="mt-2 truncate text-lg font-extrabold leading-tight text-gold">{kpiVarietiUtama ? kpiVarietiUtama.nama : '-'}</p>
+            <p className="mt-1.5 text-[10px] text-forest/60">
+              {kpiVarietiUtama ? `${kpiVarietiUtama.pokok.toLocaleString('ms-MY')} pokok` : 'Belum ada data varieti'}
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Filter & Search */}
       <div className="space-y-2">
         {canAccessAllNegeri && negeriOptions.length > 0 && (
-          <div className="rounded-2xl border border-gray-100 bg-white p-3 shadow-sm space-y-2.5">
+          <div className="rounded-2xl border border-gray-100 bg-white/90 p-3 shadow-sm space-y-2.5">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[11px] font-bold text-forest">Pilih Negeri</p>
@@ -746,7 +869,7 @@ export default function ProfilKebunPage() {
             <div className="flex gap-2 overflow-x-auto pb-1 sm:flex-wrap sm:overflow-visible">
               <button type="button" aria-pressed={filterNegeri === 'Semua'}
                 onClick={() => { setFilterNegeri('Semua'); setFilterDaerah('Semua'); }}
-                className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${filterNegeri === 'Semua' ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
+                className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${filterNegeri === 'Semua' ? 'border-forest bg-gradient-forest text-white shadow-md ring-2 ring-fama-lime/50' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
                 <span className="relative flex h-7 w-10 flex-shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-200/60 bg-white text-[9px] font-bold text-gray-400">
                   MY
                   <img src="/malaysia.jpg" alt="Bendera Malaysia" className="absolute inset-0 h-full w-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }} />
@@ -762,7 +885,7 @@ export default function ProfilKebunPage() {
                 return (
                   <button key={name} type="button" aria-pressed={active}
                     onClick={() => { setFilterNegeri(name); setFilterDaerah('Semua'); }}
-                    className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${active ? 'border-forest bg-forest text-white shadow-md ring-2 ring-forest/10' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
+                    className={`flex-none min-w-[130px] inline-flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-forest/40 ${active ? 'border-forest bg-gradient-forest text-white shadow-md ring-2 ring-fama-lime/50' : 'border-gray-200 bg-white text-gray-700 hover:border-forest/40 hover:bg-forest/5'}`}>
                     {NEGERI_FLAG[name] ? (
                       <img src={NEGERI_FLAG[name]} alt={`Bendera ${name}`} className="h-7 w-10 rounded-lg border border-gray-200/60 object-contain bg-white flex-shrink-0" />
                     ) : NEGERI_FLAG_COLORS[name] ? (
@@ -828,12 +951,12 @@ export default function ProfilKebunPage() {
 
         <div className="flex gap-2 items-center" data-tour="kebun-carian">
           <input placeholder={t('kebun.search')} value={search} onChange={(e) => setSearch(e.target.value)}
-            className="flex-1 px-4 py-2.5 border border-gray-200 rounded-xl text-sm bg-white focus:ring-2 focus:ring-forest/30 focus:outline-none" />
+            className="flex-1 px-5 py-3 border border-gray-200 rounded-full text-sm bg-white/90 shadow-sm focus:ring-2 focus:ring-fama-lime/50 focus:border-forest focus:outline-none" />
           {/* Grid/List Toggle */}
-          <div className="flex bg-gray-100 rounded-lg p-0.5">
+          <div className="flex bg-white/90 border border-gray-200 rounded-full p-1 shadow-sm">
             <div className="relative group">
               <button onClick={() => setViewMode('list')}
-                className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'list' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs transition-all ${viewMode === 'list' ? 'bg-forest text-white font-bold' : 'text-gray-400 hover:text-forest'}`}>
                 ☰
               </button>
               <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-gray-800 text-white text-[8px] px-2 py-1 rounded whitespace-nowrap">
@@ -842,7 +965,7 @@ export default function ProfilKebunPage() {
             </div>
             <div className="relative group">
               <button onClick={() => setViewMode('grid')}
-                className={`px-2.5 py-1.5 rounded-md text-xs transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-forest font-bold' : 'text-gray-400'}`}>
+                className={`px-3 py-1.5 rounded-full text-xs transition-all ${viewMode === 'grid' ? 'bg-forest text-white font-bold' : 'text-gray-400 hover:text-forest'}`}>
                 ⊞
               </button>
               <div className="hidden group-hover:block absolute top-full left-1/2 -translate-x-1/2 mt-1 z-50 bg-gray-800 text-white text-[8px] px-2 py-1 rounded whitespace-nowrap">
@@ -924,7 +1047,7 @@ export default function ProfilKebunPage() {
             const hasVarietiData = k.varietiData && k.varietiData.some(v => v.varieti && v.bilangan > 0);
             const hasLegacyVarieti = (!k.varietiData || k.varietiData.length === 0) && (k.varieti5_9 || k.varieti10_15 || k.varieti16_19);
             const hasVarieti = hasVarietiData || hasLegacyVarieti;
-            const isComplete = pokok > 0 && hasVarieti && !!k.alamat && !!k.mukim && !!k.latlong && !!k.noTelefon && k.noTelefon !== '-';
+            const isComplete = kebunLengkap(k);
 
             // Senarai perkara belum lengkap untuk tooltip
             const missingItems: string[] = [];
@@ -954,12 +1077,33 @@ export default function ProfilKebunPage() {
             })();
             const uniqueVarieti = [...new Set(varietiNames)];
 
+            // Foto kad = varieti dominan (paling banyak pokok) dalam kebun ini.
+            const kunciDominan = kunciVarietiDominan(k);
+            const gambarVarieti = kunciDominan ? GAMBAR_VARIETI[kunciDominan] : undefined;
+            const namaDominan = kunciDominan
+              ? (VARIETIES.find(v => v.key === kunciDominan)?.name.split(' (')[0] || kunciDominan)
+              : '';
+
             return (
               <div key={k.id}
-                className={`bg-white rounded-xl p-3.5 shadow-sm border cursor-pointer card-hover relative ${
+                className={`bg-white/90 rounded-2xl p-3 shadow-sm border cursor-pointer card-hover relative flex gap-3 ${
                   isComplete ? 'border-gray-100' : 'border-amber-200'
                 }`}
                 onClick={() => handleEdit(k)}>
+                {/* Foto varieti dominan */}
+                <div className={`relative w-24 sm:w-28 flex-shrink-0 self-stretch min-h-[148px] overflow-hidden rounded-xl border border-gray-100 ${kunciDominan === 'd24' ? 'bg-white' : 'bg-forest/10'}`}>
+                  {gambarVarieti ? (
+                    <img src={gambarVarieti} alt={namaDominan} loading="lazy" decoding="async"
+                      className={`absolute inset-0 h-full w-full ${kunciDominan === 'd24' ? 'object-contain' : 'object-cover'}`} />
+                  ) : (
+                    <span className="absolute inset-0 flex items-center justify-center text-3xl" aria-hidden="true">🌳</span>
+                  )}
+                  {namaDominan && (
+                    <span className="absolute inset-x-0 bottom-0 truncate bg-forest/85 px-1 py-0.5 text-center text-[8px] font-bold text-white">{namaDominan}</span>
+                  )}
+                </div>
+
+                <div className="min-w-0 flex-1 pb-7">
                 {/* Status badge with tooltip */}
                 <div className="absolute top-2.5 right-2.5 group">
                   <div className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold cursor-default ${
@@ -1004,11 +1148,11 @@ export default function ProfilKebunPage() {
 
                 {/* Stats row */}
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-[9px] bg-forest/10 text-forest px-2 py-0.5 rounded-full font-semibold">
-                    {k.saizKebun || 0} ekar
+                  <span className="text-[10px] bg-fama-lime/20 text-forest px-2.5 py-1 rounded-full font-bold">
+                    🌱 {k.saizKebun || 0} ekar
                   </span>
-                  <span className={`text-[9px] px-2 py-0.5 rounded-full font-semibold ${
-                    pokok > 0 ? 'bg-gold/10 text-gold' : 'bg-red-50 text-red-400'
+                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold ${
+                    pokok > 0 ? 'bg-gold/15 text-gold' : 'bg-red-50 text-red-400'
                   }`}>
                     {pokok > 0 ? `${pokok} pokok` : '0 pokok'}
                   </span>
@@ -1041,11 +1185,19 @@ export default function ProfilKebunPage() {
                   <p className="text-[8px] text-purple-500 mt-1">👤 {formatNamaPaparan(k.assignedNama)}</p>
                 )}
 
-                {/* Delete */}
-                {isAnyAdmin && (
-                  <button onClick={(e) => { e.stopPropagation(); handleDelete(k.id); }}
-                    className="absolute bottom-2.5 right-2.5 text-gray-200 hover:text-red-400 text-sm transition-colors">×</button>
-                )}
+                </div>
+
+                {/* Tindakan */}
+                <div className="absolute bottom-2.5 right-2.5 flex items-center gap-1.5">
+                  <button type="button" onClick={(e) => { e.stopPropagation(); handleEdit(k); }}
+                    aria-label={`Edit ${formatNamaPaparan(k.nama)}`}
+                    className="flex h-7 w-7 items-center justify-center rounded-lg bg-forest/10 text-xs text-forest transition-colors hover:bg-forest hover:text-white">✎</button>
+                  {isAnyAdmin && (
+                    <button type="button" onClick={(e) => { e.stopPropagation(); handleDelete(k.id); }}
+                      aria-label={`Padam ${formatNamaPaparan(k.nama)}`}
+                      className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-50 text-sm text-red-400 transition-colors hover:bg-red-500 hover:text-white">×</button>
+                  )}
+                </div>
               </div>
             );
           })}
